@@ -18,6 +18,7 @@ public enum Command: Equatable {
     /// `grow` is +1 or -1; `axis` nil means the nearest container that can change.
     case resize(axis: Orientation?, grow: Int)
     case flip
+    case stack
     case balance
     case float
     case zoom
@@ -38,9 +39,10 @@ public enum Command: Equatable {
     public static let usage = """
     focus left|right|up|down        focus the window in that direction
     move left|right|up|down         move the focused window within the layout (or to the next display)
-    join left|right|up|down         stack the focused window with its neighbour
+    join left|right|up|down         group the focused window with its neighbour
     resize grow|shrink [width|height]
-    flip                            switch the focused container between side-by-side and stacked
+    flip                            switch the focused container between side-by-side and top-to-bottom
+    stack                           switch the focused container between tiles and a stack of overlapping windows
     balance                         give every window an equal share again
     float                           toggle tiling for the focused window
     zoom                            toggle the focused window filling the Space
@@ -104,6 +106,7 @@ public enum Command: Equatable {
             guard let grow else { throw CommandError("resize needs 'grow' or 'shrink'") }
             return .resize(axis: axis, grow: grow)
         case "flip": return try noArgs(.flip)
+        case "stack": return try noArgs(.stack)
         case "balance": return try noArgs(.balance)
         case "float": return try noArgs(.float)
         case "zoom": return try noArgs(.zoom)

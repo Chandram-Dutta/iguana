@@ -71,7 +71,8 @@ enum StatusIcon {
                     NSBezierPath(roundedRect: NSRect(x: x, y: rect.midY - 3, width: 2, height: 6), xRadius: 0.8, yRadius: 0.8).fill()
                 }
             case .layout(let layout, let windows, let focused):
-                let frames = computeLayout(Tree(snapshot: layout), in: rect, gap: 1.6, visible: windows)
+                // Like the gap, the strip of a stacked window is drawn far larger than to scale, so that it can be seen.
+                let frames = computeLayout(Tree(snapshot: layout), in: rect, gap: 1.6, visible: windows, peek: 2.6)
                 if frames.isEmpty {
                     // An empty desktop.
                     outline(0.7)
@@ -106,7 +107,7 @@ enum StatusIcon {
             let top = (height - glyph.height) / 2
             for (index, desk) in desks.enumerated() {
                 let rect = NSRect(x: CGFloat(index) * (glyph.width + spacing), y: top, width: glyph.width, height: glyph.height)
-                let frames = computeLayout(Tree(snapshot: desk.layout), in: rect, gap: 1.4, visible: desk.windows)
+                let frames = computeLayout(Tree(snapshot: desk.layout), in: rect, gap: 1.4, visible: desk.windows, peek: 2.2)
                 if frames.isEmpty {
                     let path = NSBezierPath(roundedRect: rect.insetBy(dx: 0.75, dy: 0.75), xRadius: 2.6, yRadius: 2.6)
                     path.lineWidth = 1

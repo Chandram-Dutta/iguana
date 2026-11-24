@@ -1,12 +1,12 @@
 ---
 title: How tiling works
-description: The layout tree behind Iguana, how new windows split existing ones, and what move, join, flip and resize do to it.
+description: The layout tree behind Iguana, how new windows split existing ones, and what move, join, flip, stack and resize do to it.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
 After this page you will be able to predict where a new window opens and what `move`, `join`,
-`flip` and `resize` will do to any layout.
+`flip`, `stack` and `resize` will do to any layout.
 
 ## The layout is a tree
 
@@ -14,8 +14,8 @@ Iguana keeps one layout for each desktop on each display. A layout is a tree:
 
 - A **window** is a leaf of the tree. On screen it is a tile.
 - A **container** holds two or more children and divides its area among them. A container is
-  either **horizontal** (its children sit side by side) or **vertical** (its children are
-  stacked top to bottom).
+  either **horizontal** (its children sit side by side) or **vertical** (its children sit
+  one above the other).
 - Each child has a **share** of its container. Equal shares mean equal sizes.
 
 A child of a container can be a window or another container. This layout:
@@ -136,8 +136,8 @@ there is none, nothing happens and Iguana answers `ok: already at the edge`.
 ## Join
 
 `join` takes a direction. It puts the focused window and its neighbour on that side into one
-slot, split the other way. Joining sideways stacks the two; joining up or down puts them side
-by side.
+slot, split the other way. Joining sideways puts the two one above the other; joining up or
+down puts them side by side.
 
 `join left` on B:
 
@@ -149,8 +149,9 @@ by side.
 +------+------+------+        +---------+----------+
 ```
 
-The focused window goes second: below when stacked, on the right when side by side. If the
-neighbour is already a group of windows, the focused window is added to the end of that group.
+The focused window goes second: below when one is above the other, on the right when side by
+side. If the neighbour is already a group of windows, the focused window is added to the end
+of that group.
 
 If there is no neighbour in that direction, Iguana answers `ok: no neighbour in that direction`.
 
@@ -188,6 +189,45 @@ them into it. Together they keep the share of the desktop they had, but they are
 group of their own. Pressing `flip` again with B focused now flips the outer container. To
 get the grouping back, use `join`, then `balance` if you want equal sizes again.
 </Aside>
+
+## Stack
+
+A container divides its area, so each window in it has a tile of its own and the tiles get
+smaller as windows are added. `stack` switches the container that holds the focused window to
+the other arrangement: its windows **overlap**. Each one gets nearly the whole area of the
+container, shifted a little from the one before it, so that a strip of every window stays in
+view. `stack` again turns the stack back into tiles.
+
+`stack` with any of the three focused, and then B brought to the front:
+
+```text
++------+------+------+        +-+----------------+-+
+|      |      |      |        | |                | |
+|  A   |  B   |  C   |   →    |A|       B        |C|
+|      |      |      |        | |                | |
++------+------+------+        +-+----------------+-+
+```
+
+Nothing is hidden. Every window of the stack is on screen, in the place the stack gives it;
+one of them is in front of the others.
+
+- **The strips.** Each strip is [`stack-peek`](/reference/configuration/#stack-peek) wide, 32
+  points by default. A horizontal stack shows them at its left and right edge, a vertical one
+  at its top and bottom. `flip` turns one into the other.
+- **Focus.** `focus` in the direction the stack runs goes to the next or the previous window
+  of the stack and brings it to the front. From the last window it goes on to the neighbour
+  beyond the stack. Clicking a strip brings that window to the front too.
+- **Move.** `move` in the direction the stack runs changes the order of its windows. At the
+  end of the stack, or across its direction, the window leaves the stack.
+- **New windows.** A window that opens while a window of a stack is focused joins the stack,
+  next to that window. `join` towards a stack and `move` into one add the focused window to it.
+- **Resize.** The windows of a stack all have the same size, so `resize` grows or shrinks the
+  stack as a whole against its neighbours.
+
+To stack two windows out of several, `join` them first and then press `stack`: it works on
+the group the focused window is in. A stack that is down to one window is an ordinary tile
+again. And a stack is never merged into a row or column around it, even one that runs the same
+way: `iguana tree` shows it as `horizontal stack` or `vertical stack`.
 
 ## Resize
 
