@@ -199,6 +199,36 @@ final class TreeTests: XCTestCase {
         XCTAssertEqual(m[2]!.width, 200)
     }
 
+    func testResizingStartsFromWhatIsOnScreen() {
+        let t = Tree()
+        [1, 2].forEach { t.insert($0) }
+        let mins: [WindowID: CGSize] = [1: CGSize(width: 600, height: 0)]
+        // Shrinking a window that is at its minimum shows nothing, however often it is asked.
+        for _ in 0..<10 {
+            t.matchWeights(to: frames(t, mins: mins))
+            t.changeShare(of: 1, .delta(-0.05))
+            XCTAssertEqual(frames(t, mins: mins)[1]!.width, 600)
+        }
+        // The first step back the other way shows at once, instead of paying off ten unseen ones.
+        t.matchWeights(to: frames(t, mins: mins))
+        t.changeShare(of: 1, .delta(0.05))
+        XCTAssertEqual(frames(t, mins: mins)[1]!.width, 650, accuracy: 1)
+    }
+
+    func testMatchingWeightsLeavesAnHonestLayoutAlone() {
+        let t = Tree()
+        [1, 2, 3].forEach { t.insert($0) }
+        t.insert(4, after: 3, split: .vertical)
+        t.changeShare(of: 1, .delta(0.1))
+        let before = t.snapshot
+        t.matchWeights(to: frames(t, gap: 10))
+        XCTAssertEqual(t.snapshot, before)
+        // Windows that are not on screen keep their weight.
+        t.matchWeights(to: frames(t, visible: [1, 2], mins: [1: CGSize(width: 700, height: 0)]), visible: [1, 2])
+        XCTAssertEqual(frames(t, visible: [1, 2])[1]!.width, 700, accuracy: 1)
+        XCTAssertNotNil(frames(t)[3])
+    }
+
     func testMinimumSizesThatDoNotFitAreScaled() {
         XCTAssertEqual(distribute(total: 100, weights: [1, 1], mins: [80, 80]), [50, 50])
         XCTAssertEqual(distribute(total: 100, weights: [1, 3], mins: [0, 0]), [25, 75])
@@ -365,7 +395,7 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(warnings, [])
         XCTAssertEqual(c.gapInner, 8)
         XCTAssertEqual(c.stripReserve, .auto)
-        XCTAssertEqual(c.bindings.count, 36)
+        XCTAssertEqual(c.bindings.count, 40)
         XCTAssertEqual(c.rules.count, 3)
         XCTAssertTrue(c.bindings.contains { $0.source == "option-shift-3" && $0.command == .moveToSpace(.index(3), follow: true) })
         XCTAssertEqual(Config.default, c)
@@ -391,7 +421,7 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(c.gapOuter.left, 8)
         XCTAssertTrue(c.autoSplit)
         XCTAssertEqual(c.stripReserve, .off)
-        XCTAssertEqual(c.bindings.count, 37, "the file's shortcut is added to the 36 built-in ones")
+        XCTAssertEqual(c.bindings.count, 41, "the file's shortcut is added to the 40 built-in ones")
         XCTAssertTrue(c.bindings.contains { $0.source == "cmd-option-left" && $0.commandText == "focus left" })
         XCTAssertEqual(warnings.count, 4)
     }
@@ -413,7 +443,7 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(c.bindings.first { $0.source == "option-h" }?.command, .focus(.right))
         XCTAssertFalse(c.bindings.contains { $0.source == "option-l" || $0.source == "option-j" })
         XCTAssertTrue(c.bindings.contains { $0.source == "option-k" }, "untouched shortcuts stay")
-        XCTAssertEqual(c.bindings.count, 36 - 2 + 1)
+        XCTAssertEqual(c.bindings.count, 40 - 2 + 1)
         XCTAssertEqual(c.rules, Config.default.rules, "no [[rule]] in the file keeps the built-in rules")
         XCTAssertFalse(c.animate)
         XCTAssertEqual(c.animationDuration, 0.3)

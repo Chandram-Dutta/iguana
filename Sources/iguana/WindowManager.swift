@@ -51,7 +51,7 @@ private let axCallback: AXObserverCallback = { _, element, notification, refcon 
 /// system is showing right now. It never hides, parks or moves a window to make a "workspace".
 /// Spaces, Mission Control, Stage Manager, fullscreen and minimising stay the system's business.
 final class WindowManager {
-    static let version = "0.1.1"
+    static let version = "0.1.2"
 
     private(set) var config = Config.default
     private(set) var configWarnings: [String] = []
@@ -83,6 +83,8 @@ final class WindowManager {
     private var started = false
     private var restoredFloating = Set<CGWindowID>()
     private var restoredMinSizes: [CGWindowID: CGSize] = [:]
+    /// Windows whose minimum size comes from the last run and has not been checked in this one.
+    private var unverifiedMinimums = Set<CGWindowID>()
     private var saveWork: DispatchWorkItem?
     private var lastConfigLog = ""
     private let animator = Animator()
@@ -313,7 +315,10 @@ final class WindowManager {
             let w = WindowState(id: id, pid: pid, element: el, tileable: Self.isTileable(el))
             w.ruleFloat = matchesFloatRule(w, app: state.app)
             if restoredFloating.remove(id) != nil { w.userFloat = true }
-            if let size = restoredMinSizes.removeValue(forKey: id) { w.minSize = size }
+            if let size = restoredMinSizes.removeValue(forKey: id) {
+                w.minSize = size
+                unverifiedMinimums.insert(id)
+            }
             windows[id] = w
             if let o = state.observer {
                 AXObserverAddNotification(o, el, kAXUIElementDestroyedNotification as CFString, Unmanaged.passUnretained(self).toOpaque())
@@ -411,7 +416,6 @@ final class WindowManager {
             guard spaces.isEmpty || spaces.contains(displays[i].spaceID) else { continue }
             byDisplay[i, default: []].append(w)
         }
-        let mins = minSizes
         for (i, d) in displays.enumerated() where d.isDesktop {
             let here = (byDisplay[i] ?? []).sorted { $0.id < $1.id }
             let ids = Set(here.map(\.id))
@@ -428,7 +432,13 @@ final class WindowManager {
                 adopt(w, into: tree, key: key, visible: ids, usable: usable)
             }
             if let z = zoomed[key], !ids.contains(z) { zoomed[key] = nil }
-            let computed = computeLayout(tree, in: usable, gap: config.gapInner, visible: ids, minSizes: mins)
+            // A minimum remembered from the last run is checked the first time it would shape a layout.
+            let doubtful = ids.intersection(unverifiedMinimums)
+            if !doubtful.isEmpty {
+                unverifiedMinimums.subtract(doubtful)
+                recheckMinimums(in: tree, key: key, visible: ids, usable: usable, only: doubtful)
+            }
+            let computed = computeLayout(tree, in: usable, gap: config.gapInner, visible: ids, minSizes: minSizes)
             allSlots.merge(computed) { a, _ in a }
             var applied = computed
             if let z = zoomed[key] { applied[z] = usable }
@@ -482,10 +492,22 @@ final class WindowManager {
         justAdopted.removeAll()
     }
 
-    /// A window has been given its final frame. If it came out bigger than asked, it has a
-    /// minimum size: remember it and lay out again around it.
+    /// A window has been given its final frame. If it came out bigger than asked, it may have a
+    /// minimum size. A busy window can also answer with the size it had before, so ask once
+    /// more and believe only what it still says a moment later.
     private func landed(_ id: CGWindowID, asked: CGRect, actual: CGSize?) {
         guard let w = windows[id], let actual, !zoomed.values.contains(id) else { return }
+        let known = w.minSize ?? .zero
+        guard (actual.width > asked.width + 2 && actual.width > known.width)
+            || (actual.height > asked.height + 2 && actual.height > known.height) else { return }
+        w.element.setSize(asked.size)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in self?.confirmMinimum(id, asked: asked) }
+    }
+
+    /// The window still is bigger than it was asked to be: remember that and lay out again around it.
+    private func confirmMinimum(_ id: CGWindowID, asked: CGRect) {
+        guard let w = windows[id], !zoomed.values.contains(id), !animator.isMoving(id), drag?.id != id,
+              let wanted = w.lastSetFrame, nearlyEqual(wanted, asked), let actual = w.element.size else { return }
         var m = w.minSize ?? .zero
         var changed = false
         if actual.width > asked.width + 2, actual.width > m.width {
@@ -499,6 +521,28 @@ final class WindowManager {
         if changed {
             w.minSize = m
             scheduleRefresh(after: 0)
+        }
+    }
+
+    /// A minimum size is something Iguana once saw, and what it saw can be wrong or out of date.
+    /// When the user asks for a change of sizes, every window that the layout holds at its minimum
+    /// is asked for the size it would have without one. One that takes it had no such minimum.
+    private func recheckMinimums(in tree: Tree, key: String) {
+        guard let display = displays.first(where: { $0.isDesktop && $0.treeKey == key }) else { return }
+        recheckMinimums(in: tree, key: key, visible: lastVisible.filter { tree.contains($0) }, usable: display.usableFrame(config))
+    }
+
+    private func recheckMinimums(in tree: Tree, key: String, visible ids: Set<CGWindowID>, usable: CGRect, only: Set<CGWindowID>? = nil) {
+        let free = computeLayout(tree, in: usable, gap: config.gapInner, visible: ids)
+        for (id, slot) in free where only?.contains(id) != false {
+            guard let w = windows[id], var m = w.minSize, zoomed[key] != id else { continue }
+            let wide = m.width > slot.width + 2, tall = m.height > slot.height + 2
+            guard wide || tall, let now = w.element.size else { continue }
+            let ask = CGSize(width: wide ? slot.width : now.width, height: tall ? slot.height : now.height)
+            guard w.element.setSize(ask), let got = w.element.size else { continue }
+            if wide { m.width = got.width > ask.width + 2 ? got.width : 0 }
+            if tall { m.height = got.height > ask.height + 2 ? got.height : 0 }
+            w.minSize = m.width > 0 || m.height > 0 ? m : nil
         }
     }
 
@@ -535,15 +579,22 @@ final class WindowManager {
                 tree.join(id, with: dir, visible: lastVisible) ? "ok" : "ok: no neighbour in that direction"
             }
         case .resize(let axis, let grow):
-            return withFocusedTile { id, tree, _ in
-                tree.changeShare(of: id, along: axis, .delta(Double(grow) * config.resizeStep), visible: lastVisible)
-                    ? "ok" : "ok: nothing to resize against"
+            return withFocusedTile { id, tree, key in
+                // Start from the sizes on screen, which differ from the weights where a window is
+                // held at its minimum size.
+                tree.matchWeights(to: slots, visible: lastVisible)
+                guard tree.changeShare(of: id, along: axis, .delta(Double(grow) * config.resizeStep), visible: lastVisible) else {
+                    return "ok: nothing to resize against"
+                }
+                recheckMinimums(in: tree, key: key)
+                return "ok"
             }
         case .flip:
             return withFocusedTile { id, tree, _ in tree.flip(id) ? "ok" : "error: cannot flip" }
         case .balance:
-            return withFocusedTile { _, tree, _ in
+            return withFocusedTile { _, tree, key in
                 tree.balance()
+                recheckMinimums(in: tree, key: key)
                 return "ok"
             }
         case .zoom:

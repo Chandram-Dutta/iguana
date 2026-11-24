@@ -311,6 +311,38 @@ public final class Tree {
         return false
     }
 
+    /// Make the weights agree with what is on screen. A window that is held at its minimum size
+    /// takes more room than its weight asks for, and from then on a change of weight shows
+    /// nothing until it has made up the difference. After this, the next change starts from what
+    /// the user sees.
+    public func matchWeights(to frames: [WindowID: CGRect], visible: Set<WindowID>? = nil) {
+        func extent(_ n: Node) -> CGRect? {
+            if let id = n.windowID { return visible?.contains(id) == false ? nil : frames[id] }
+            var all: CGRect?
+            for child in n.children {
+                guard let e = extent(child) else { continue }
+                all = all?.union(e) ?? e
+            }
+            return all
+        }
+        func walk(_ n: Node) {
+            guard let o = n.orientation else { return }
+            n.children.forEach(walk)
+            let kids = n.children.filter { hasVisible($0, visible) }
+            guard kids.count > 1 else { return }
+            let lengths = kids.map { kid -> Double in
+                guard let e = extent(kid) else { return 0 }
+                return Double(o == .horizontal ? e.width : e.height)
+            }
+            let length = lengths.reduce(0, +), weight = kids.reduce(0) { $0 + $1.weight }
+            guard weight > 0, !lengths.contains(where: { $0 <= 0 }) else { return }
+            // Weights that already say what is on screen, give or take a point of rounding, stay as they are.
+            guard zip(kids, lengths).contains(where: { abs($0.weight / weight - $1 / length) > 0.005 }) else { return }
+            for (kid, len) in zip(kids, lengths) { kid.weight = weight * len / length }
+        }
+        walk(root)
+    }
+
     /// Give every window an equal share again.
     public func balance() {
         func walk(_ n: Node) {

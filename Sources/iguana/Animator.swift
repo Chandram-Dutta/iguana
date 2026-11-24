@@ -67,14 +67,16 @@ private final class AppWriter {
             }
             for (id, w) in batch {
                 w.element.setPosition(w.frame.origin)
+                var sized = true
                 if w.final || lastSize[id] != w.frame.size {
-                    w.element.setSize(w.frame.size)
+                    sized = w.element.setSize(w.frame.size)
                     lastSize[id] = w.frame.size
                 }
                 if w.final {
                     // Once more: a size change near a screen edge can nudge the window.
                     w.element.setPosition(w.frame.origin)
-                    let actual = w.element.size
+                    // A window that did not take the request says nothing about how small it can get.
+                    let actual = sized ? w.element.size : nil
                     lastSize[id] = nil
                     DispatchQueue.main.async { self.landed?(id, w.frame, actual) }
                 }

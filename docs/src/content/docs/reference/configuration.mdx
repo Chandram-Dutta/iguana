@@ -315,7 +315,7 @@ option-f = ""                # switches the built-in shortcut off
 | --- | --- |
 | Key | Modifiers and a key joined by dashes, such as `option-shift-h`. See [Key names](/reference/key-names/). |
 | Value | A [command](/reference/commands/) as a string, or `""` or `false` to switch the shortcut off. |
-| Default | The 36 [default shortcuts](/reference/default-shortcuts/). |
+| Default | The 40 [default shortcuts](/reference/default-shortcuts/). |
 
 Entries are merged over the built-in shortcuts one by one, so you only write the ones you want
 to change. [Customising shortcuts](/guides/shortcuts/) has worked examples.
@@ -472,6 +472,8 @@ option-6 = "space 6"
 option-7 = "space 7"
 option-8 = "space 8"
 option-9 = "space 9"
+option-leftbracket = "space prev"
+option-rightbracket = "space next"
 # Add --stay (for example "move-to-space 1 --stay") to send the window away and stay where you are.
 option-shift-1 = "move-to-space 1"
 option-shift-2 = "move-to-space 2"
@@ -482,6 +484,8 @@ option-shift-6 = "move-to-space 6"
 option-shift-7 = "move-to-space 7"
 option-shift-8 = "move-to-space 8"
 option-shift-9 = "move-to-space 9"
+option-shift-leftbracket = "move-to-space prev"
+option-shift-rightbracket = "move-to-space next"
 
 # Windows that should stay floating. `app` is a bundle id or part of the app name,
 # `title` is a regular expression. Dialogs, sheets and fixed-size windows float on their own.

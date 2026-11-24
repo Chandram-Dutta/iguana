@@ -83,7 +83,9 @@ iguana help
 | `option-shift-space` | float or tile the window |
 | `option-shift-b` | balance sizes |
 | `option-1` … `option-9` | go to desktop N |
+| `option-[`, `option-]` | go to the previous, next desktop |
 | `option-shift-1` … `option-shift-9` | take the window to desktop N and go with it |
+| `option-shift-[`, `option-shift-]` | take the window to the previous, next desktop |
 
 You can also drag a tiled window onto another to swap them, and resize with the mouse; the layout
 keeps the new proportions.

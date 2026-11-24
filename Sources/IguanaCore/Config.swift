@@ -165,6 +165,8 @@ public struct Config: Equatable {
     option-7 = "space 7"
     option-8 = "space 8"
     option-9 = "space 9"
+    option-leftbracket = "space prev"
+    option-rightbracket = "space next"
     # Add --stay (for example "move-to-space 1 --stay") to send the window away and stay where you are.
     option-shift-1 = "move-to-space 1"
     option-shift-2 = "move-to-space 2"
@@ -175,6 +177,8 @@ public struct Config: Equatable {
     option-shift-7 = "move-to-space 7"
     option-shift-8 = "move-to-space 8"
     option-shift-9 = "move-to-space 9"
+    option-shift-leftbracket = "move-to-space prev"
+    option-shift-rightbracket = "move-to-space next"
 
     # Windows that should stay floating. `app` is a bundle id or part of the app name,
     # `title` is a regular expression. Dialogs, sheets and fixed-size windows float on their own.
