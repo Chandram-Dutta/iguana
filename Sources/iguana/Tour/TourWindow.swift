@@ -166,7 +166,12 @@ enum TourSnapshot {
         try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
         if only == nil { TourSound.export(to: out) }
 
-        let size = NSSize(width: 1470, height: 956)
+        // `IGUANA_SNAPSHOT_SIZE=1280x832` takes the pictures at the size of another screen.
+        var size = NSSize(width: 1470, height: 956)
+        if let parts = ProcessInfo.processInfo.environment["IGUANA_SNAPSHOT_SIZE"]?.split(separator: "x").map({ Double($0) ?? 0 }),
+           parts.count == 2, parts[0] >= 640, parts[1] >= 480 {
+            size = NSSize(width: parts[0], height: parts[1])
+        }
         let scenes: [(String, () -> TourModel)] = [
             ("1-hello", { .preview(.hello) }),
             ("2-open-empty", { .preview(.open) }),
@@ -174,12 +179,17 @@ enum TourSnapshot {
             ("3-focus", { .preview(.focus) }),
             ("4-move", { .preview(.move) }),
             ("5-resize", { .preview(.resize) }),
-            ("6-desktops-jump", { .preview(.desktops) }),
-            ("6-desktops-carry", { .preview(.desktops, variant: 1) }),
-            ("7-permission", { .preview(.permission) }),
-            ("7-permission-waiting", { .preview(.permission, variant: 1) }),
-            ("7-permission-granted", { .preview(.permission, variant: 2) }),
-            ("8-done", { .preview(.done) }),
+            ("6-stack", { .preview(.stack) }),
+            ("6-stack-stacked", { .preview(.stack, variant: 1) }),
+            ("6-stack-stepped", { .preview(.stack, variant: 2) }),
+            ("6-stack-after-resize", { .preview(.stack, variant: 3) }),
+            ("7-desktops-jump", { .preview(.desktops) }),
+            ("7-desktops-carry", { .preview(.desktops, variant: 1) }),
+            ("7-desktops-stacked", { .preview(.desktops, variant: 2) }),
+            ("8-permission", { .preview(.permission) }),
+            ("8-permission-waiting", { .preview(.permission, variant: 1) }),
+            ("8-permission-granted", { .preview(.permission, variant: 2) }),
+            ("9-done", { .preview(.done) }),
         ]
         func spin(_ seconds: TimeInterval) { RunLoop.main.run(until: Date().addingTimeInterval(seconds)) }
 
@@ -188,7 +198,7 @@ enum TourSnapshot {
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
             for (name, make) in scenes where (only == nil || name.contains(only ?? "")) && SnapshotStage.wants("\(name)-\(appearance == .aqua ? "light" : "dark")") {
                 let model = make()
-                if name == "3-focus" { model.held = [.option] }
+                if name == "3-focus" || name.hasPrefix("6-stack") { model.held = [.option] }
                 let window = NSWindow(contentRect: NSRect(origin: origin, size: size), styleMask: .borderless, backing: .buffered, defer: false)
                 window.isOpaque = false
                 window.backgroundColor = .clear

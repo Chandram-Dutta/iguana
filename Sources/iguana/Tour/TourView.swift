@@ -3,7 +3,8 @@ import IguanaCore
 import SwiftUI
 
 /// The colours of the tour, taken from the animal: its greens for the windows, its outline for
-/// the type, and one sun-warmed amber.
+/// the type, and one sun-warmed amber. The fifth window colour, a blue-green, is for the window
+/// that opens in the stack lesson, so that the amber one is still the only one of its kind.
 struct TourPalette {
     let top, bottom, glowA, glowB: Color
     let ink, soft, faint: Color
@@ -26,7 +27,7 @@ struct TourPalette {
                 top: hex(0x06191A), bottom: hex(0x0C3B2E), glowA: hex(0x18A67E, 0.34), glowB: hex(0x8FD43F, 0.13),
                 ink: ink, soft: ink.opacity(0.66), faint: ink.opacity(0.34),
                 panel: Color.white.opacity(0.05), panelLine: Color.white.opacity(0.10),
-                tiles: [hex(0x18A67E), hex(0x8FD43F), hex(0xD5F0A0), hex(0xF2B84B)],
+                tiles: [hex(0x18A67E), hex(0x8FD43F), hex(0xD5F0A0), hex(0xF2B84B), hex(0x62C6CF)],
                 key: Color.white.opacity(0.11), keyLip: Color.black.opacity(0.45), keyLine: Color.white.opacity(0.14),
                 lit: hex(0x8FD43F), litInk: hex(0x0C3B2E), wash: 0.5)
         }
@@ -35,7 +36,7 @@ struct TourPalette {
             top: hex(0xF5F4EC), bottom: hex(0xE2F0CC), glowA: hex(0xC3E86E, 0.62), glowB: hex(0x74CB70, 0.30),
             ink: ink, soft: ink.opacity(0.64), faint: ink.opacity(0.32),
             panel: ink.opacity(0.05), panelLine: ink.opacity(0.09),
-            tiles: [hex(0x18A67E), hex(0x8FD43F), hex(0x0F6A52), hex(0xF2B84B)],
+            tiles: [hex(0x18A67E), hex(0x8FD43F), hex(0x0F6A52), hex(0xF2B84B), hex(0x62C6CF)],
             key: .white, keyLip: ink.opacity(0.26), keyLine: ink.opacity(0.13),
             lit: hex(0x18A67E), litInk: .white, wash: 0.5)
     }
@@ -371,6 +372,10 @@ private struct LessonScene: View {
         case .focus: return ("Move between them", "Hold the key and steer to the window that calls.")
         case .move: return ("Take the window along", "Add shift, and bring it to the outline.")
         case .resize: return ("Give it more room", "Grow the window until it fills the outline.")
+        case .stack:
+            return model.stackGoal == .press
+                ? ("Stack a crowded column", "One key, and the window fills the outline.")
+                : ("Reach the ones behind", "A strip of each stays in view. Steer to the one that calls.")
         case .desktops:
             return model.desktopGoal == .jump
                 ? ("Jump to another desktop", "Each desktop has its number.")
@@ -398,7 +403,7 @@ private struct LessonScene: View {
                 if model.step == .open {
                     Prompt(label: "New window", enabled: model.windowCount < TourModel.windowsToOpen, action: model.primary)
                         .transition(.opacity.combined(with: .scale(scale: 0.94)))
-                } else if let keys = model.keys(for: model.step) {
+                } else if let keys = model.deck {
                     KeyDeck(model: model, keys: keys)
                         .id(keys.modifiers)
                         .transition(.opacity.combined(with: .offset(y: 10)))
@@ -498,15 +503,27 @@ private struct StageView: View {
 
                 ForEach(Array(tiles.enumerated()), id: \.element.id) { order, tile in
                     let frame = place(tile.rect)
-                    TileView(color: palette.tile(tile.color), focused: tile.focused, compact: compact, size: frame.size,
-                             calling: model.beacon == tile.id && tile.desktop == model.current)
+                    TileView(color: palette.tile(tile.color), focused: tile.focused, compact: compact, size: frame.size)
                         .frame(width: max(frame.width, 1), height: max(frame.height, 1))
                         .scaleEffect(hop ? 1.035 : 1)
                         .animation(.spring(response: 0.28, dampingFraction: 0.5).delay(Double(order) * 0.05), value: hop)
                         .position(x: frame.midX, y: frame.midY)
                         .opacity(model.overview || tile.desktop == model.current ? 1 : 0)
-                        .zIndex(tile.focused ? 2 : 1)
+                        // Between 1 and 2, in the order the windows lie in. It shows in a stack.
+                        .zIndex(tile.focused ? 2 : 1 + Double(tile.layer) / Double(tiles.count + 1))
                         .transition(.scale(scale: 0.82).combined(with: .opacity))
+                }
+
+                // The call for the focus is drawn over the windows, on the part of its window
+                // that shows: in a stack that is a strip, and a mark inside the window would be
+                // cut off by the window in front.
+                if let spot = model.beaconSpot {
+                    Beacon()
+                        .position(x: left + spot.x * scale, y: spot.y * scale)
+                        .zIndex(4)
+                        .id(model.beacon)
+                        .transition(.scale.combined(with: .opacity))
+                        .allowsHitTesting(false)
                 }
 
                 if let ghost = model.ghost {
@@ -581,7 +598,6 @@ private struct TileView: View {
     let focused: Bool
     let compact: Bool
     let size: CGSize
-    let calling: Bool
     @Environment(\.tourPalette) private var palette
 
     var body: some View {
@@ -617,9 +633,6 @@ private struct TileView: View {
                         .padding(line)
                 }
                 .opacity(focused ? 1 : 0)
-            }
-            .overlay {
-                if calling { Beacon().transition(.scale.combined(with: .opacity)) }
             }
             .shadow(color: .black.opacity(focused ? 0.20 : 0.10), radius: focused ? 14 : 6, y: focused ? 7 : 3)
     }
@@ -883,6 +896,8 @@ private struct DoneScene: View {
         let modifiers: [Modifier]
         let keys: [String]
         let text: String
+        /// For a line about the mouse, which has no keys: a picture in their place.
+        var symbol: String?
     }
 
     private var lines: [Line] {
@@ -894,11 +909,14 @@ private struct DoneScene: View {
         add(.focus, "Move between windows")
         add(.move, "Take a window along")
         add(.resize, "Make it smaller or larger")
+        add(.stack, "Stack a row or column")
         if let jump = model.bindings.first(where: { $0.command == .space(.index(1)) }) {
             let order: [Modifier] = [.ctrl, .option, .shift, .cmd]
             out.append(Line(id: out.count, modifiers: order.filter(jump.combo.modifiers.contains), keys: ["1", "…", "9"],
                             text: "Jump to a desktop. Add shift to bring the window."))
         }
+        out.append(Line(id: out.count, modifiers: [], keys: [], text: "Drag a window. An outline shows where it lands.",
+                        symbol: "cursorarrow"))
         return out
     }
 
@@ -913,6 +931,14 @@ private struct DoneScene: View {
                 ForEach(lines) { line in
                     HStack(spacing: 14) {
                         HStack(spacing: 4) {
+                            if let symbol = line.symbol {
+                                Image(systemName: symbol)
+                                    .font(.system(size: 11.5, weight: .semibold))
+                                    .foregroundStyle(palette.ink.opacity(0.8))
+                                    .frame(minWidth: 22, minHeight: 20)
+                                    .background(RoundedRectangle(cornerRadius: 5.5, style: .continuous).fill(palette.ink.opacity(0.08)))
+                                    .accessibilityHidden(true)
+                            }
                             ForEach(line.modifiers, id: \.self) { MiniCap(text: Self.symbols[$0] ?? "") }
                             ForEach(Array(line.keys.enumerated()), id: \.offset) { _, key in
                                 if key == "…" {
@@ -926,7 +952,8 @@ private struct DoneScene: View {
                         Text(line.text).font(.system(size: 15, design: .rounded))
                         Spacer(minLength: 0)
                     }
-                    .frame(height: 44)
+                    // On the lowest screens six lines at full height push the button off the bottom.
+                    .frame(height: size.height < 720 ? 38 : 44)
                     .overlay(alignment: .bottom) {
                         if line.id != lines.count - 1 { Rectangle().fill(palette.panelLine).frame(height: 1) }
                     }

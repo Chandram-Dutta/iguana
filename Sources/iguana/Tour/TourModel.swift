@@ -4,7 +4,7 @@ import SwiftUI
 
 /// The scenes of the welcome tour, in order.
 enum TourStep: Int, CaseIterable, Comparable {
-    case hello, open, focus, move, resize, desktops, permission, done
+    case hello, open, focus, move, resize, stack, desktops, permission, done
 
     static func < (a: TourStep, b: TourStep) -> Bool { a.rawValue < b.rawValue }
 
@@ -43,6 +43,9 @@ struct TourTile: Identifiable, Equatable {
     let rect: CGRect
     let color: Int
     let focused: Bool
+    /// How near the front the window is: the higher, the nearer. It matters where windows
+    /// overlap, which is in a stack.
+    var layer = 0
 }
 
 /// The welcome tour: a small desktop to practise on, run by the same layout engine that arranges
@@ -51,12 +54,17 @@ struct TourTile: Identifiable, Equatable {
 final class TourModel: ObservableObject {
     enum Permission { case idle, waiting, granted }
     enum DesktopGoal { case jump, carry }
+    /// The stack lesson has two halves: make the stack, then reach a window behind the front one.
+    enum StackGoal { case press, step }
 
     /// The play desktop is laid out in these units and scaled to the screen by the view.
     static let stage = CGSize(width: 1600, height: 1000)
     static let windowsToOpen = 3
     static let desktopCount = 3
     static let focusTargets = 3
+    /// The colours of the two windows the tour opens by itself, as places in the palette.
+    static let desktopColor = 3
+    static let stackColor = 4
 
     @Published private(set) var step: TourStep = .hello
     @Published private(set) var revision = 0
@@ -66,6 +74,7 @@ final class TourModel: ObservableObject {
     @Published private(set) var desktopBeacon: Int?
     @Published private(set) var ghost: TourGhost?
     @Published private(set) var desktopGoal = DesktopGoal.jump
+    @Published private(set) var stackGoal = StackGoal.press
     @Published private(set) var lit: Set<String> = []
     @Published var held: Set<Modifier> = []
     @Published private(set) var reached = 0
@@ -98,6 +107,8 @@ final class TourModel: ObservableObject {
     var onClose: (_ completed: Bool) -> Void = { _ in }
 
     private var nextID: WindowID = 1
+    /// The windows from front to back. Tiles never cover each other, so this only shows in a stack.
+    private var order: [WindowID] = []
     private var visits: [WindowID: Int] = [:]
     private var clock = 0
     private var advancing = false
@@ -120,6 +131,11 @@ final class TourModel: ObservableObject {
 
     var gaps: (outer: CGFloat, inner: CGFloat) { overview ? (11, 9) : (20, 16) }
 
+    /// How much of each window of a stack shows beside the one in front. More than on a real
+    /// screen, where it is `stack-peek`: here a strip has to hold the three buttons that make a
+    /// coloured shape read as a window.
+    var peek: CGFloat { overview ? 44 : 88 }
+
     /// Where a desktop sits on the stage. One fills it; in the overview all three stand in a row.
     func panel(_ index: Int) -> CGRect {
         let stage = Self.stage
@@ -135,7 +151,7 @@ final class TourModel: ObservableObject {
     }
 
     private func frames(_ index: Int, tree: Tree? = nil) -> [WindowID: CGRect] {
-        computeLayout(tree ?? desktops[index], in: panel(index).insetBy(dx: gaps.outer, dy: gaps.outer), gap: gaps.inner)
+        computeLayout(tree ?? desktops[index], in: panel(index).insetBy(dx: gaps.outer, dy: gaps.outer), gap: gaps.inner, peek: peek)
     }
 
     var tiles: [TourTile] {
@@ -143,9 +159,39 @@ final class TourModel: ObservableObject {
             let placed = frames(index)
             let focused = desktops[index].focused
             return desktops[index].windows.compactMap { id in
-                placed[id].map { TourTile(id: id, desktop: index, rect: $0, color: colors[id] ?? 0, focused: index == current && id == focused) }
+                placed[id].map {
+                    TourTile(id: id, desktop: index, rect: $0, color: colors[id] ?? 0, focused: index == current && id == focused,
+                             layer: order.count - (order.firstIndex(of: id) ?? order.count))
+                }
             }
         }
+    }
+
+    /// Two windows that lie over each other, which only the windows of a stack do.
+    private func overlap(_ a: CGRect?, _ b: CGRect?) -> Bool {
+        guard let a, let b else { return false }
+        let shared = a.intersection(b)
+        return !shared.isNull && shared.width > 1 && shared.height > 1
+    }
+
+    /// The middle of what shows of the window that calls for the focus. For a window behind
+    /// others in a stack that is its strip, not the middle of the window.
+    var beaconSpot: CGPoint? {
+        let here = tiles.filter { $0.desktop == current }
+        guard let beacon, let tile = here.first(where: { $0.id == beacon }) else { return nil }
+        var showing = tile.rect
+        for other in here where other.layer > tile.layer && overlap(other.rect, showing) {
+            let cover = other.rect
+            let slices = [
+                CGRect(x: showing.minX, y: showing.minY, width: showing.width, height: cover.minY - showing.minY),
+                CGRect(x: showing.minX, y: cover.maxY, width: showing.width, height: showing.maxY - cover.maxY),
+                CGRect(x: showing.minX, y: showing.minY, width: cover.minX - showing.minX, height: showing.height),
+                CGRect(x: cover.maxX, y: showing.minY, width: showing.maxX - cover.maxX, height: showing.height),
+            ].filter { $0.width > 0 && $0.height > 0 }
+            guard let largest = slices.max(by: { $0.width * $0.height < $1.width * $1.height }) else { continue }
+            showing = largest
+        }
+        return CGPoint(x: showing.midX, y: showing.midY)
     }
 
     var focusedWindow: WindowID? { desktops[current].focused }
@@ -176,9 +222,24 @@ final class TourModel: ObservableObject {
         visits[id] = clock
     }
 
+    private func raise(_ id: WindowID) {
+        order.removeAll { $0 == id }
+        order.insert(id, at: 0)
+    }
+
+    /// Bring the windows of each stack into the order that shows a strip of every one, the
+    /// focused window in front. The window manager does the same with real windows.
+    private func restack() {
+        for tree in desktops {
+            guard let id = tree.focused else { continue }
+            tree.stackRaiseOrder(focused: id, frontToBack: order).forEach(raise)
+        }
+    }
+
     private func changed(_ body: () -> Void) {
         withAnimation(.spring(response: 0.44, dampingFraction: 0.84)) {
             body()
+            restack()
             revision += 1
         }
     }
@@ -227,6 +288,8 @@ final class TourModel: ObservableObject {
                 (command: { if case .resize(_, let grow) = $0 { return grow < 0 }; return false }, label: nil, symbol: "arrow.down.right.and.arrow.up.left"),
                 (command: { if case .resize(_, let grow) = $0 { return grow > 0 }; return false }, label: nil, symbol: "arrow.up.left.and.arrow.down.right"),
             ])
+        case .stack:
+            return keys([(command: { $0 == .stack }, label: nil, symbol: "square.stack.3d.up.fill")])
         case .desktops:
             switch desktopGoal {
             case .jump: return numberKeys { $0 == .space(.index($1)) }
@@ -239,18 +302,38 @@ final class TourModel: ObservableObject {
         }
     }
 
+    /// The keys on screen now. The second half of the stack lesson is done with the focus keys.
+    var deck: LessonKeys? {
+        step == .stack && stackGoal == .step ? keys(for: .focus) : keys(for: step)
+    }
+
+    /// The window the focus goes to in a direction. Tiles are judged by where they are; the
+    /// windows of a stack overlap, and there the layout says which is next.
+    private func neighbour(_ dir: Direction) -> WindowID? {
+        let placed = frames(current)
+        guard let from = focusedWindow, let origin = placed[from] else { return nil }
+        return focusTarget(from: from, at: origin, direction: dir, among: placed, trees: [desktops[current]], frontToBack: order)
+    }
+
+    /// The focus key that leads to the window that calls.
+    private func steer(to beacon: WindowID?) -> Command? {
+        guard let beacon, let from = focusedWindow else { return nil }
+        let placed = frames(current)
+        guard let origin = placed[from], let target = placed[beacon] else { return nil }
+        if let direct = Direction.allCases.first(where: { neighbour($0) == beacon }) {
+            return .focus(direct)
+        }
+        let dx = target.midX - origin.midX, dy = target.midY - origin.midY
+        return .focus(abs(dx) >= abs(dy) ? (dx < 0 ? .left : .right) : (dy < 0 ? .up : .down))
+    }
+
     /// The key that takes the next step towards the goal, so that it can be pointed out.
     var suggested: Command? {
         switch step {
         case .focus:
-            guard let beacon, let from = focusedWindow else { return nil }
-            let placed = frames(current)
-            guard let origin = placed[from], let target = placed[beacon] else { return nil }
-            if let direct = Direction.allCases.first(where: { nearestWindow(from: origin, direction: $0, among: placed, excluding: from) == beacon }) {
-                return .focus(direct)
-            }
-            let dx = target.midX - origin.midX, dy = target.midY - origin.midY
-            return .focus(abs(dx) >= abs(dy) ? (dx < 0 ? .left : .right) : (dy < 0 ? .up : .down))
+            return steer(to: beacon)
+        case .stack:
+            return stackGoal == .press ? keys(for: .stack)?.keys.first?.command : steer(to: beacon)
         case .move:
             return goalWindow == focusedWindow ? .move(goalDirection) : nil
         case .resize:
@@ -272,7 +355,7 @@ final class TourModel: ObservableObject {
 
     private func flash(_ command: Command, binding: KeyBinding?) {
         let id: String
-        if let hint = keys(for: step)?.keys.first(where: { $0.command == command }) {
+        if let hint = deck?.keys.first(where: { $0.command == command }) {
             id = hint.id
         } else if let binding {
             id = binding.combo.key
@@ -288,7 +371,7 @@ final class TourModel: ObservableObject {
     private func isAvailable(_ step: TourStep) -> Bool {
         switch step {
         case .hello, .open, .done: return true
-        case .focus, .move, .resize: return keys(for: step) != nil
+        case .focus, .move, .resize, .stack: return keys(for: step) != nil
         case .desktops:
             let jump = numberKeys { $0 == .space(.index($1)) }
             let carry = numberKeys { command, n in
@@ -346,6 +429,9 @@ final class TourModel: ObservableObject {
             case .resize:
                 goalWindow = focusedWindow
                 growsNeeded = 3
+            case .stack:
+                stackGoal = .press
+                crowdColumn()
             case .desktops:
                 desktopGoal = .jump
                 prepareDesktops()
@@ -355,6 +441,7 @@ final class TourModel: ObservableObject {
             default:
                 break
             }
+            restack()
             refreshGoals()
         }
     }
@@ -368,7 +455,41 @@ final class TourModel: ObservableObject {
         let id = nextID
         nextID += 1
         colors[id] = Int(id - 1)
+        order.insert(id, at: 0)
         adopt(id, into: 0)
+        touch(id)
+    }
+
+    /// The stack lesson starts from one tile beside a column of three: more windows in a column
+    /// than sit there comfortably. The windows that are here stay on the side they are on, and
+    /// one more opens under them and has the focus, as a new window does.
+    private func crowdColumn() {
+        let old = desktops[0].windows
+        guard old.count == Self.windowsToOpen, let front = desktops[0].focused ?? old.last else { return }
+        let placed = frames(0)
+        func middle(_ id: WindowID) -> CGPoint { placed[id].map { CGPoint(x: $0.midX, y: $0.midY) } ?? .zero }
+        // The window furthest to the side of the focused one keeps a side of the desktop to itself.
+        let others = old.filter { $0 != front }
+        guard let alone = others.max(by: { abs(middle($0).x - middle(front).x) < abs(middle($1).x - middle(front).x) }) else { return }
+        let column = old.filter { $0 != alone }.sorted { (middle($0).y, middle($0).x) < (middle($1).y, middle($1).x) }
+
+        let id = nextID
+        nextID += 1
+        colors[id] = Self.stackColor
+        order.insert(id, at: 0)
+
+        let tree = Tree()
+        if middle(front).x < middle(alone).x {
+            tree.insert(column[0])
+            tree.insert(alone, after: column[0])
+        } else {
+            tree.insert(alone)
+            tree.insert(column[0], after: alone)
+        }
+        tree.insert(column[1], after: column[0], split: .vertical)
+        tree.insert(id, after: column[1])
+        tree.focused = id
+        desktops[0] = tree
         touch(id)
     }
 
@@ -417,6 +538,8 @@ final class TourModel: ObservableObject {
             move(dir)
         case .resize(let axis, let grow) where step >= .resize && step.isLesson:
             resize(axis, grow)
+        case .stack where step >= .stack && step.isLesson:
+            stack()
         case .space(let target) where step == .desktops:
             if let index = desktopIndex(target) { jump(to: index) }
         case .moveToSpace(let target, let follow) where step == .desktops:
@@ -430,12 +553,16 @@ final class TourModel: ObservableObject {
     private func focus(_ dir: Direction) {
         let tree = desktops[current]
         let placed = frames(current)
-        guard let from = tree.focused, let origin = placed[from],
-              let target = nearestWindow(from: origin, direction: dir, among: placed, excluding: from) else {
+        guard let from = tree.focused, let target = neighbour(dir) else {
             refuse()
             return
         }
-        changed { tree.focused = target }
+        // Two windows that overlap are two windows of one stack: this is a step through it.
+        let throughStack = overlap(placed[from], placed[target])
+        changed {
+            tree.focused = target
+            raise(target)
+        }
         touch(target)
         let centre = (placed[target]?.midX ?? 0) - panel(current).minX
         play(.focus(Int(centre / panel(current).width * 6)))
@@ -449,6 +576,7 @@ final class TourModel: ObservableObject {
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) { pickBeacon() }
             }
         }
+        if step == .stack, throughStack { succeed() }
         refreshGoals()
     }
 
@@ -503,6 +631,25 @@ final class TourModel: ObservableObject {
         refreshGoals()
     }
 
+    /// Turn the row or column around the focused window into a stack, or back into tiles.
+    private func stack() {
+        let tree = desktops[current]
+        guard let id = tree.focused else {
+            refuse()
+            return
+        }
+        var stacked: Bool?
+        changed { stacked = tree.toggleStack(id) }
+        guard let stacked else {
+            refuse()
+            return
+        }
+        play(.move)
+        // Without focus keys there is no second half to the lesson.
+        if step == .stack, stacked, keys(for: .focus) == nil { succeed() }
+        refreshGoals()
+    }
+
     private func desktopIndex(_ target: SpaceTarget) -> Int? {
         switch target {
         case .index(let n): return (1...Self.desktopCount).contains(n) ? n - 1 : nil
@@ -548,7 +695,8 @@ final class TourModel: ObservableObject {
         guard desktops[1].isEmpty, desktops[2].isEmpty else { return }
         let id = nextID
         nextID += 1
-        colors[id] = Int(id - 1)
+        colors[id] = Self.desktopColor
+        order.insert(id, at: 0)
         adopt(id, into: 1)
     }
 
@@ -568,6 +716,30 @@ final class TourModel: ObservableObject {
             let twin = copy(desktops[current])
             for _ in 0..<max(growsNeeded, 0) { twin.changeShare(of: id, .delta(resizeStep)) }
             ghost = frames(current, tree: twin)[id].map { TourGhost(desktop: current, rect: $0, window: id) }
+        case .stack:
+            let placed = frames(current)
+            let stacked = desktops[current].windows.filter { id in placed.contains { $0.key != id && overlap($0.value, placed[id]) } }
+            let goal: StackGoal = stacked.isEmpty || keys(for: .focus) == nil ? .press : .step
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) {
+                stackGoal = goal
+                switch goal {
+                case .press:
+                    // The outline is the place the focused window has once its column is a stack.
+                    beacon = nil
+                    let twin = copy(desktops[current])
+                    if let id = focusedWindow, twin.toggleStack(id) == true {
+                        ghost = frames(current, tree: twin)[id].map { TourGhost(desktop: current, rect: $0, window: id) }
+                    } else {
+                        ghost = nil
+                    }
+                case .step:
+                    // A window of the stack that is one key away. From outside the stack, its front window.
+                    ghost = nil
+                    let from = focusedWindow.flatMap { placed[$0] }
+                    beacon = [Direction.up, .left, .down, .right].compactMap(neighbour).first { overlap(placed[$0], from) }
+                        ?? stacked.filter { $0 != focusedWindow }.min { (order.firstIndex(of: $0) ?? 0) < (order.firstIndex(of: $1) ?? 0) }
+                }
+            }
         case .desktops:
             switch desktopGoal {
             case .jump:
@@ -697,7 +869,23 @@ extension TourModel {
             model.go(to: .permission)
             if variant == 1 { model.permission = .waiting }
             if variant == 2 { model.permission = .granted }
+        case .stack:
+            if variant == 3 {
+                // As the tour comes to it: a window has been moved to one side and grown.
+                model.go(to: .move)
+                for _ in 0..<4 { if let next = model.suggested { _ = model.handle(next) } }
+                model.go(to: .resize)
+                for _ in 0..<3 { if let next = model.suggested { _ = model.handle(next) } }
+            }
+            model.go(to: .stack)
+            if variant == 1 || variant == 2 { _ = model.handle(.stack) }
+            if variant == 2, let next = model.suggested { _ = model.handle(next) }
         case .desktops:
+            // The desktops as the stack lesson leaves them.
+            if variant == 2 {
+                model.go(to: .stack)
+                _ = model.handle(.stack)
+            }
             model.go(to: .desktops)
             if variant == 1 { _ = model.handle(.space(.index(2))) }
         default:
