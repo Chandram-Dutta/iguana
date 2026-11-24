@@ -57,32 +57,6 @@ public struct Rule: Equatable {
     }
 }
 
-/// What a rule's `desktop` comes to for one window that has just appeared.
-public enum DesktopRuleAction: Equatable {
-    /// Nothing to do: no desktop is named, the window is not a standard one, or it is there already.
-    case leave
-    /// Send the window to this desktop, and stay on the one being used.
-    case send(Int)
-    /// The rule names a desktop that does not exist.
-    case missing
-    /// This system can only take a window to a desktop by going there with it, and a rule
-    /// never takes the user anywhere.
-    case cannotStay
-
-    /// - Parameters:
-    ///   - wanted: the desktop the window's rule names, if it names one.
-    ///   - standardWindow: false for dialogs, sheets and everything else that is never tiled.
-    ///   - windowDesktops: the desktops the window is on now (every one, for a window assigned to all desktops).
-    ///   - desktopCount: how many desktops there are.
-    ///   - canStay: whether a window can be sent away without following it.
-    public static func decide(wanted: Int?, standardWindow: Bool, windowDesktops: [Int], desktopCount: Int, canStay: Bool) -> DesktopRuleAction {
-        guard let wanted, standardWindow else { return .leave }
-        guard wanted >= 1, wanted <= desktopCount else { return .missing }
-        if windowDesktops.contains(wanted) { return .leave }
-        return canStay ? .send(wanted) : .cannotStay
-    }
-}
-
 public struct Binding: Equatable {
     public let combo: KeyCombo
     public let command: Command

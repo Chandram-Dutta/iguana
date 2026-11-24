@@ -1,73 +1,50 @@
 import AppKit
 import IguanaCore
 
-/// A rule can name a desktop for the windows it matches. This keeps the books for it: which
-/// windows are new, so that each one is sent once, when it first appears, and a window that
-/// was already there is never moved.
+/// A rule can name a desktop for the windows it matches. This is the app's side of it: it
+/// tells the queue which windows the system has, asks where a new window is, and writes to
+/// the log what was done. Which windows are new, and what to do with one, is decided in
+/// IguanaCore (`DesktopRuleQueue`, `DesktopRuleAction`).
 final class DesktopRules {
-    /// Windows the system already had when Iguana first looked, or when the config was last
-    /// read. They stay where they are, also the ones on other desktops that Iguana only gets
-    /// to see when their desktop is shown.
-    private var old = Set<CGWindowID>()
-    /// New windows whose rule names a desktop, until they are sent there or given up on.
-    private var waiting: [CGWindowID: (desktop: Int, app: String, since: Date)] = [:]
-    /// False until the windows that were open before Iguana have been counted as old.
-    private var ready = false
+    private var queue = DesktopRuleQueue()
     private var saidCannotStay = false
 
-    /// A window can be reported a moment before it settles into its final role. One that is
-    /// not a standard window yet gets this long to become one; later than that the user may
-    /// be working in it, and it stays.
-    private static let patience: TimeInterval = 2
-
-    /// Everything that exists now was here first. Called when the config is read, so that a
-    /// new rule only acts on windows that open after it was written.
-    func markExisting() {
+    /// Every window the system has, on any desktop.
+    private static func everyWindow() -> Set<CGWindowID> {
         let list = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]] ?? []
-        old = Set(list.compactMap { ($0[kCGWindowNumber as String] as? NSNumber)?.uint32Value })
-        waiting.removeAll()
+        return Set(list.compactMap { ($0[kCGWindowNumber as String] as? NSNumber)?.uint32Value })
+    }
+
+    /// Called when the config is read: the windows that are open now stay where they are.
+    func markExisting() {
+        queue.markExisting(Self.everyWindow())
     }
 
     /// A window Iguana sees for the first time, matched by a rule that names a desktop.
     func note(_ id: CGWindowID, desktop: Int, app: String?) {
-        guard ready, !old.contains(id) else { return }
-        waiting[id] = (desktop, app ?? "an app", Date())
+        queue.note(id, desktop: desktop, app: app ?? "an app", at: Date())
     }
 
     /// Deal with the windows that are waiting. `standard` says whether a window is a standard
     /// one, and nil when it is gone or is not one to send at all; `send` moves it and answers
     /// as the `move-to-space` command does.
     func settle(paused: Bool, standard: (CGWindowID) -> Bool?, send: (CGWindowID, Int) -> String) {
-        guard ready else {
-            // The first look at the windows finds the ones that were open before Iguana.
-            markExisting()
-            ready = true
-            return
-        }
-        guard !waiting.isEmpty else { return }
-        // While tiling is paused every window is left where it is, and stays there afterwards.
-        guard !paused else { return waiting.removeAll() }
+        guard queue.hasLooked else { return queue.firstLook(existing: Self.everyWindow()) }
+        let due = queue.due(at: Date(), paused: paused, standard: standard)
+        guard !due.isEmpty else { return }
 
         let desktops = Desktop.all()
-        for (id, entry) in waiting {
-            guard let isStandard = standard(id), Date().timeIntervalSince(entry.since) <= Self.patience else {
-                waiting[id] = nil
-                continue
-            }
-            // Dialogs and sheets are not sent anywhere. Ask again while this one may still settle.
-            guard isStandard else { continue }
-            waiting[id] = nil
-
-            let on = Private.spaces(of: id)
+        for entry in due {
+            let on = Private.spaces(of: entry.window)
             let action = DesktopRuleAction.decide(wanted: entry.desktop, standardWindow: true,
                                                   windowDesktops: desktops.filter { on.contains($0.id) }.map(\.number),
                                                   desktopCount: desktops.count, canStay: Private.hasMoveBridge)
-            let window = "window \(id) of \(entry.app)"
+            let window = "window \(entry.window) of \(entry.app)"
             switch action {
             case .leave:
                 break
             case .send(let n):
-                let reply = send(id, n)
+                let reply = send(entry.window, n)
                 if reply == "ok" {
                     Log.write("rule: sent \(window) to desktop \(n)")
                 } else if reply.hasPrefix("error: ") {
