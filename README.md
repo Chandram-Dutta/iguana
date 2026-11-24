@@ -36,6 +36,13 @@ brew install --cask chandram-dutta/tap/iguana
 
 This also puts the `iguana` command on your PATH. Update later with `brew upgrade --cask iguana`.
 
+Iguana tells you when there is something to update to. About once a day it asks GitHub for the
+latest release, and when that is newer than yours the menu gains one item, "Update to Iguana
+0.1.3…", which opens the release's page. No alert, no notification, and nothing is downloaded
+or installed. The request carries nothing about you or your Mac: no identifier, no cookie, no
+stored credentials, only a `User-Agent` of `Iguana/<version>`. `iguana update` asks right now;
+`check = false` under `[updates]`, or the switch in the settings window, turns the daily check off.
+
 ### Download
 
 Download **[Iguana.dmg](https://github.com/Chandram-Dutta/iguana/releases/latest/download/Iguana.dmg)**,
@@ -99,7 +106,7 @@ There are two ways to change settings and they are the same thing underneath.
 
 **The settings window** (menu bar item > Settings…, or `iguana settings`) has panes for layout
 and gaps, animation, shortcuts and the rules that float an app's windows or send them to a
-desktop. Changes apply to your real windows as you make them.
+desktop, and the switch for the daily check for a newer version. Changes apply to your real windows as you make them.
 
 **The config file** is `~/.config/iguana/iguana.toml`. `iguana config init` writes it with every
 setting explained in comments, plus a schema file that gives editors with TOML support completion
@@ -168,8 +175,8 @@ tail -f ~/Library/Logs/Iguana.log
 ```
 
 `Sources/IguanaCore` is pure logic with no system dependencies. `Sources/iguana` is the macOS
-layer: Accessibility, Spaces, animation, shortcuts, the settings window, the menu bar item and
-the command socket. `docs/` is the documentation site.
+layer: Accessibility, Spaces, animation, shortcuts, the settings window, the menu bar item, the
+command socket and the daily check for a newer version. `docs/` is the documentation site.
 
 ## Licence
 

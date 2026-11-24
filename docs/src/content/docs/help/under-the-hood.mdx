@@ -1,12 +1,13 @@
 ---
 title: How it works under the hood
-description: Which macOS interfaces Iguana uses, which of them are undocumented, and why it does not need System Integrity Protection turned off.
+description: Which macOS interfaces Iguana uses, which of them are undocumented, why it does not need System Integrity Protection turned off, and the one request it makes to the network.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
 After this page you will know which macOS interfaces Iguana uses, which of them are
-undocumented, and why none of it needs System Integrity Protection (SIP) switched off.
+undocumented, why none of it needs System Integrity Protection (SIP) switched off, and
+exactly what Iguana says to the network.
 
 ## The one rule
 
@@ -92,6 +93,43 @@ Iguana does not need to get past it, because it never changes how the system wor
 
 The only permission Iguana asks for is Accessibility.
 
+## The one network request
+
+Iguana holds the Accessibility permission, so it owes you a plain account of what it says to
+the network. It makes one kind of request and no other: about once a day it asks GitHub
+whether a newer version of Iguana has been released.
+
+**The request carries nothing about you or your Mac: no identifier, no cookie and no stored
+credentials. It is made in a session that starts empty and is thrown away with the answer, it
+gives up after ten seconds, and it names itself `Iguana/0.1.2`, with the version you are
+running, and nothing else of note.**
+
+In detail:
+
+| | |
+| --- | --- |
+| What is asked | `GET https://api.github.com/repos/Chandram-Dutta/iguana/releases/latest`, GitHub's public description of the latest release. The address is the same for everyone and needs no account. |
+| What is sent | Three things, beyond what every web request carries: `User-Agent: Iguana/0.1.2`, `Accept: application/vnd.github+json` and `Accept-Language: en`. The last is fixed so that the languages chosen in System Settings are not sent. Nothing about your windows, apps, settings or Mac is in the request. |
+| What GitHub sees | What any server sees: the internet address the request comes from, and the three lines above. |
+| What is read | Four fields of the answer: the release's tag, the address of its page, and whether it is a draft or a prerelease. |
+| What counts as newer | A release that is neither a draft nor a prerelease, with a tag that is a version greater than yours. Versions are compared number by number, so `0.1.10` is newer than `0.1.9`. A tag that is not a version is ignored. |
+| What happens then | One item in the menu of the menu bar item, one line in `iguana status`. No alert, notification, badge or sound. Iguana downloads nothing and installs nothing. |
+| What is opened | Choosing the menu item opens the release's page in your browser, and only if that address is `https`, on `github.com` and inside Iguana's repository. For anything else Iguana opens the repository's list of releases. |
+| When | About twenty seconds after Iguana starts, if a day has passed since it last asked, and then once every 24 hours while it runs. A check that fails is written to the log once and tried again a day later. |
+| Redirects | Followed only to `api.github.com` over `https`. Any other is treated as a check that failed. |
+
+To switch it off, turn off **Check for updates** in the General pane of the
+[settings window](/guides/settings-window/#general), or set
+[`check`](/reference/configuration/#check) in the config file:
+
+```toml title="iguana.toml"
+[updates]
+check = false
+```
+
+With that, Iguana makes no request at all unless you ask for one with
+[`iguana update`](/reference/commands/#update) or **Check Now** in the settings window.
+
 ## What is stored on disk
 
 | Path | Contents |
@@ -100,7 +138,7 @@ The only permission Iguana asks for is Accessibility.
 | `~/Library/Application Support/Iguana/state.json` | The layout tree of each desktop, the windows you floated by hand and the minimum sizes Iguana has learned. Written about a second after the layout changes and again when Iguana quits. |
 | `~/Library/Application Support/Iguana/iguana.sock` | The socket for the command line tool. Readable and writable only by you. |
 | `~/Library/Logs/Iguana.log` | The log. |
-| `~/Library/Preferences/xyz.onlychan.iguana.plist` | Whether the welcome tour has been shown. |
+| `~/Library/Preferences/xyz.onlychan.iguana.plist` | Whether the welcome tour has been shown, when Iguana last looked for a newer version, and the newer version it found. |
 
 The saved state is used again when Iguana restarts, but only if the Mac has not restarted
 since it was saved, because the numbers that identify windows start over at each restart.
