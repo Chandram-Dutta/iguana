@@ -5,7 +5,7 @@ let arguments = Array(CommandLine.arguments.dropFirst())
 
 func printUsage() {
     print("""
-    Iguana \(WindowManager.version), a tiling window manager that works inside native macOS Spaces.
+    Iguana \(WindowManager.version), a tiling window manager for macOS.
 
     usage:
       iguana daemon                 run the window manager (this is what Iguana.app does)

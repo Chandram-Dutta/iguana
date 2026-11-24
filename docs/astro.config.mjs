@@ -8,7 +8,7 @@ export default defineConfig({
 		starlight({
 			title: 'Iguana',
 			description:
-				'Iguana is a tiling window manager for macOS that tiles the windows on your native desktops and never hides or parks them.',
+				'Iguana is a tiling window manager for macOS. It arranges the windows on each desktop and leaves every one of them where you can see it.',
 			logo: {
 				light: './src/assets/logo-light.svg',
 				dark: './src/assets/logo-dark.svg',

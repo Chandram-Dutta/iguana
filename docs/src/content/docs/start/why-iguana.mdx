@@ -1,6 +1,6 @@
 ---
 title: Why Iguana
-description: The design bet behind Iguana, how it differs from other macOS tiling window managers, and what it does not do.
+description: What Iguana does differently from other macOS tiling window managers, and what it does not do.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
@@ -29,12 +29,12 @@ That choice has consequences:
 - Slivers of parked windows are left at the edges of the screen.
 - The arrangement is fragile with Stage Manager, native fullscreen and multiple displays.
 
-## The bet Iguana makes
+## What Iguana does instead
 
-Iguana makes the opposite choice: it works inside macOS and leaves the system in charge of
-which windows are showing.
+Iguana makes the opposite choice: it tiles the desktops macOS already gives you, and leaves
+the system in charge of which windows are showing.
 
-### Your native desktops are the workspaces
+### It adds no workspaces of its own
 
 Each desktop on each display keeps its own layout. Iguana switches desktops by pressing
 Mission Control's own shortcuts for you, so trackpad gestures, Mission Control and the
@@ -98,7 +98,7 @@ they behave today.
 
 ## What Iguana does not do
 
-Working inside macOS has a cost. Be clear about these before you switch:
+Leaving macOS in charge has a cost. Be clear about these before you switch:
 
 - **Desktop switches are animated by macOS.** Iguana asks the system to switch, so you get
   the system's slide. Turning on Reduce Motion in System Settings shortens it to a fade.

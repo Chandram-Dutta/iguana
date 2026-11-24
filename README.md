@@ -2,16 +2,18 @@
 
 # Iguana
 
-A tiling window manager for macOS that works inside the system instead of around it.
+A tiling window manager for macOS. Open a window and the others make room; move, resize and
+switch between them from the keyboard.
+
+![Three loose windows snap into tiles, a window opens and closes while the rest make room, and the focus moves from one to the next.](assets/demo.gif)
 
 **[iguana.onlychan.xyz](https://iguana.onlychan.xyz)** has a desktop you can try in the browser
 and the full documentation.
 
 Most tiling window managers for macOS replace Spaces with workspaces of their own, and hide the
-windows of inactive workspaces by parking them in a corner of the screen. Iguana makes the
-opposite bet:
+windows of inactive workspaces by parking them in a corner of the screen. Iguana does neither:
 
-- **Your native Spaces are the workspaces.** Each Space on each display has its own layout.
+- **No workspaces of its own.** Iguana tiles each Space on each display separately.
   Switching goes through Mission Control's own shortcuts, so gestures, Mission Control and
   `ctrl-arrows` keep working and stay in sync.
 - **It only touches windows that are on screen.** Nothing is ever hidden or parked. Minimised

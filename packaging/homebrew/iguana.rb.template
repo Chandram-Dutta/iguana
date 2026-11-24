@@ -6,7 +6,7 @@ cask "iguana" do
 
   url "{{URL_BASE}}/v#{version}/Iguana-#{version}.zip"
   name "Iguana"
-  desc "Tiling window manager that works inside native desktops"
+  desc "Keyboard-driven tiling window manager"
   homepage "{{HOMEPAGE}}"
 
   livecheck do
