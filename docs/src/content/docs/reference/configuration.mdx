@@ -130,6 +130,7 @@ outer = { top = 4, left = 8, bottom = 8, right = 8 }
 [layout]
 auto-split = true    # new windows split the focused window along its longer side
 resize-step = 0.05   # share of the container that one `resize` step moves
+stack-peek = 32      # points of each window in a stack that stay visible behind the front one
 mouse-follows-focus = false
 ```
 
@@ -154,6 +155,19 @@ percent.
 | Type | number |
 | Default | `0.05` |
 | Allowed | greater than 0, up to 0.5 |
+
+### `stack-peek`
+
+How much of each window in a [stack](/guides/how-tiling-works/#stack) stays visible behind the
+window in front, in points. Every window of a stack is shifted this far from the one before
+it. In a stack with too little room for all its strips, they get narrower so that the window
+in front keeps at least half of the stack.
+
+| | |
+| --- | --- |
+| Type | number |
+| Default | `32` |
+| Allowed | 8 to 120 |
 
 ### `mouse-follows-focus`
 
@@ -315,7 +329,7 @@ option-f = ""                # switches the built-in shortcut off
 | --- | --- |
 | Key | Modifiers and a key joined by dashes, such as `option-shift-h`. See [Key names](/reference/key-names/). |
 | Value | A [command](/reference/commands/) as a string, or `""` or `false` to switch the shortcut off. |
-| Default | The 40 [default shortcuts](/reference/default-shortcuts/). |
+| Default | The 41 [default shortcuts](/reference/default-shortcuts/). |
 
 Entries are merged over the built-in shortcuts one by one, so you only write the ones you want
 to change. [Customising shortcuts](/guides/shortcuts/) has worked examples.
@@ -419,6 +433,7 @@ outer = 8            # or: outer = { top = 8, left = 8, bottom = 8, right = 8 }
 [layout]
 auto-split = true    # new windows split the focused window along its longer side
 resize-step = 0.05   # share of the container that one `resize` step moves
+stack-peek = 32      # points of each window in a stack that stay visible behind the front one
 mouse-follows-focus = false
 
 [animation]
@@ -460,6 +475,7 @@ option-ctrl-l = "join right"
 option-minus = "resize shrink"
 option-equal = "resize grow"
 option-slash = "flip"
+option-s = "stack"
 option-f = "zoom"
 option-shift-space = "float"
 option-shift-b = "balance"

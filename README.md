@@ -76,9 +76,10 @@ iguana help
 | --- | --- |
 | `option-h/j/k/l` | focus left / down / up / right |
 | `option-shift-h/j/k/l` | move the window (continues onto the next display at the edge) |
-| `option-ctrl-h/j/k/l` | stack the window with its neighbour |
+| `option-ctrl-h/j/k/l` | group the window with its neighbour |
 | `option-minus`, `option-equal` | shrink, grow |
-| `option-slash` | flip the container between side-by-side and stacked |
+| `option-slash` | flip the container between side-by-side and top-to-bottom |
+| `option-s` | stack the windows of the container so they overlap, or tile them again |
 | `option-f` | zoom the window to fill the Space |
 | `option-shift-space` | float or tile the window |
 | `option-shift-b` | balance sizes |

@@ -45,9 +45,10 @@ error: Iguana needs Accessibility permission (System Settings > Privacy & Securi
 | --- | --- |
 | [`focus`](#focus) | Focus the window in a direction. |
 | [`move`](#move) | Move the focused window within the layout, or to the next display. |
-| [`join`](#join) | Stack the focused window with its neighbour. |
+| [`join`](#join) | Group the focused window with its neighbour. |
 | [`resize`](#resize) | Grow or shrink the focused window. |
-| [`flip`](#flip) | Switch the focused container between side-by-side and stacked. |
+| [`flip`](#flip) | Switch the focused container between side-by-side and top-to-bottom. |
+| [`stack`](#stack) | Switch the focused container between tiles and a stack of overlapping windows. |
 | [`balance`](#balance) | Give every window an equal share again. |
 | [`float`](#float) | Toggle tiling for the focused window. |
 | [`zoom`](#zoom) | Toggle the focused window filling the desktop. |
@@ -81,6 +82,11 @@ Focuses the nearest window in that direction.
 count. Windows that line up with the focused one are preferred over windows that are only
 diagonally in that direction. Across displays, focus moves to the nearest window on the next
 display.
+
+A [stack](/guides/how-tiling-works/#stack) is the exception, because its windows overlap. In
+the direction the stack runs, `focus` goes to the next or the previous window of the stack,
+and from the last one on to the neighbour beyond it. A stack that is entered from the side
+gives the window it has in front.
 
 If no window is focused, the frontmost window on the desktop is focused instead.
 
@@ -117,7 +123,7 @@ join left|right|up|down
 ```
 
 Puts the focused window and its neighbour in that direction into one slot, split the other
-way. Joining left or right stacks them. Joining up or down puts them side by side. If the
+way. Joining left or right puts one above the other. Joining up or down puts them side by side. If the
 neighbour is already a group, the window is added to the end of the group.
 [Diagram](/guides/how-tiling-works/#join).
 
@@ -138,7 +144,9 @@ Changes the focused window's share of its container by one step. The step is
 
 - Without `width` or `height`, the nearest container in which the window has a visible
   neighbour is used.
-- `width` uses the nearest side-by-side container, `height` the nearest stacked one.
+- `width` uses the nearest side-by-side container, `height` the nearest top-to-bottom one.
+- The windows of a [stack](#stack) all have the same size. From inside a stack, the stack as
+  a whole grows or shrinks.
 
 The words can come in either order: `resize width grow` is the same as `resize grow width`.
 
@@ -154,13 +162,32 @@ The words can come in either order: `resize width grow` is the same as `resize g
 flip
 ```
 
-Switches the container that holds the focused window between side-by-side and stacked.
+Switches the container that holds the focused window between side-by-side and top-to-bottom.
 [Diagram](/guides/how-tiling-works/#flip).
 
 | Reply | When |
 | --- | --- |
 | `ok` | The container was flipped. |
 | `error: cannot flip` | |
+| `error: the focused window is not tiled` | |
+
+### `stack`
+
+```text
+stack
+```
+
+Switches the container that holds the focused window between tiles and a stack. In a stack
+the windows overlap: each takes nearly the whole container and is shifted by
+[`stack-peek`](/reference/configuration/#stack-peek) from the one before it, so a strip of
+every window stays in view. No window is hidden. [How tiling works](/guides/how-tiling-works/#stack)
+says what the other commands do in a stack.
+
+| Reply | When |
+| --- | --- |
+| `ok: stacked` | The windows of the container now overlap. |
+| `ok: unstacked` | They are tiles again. |
+| `ok: no other window to stack with` | The focused window is the only one in the layout. |
 | `error: the focused window is not tiled` | |
 
 ### `balance`
@@ -398,8 +425,8 @@ tree
 ```
 
 Prints the layout tree of the desktop each display is showing. Containers are `horizontal`
-(side by side) or `vertical` (stacked). The weight is each entry's share relative to its
-siblings.
+(side by side) or `vertical` (one above the other), and a [stack](#stack) has the word `stack`
+after that. The weight is each entry's share relative to its siblings.
 
 ```text
 Built-in Retina Display, desktop 1
@@ -428,7 +455,7 @@ config: /Users/you/.config/iguana/iguana.toml
 windows: 3 tiled on screen, 7 known, 5 apps watched
 stage manager: off
 Built-in Retina Display: showing desktop 1 of 3; this display has 3 desktop(s)
-shortcuts: 40 active
+shortcuts: 41 active
 last shortcut: option-l, 4 s ago, answered "ok"
 ```
 

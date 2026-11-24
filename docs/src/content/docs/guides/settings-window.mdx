@@ -106,6 +106,7 @@ are in three groups: Gaps, New windows and Stage Manager.
 | Set each edge separately | Replaces the single edge slider with four: Top edge, Left edge, Bottom edge and Right edge. Switching it off again gives all four edges the value of the top one. | [`gaps.outer`](/reference/configuration/#outer) as a table |
 | A new window | "Splits the focused one" or "Joins its row". | [`layout.auto-split`](/reference/configuration/#auto-split) |
 | Resize step | How far one press of grow or shrink moves the divider. | [`layout.resize-step`](/reference/configuration/#resize-step) |
+| Stack peek | How much of each window in a stack shows behind the one in front. | [`layout.stack-peek`](/reference/configuration/#stack-peek) |
 | Pointer follows focus | Moves the pointer to a window when a shortcut focuses it. | [`layout.mouse-follows-focus`](/reference/configuration/#mouse-follows-focus) |
 | Leave room for the strip of recent apps | "While it shows", "Always" or "Never". Only matters while Stage Manager is on. | [`stage-manager.reserve-strip`](/reference/configuration/#reserve-strip) |
 | Room to leave | How wide a space to leave for the strip. Not shown when the choice is "Never". | [`stage-manager.strip-width`](/reference/configuration/#strip-width), or the number in `reserve-strip` when the choice is "Always" |
@@ -135,8 +136,8 @@ They are laid out as tables:
 
 | Table | Rows | Columns |
 | --- | --- | --- |
-| Directions | Left, Down, Up, Right | Focus, Move, Stack with |
-| Focused window | Grow, Shrink, Even out all sizes, Fill the desktop, Switch between side by side and stacked, Float or tile, Close, Pause tiling | one shortcut each |
+| Directions | Left, Down, Up, Right | Focus, Move, Group with |
+| Focused window | Grow, Shrink, Even out all sizes, Fill the desktop, Switch between side by side and top to bottom, Stack or unstack, Float or tile, Close, Pause tiling | one shortcut each |
 | Desktops | Desktop 1 to Desktop 9, Next desktop, Previous desktop | Go to, Take the window to |
 | Other commands | any command you have given a shortcut that is not in the tables above | one shortcut each |
 
