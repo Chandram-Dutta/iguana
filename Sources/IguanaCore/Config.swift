@@ -23,13 +23,25 @@ public struct Rule: Equatable {
     public var app: String?
     /// Regular expression matched against the window title.
     public var title: String?
-    public var float: Bool
+    /// Nil when the rule says nothing about floating. Only a rule that names a desktop can say
+    /// nothing: a rule with neither key floats, as every rule did before rules could do more.
+    public var float: Bool?
+    /// The desktop matching windows are sent to when they first appear, numbered the way
+    /// Mission Control numbers them.
+    public var desktop: Int?
 
-    public init(app: String?, title: String?, float: Bool = true) {
+    /// The desktops a rule can name: the ones `space` and `move-to-space` accept.
+    public static let desktopNumbers = 1...16
+
+    public init(app: String?, title: String?, float: Bool? = nil, desktop: Int? = nil) {
         self.app = app
         self.title = title
-        self.float = float
+        self.float = float ?? (desktop == nil ? true : nil)
+        self.desktop = desktop
     }
+
+    /// Whether the rule floats the windows it matches.
+    public var floats: Bool { float ?? (desktop == nil) }
 
     public func matches(bundleID: String?, appName: String?, title: String?) -> Bool {
         if let app {
@@ -42,6 +54,32 @@ public struct Rule: Equatable {
             guard let title, title.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil else { return false }
         }
         return app != nil || self.title != nil
+    }
+}
+
+/// What a rule's `desktop` comes to for one window that has just appeared.
+public enum DesktopRuleAction: Equatable {
+    /// Nothing to do: no desktop is named, the window is not a standard one, or it is there already.
+    case leave
+    /// Send the window to this desktop, and stay on the one being used.
+    case send(Int)
+    /// The rule names a desktop that does not exist.
+    case missing
+    /// This system can only take a window to a desktop by going there with it, and a rule
+    /// never takes the user anywhere.
+    case cannotStay
+
+    /// - Parameters:
+    ///   - wanted: the desktop the window's rule names, if it names one.
+    ///   - standardWindow: false for dialogs, sheets and everything else that is never tiled.
+    ///   - windowDesktops: the desktops the window is on now (every one, for a window assigned to all desktops).
+    ///   - desktopCount: how many desktops there are.
+    ///   - canStay: whether a window can be sent away without following it.
+    public static func decide(wanted: Int?, standardWindow: Bool, windowDesktops: [Int], desktopCount: Int, canStay: Bool) -> DesktopRuleAction {
+        guard let wanted, standardWindow else { return .leave }
+        guard wanted >= 1, wanted <= desktopCount else { return .missing }
+        if windowDesktops.contains(wanted) { return .leave }
+        return canStay ? .send(wanted) : .cannotStay
     }
 }
 
@@ -180,8 +218,10 @@ public struct Config: Equatable {
     option-shift-leftbracket = "move-to-space prev"
     option-shift-rightbracket = "move-to-space next"
 
-    # Windows that should stay floating. `app` is a bundle id or part of the app name,
-    # `title` is a regular expression. Dialogs, sheets and fixed-size windows float on their own.
+    # Rules for the windows of an app. `app` is a bundle id or part of the app name, `title` is a
+    # regular expression. `float = true` keeps matching windows floating; dialogs, sheets and
+    # fixed-size windows float on their own. `desktop = 3` sends a matching window to desktop 3
+    # when it first appears, and leaves you where you are.
     # Once the file has any [[rule]], the built-in rules below no longer apply by themselves.
     # The first rule that matches a window decides, so an exception (float = false) goes above
     # the general rule it is an exception to.
@@ -353,8 +393,12 @@ public struct Config: Equatable {
             c.rules = []
             for (i, entry) in list.enumerated() {
                 guard let t = entry.tableValue else { continue }
-                checkKeys(t, ["app", "title", "float"], "rule \(i + 1)")
-                let rule = Rule(app: t["app"]?.stringValue, title: t["title"]?.stringValue, float: t["float"]?.boolValue ?? true)
+                checkKeys(t, ["app", "title", "float", "desktop"], "rule \(i + 1)")
+                var desktop: Int?
+                if case .int(let n)? = t["desktop"] { desktop = n }
+                // A `float` that is not true or false has always been read as true.
+                let rule = Rule(app: t["app"]?.stringValue, title: t["title"]?.stringValue,
+                                float: t["float"].map { $0.boolValue ?? true }, desktop: desktop)
                 if rule.app == nil && rule.title == nil {
                     warnings.append("rule \(i + 1) needs 'app' or 'title'")
                     continue
@@ -363,10 +407,22 @@ public struct Config: Equatable {
                     warnings.append("rule \(i + 1): title is not a valid regular expression")
                     continue
                 }
+                // A rule with a mistake in it is skipped whole, so it cannot do half of what was meant.
+                if t["desktop"] != nil, desktop.map(Rule.desktopNumbers.contains) != true {
+                    let range = Rule.desktopNumbers
+                    warnings.append("rule \(i + 1): desktop must be a whole number from \(range.lowerBound) to \(range.upperBound); skipping this rule")
+                    continue
+                }
                 c.rules.append(rule)
             }
         }
 
         return (c, warnings)
+    }
+
+    /// The rule that decides for a window: the first one that matches it. The rules below that
+    /// one are not asked, whatever they say, so one rule answers for floating and for the desktop.
+    public func rule(bundleID: String?, appName: String?, title: String?) -> Rule? {
+        rules.first { $0.matches(bundleID: bundleID, appName: appName, title: title) }
     }
 }
