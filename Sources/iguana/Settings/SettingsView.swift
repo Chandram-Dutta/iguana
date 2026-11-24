@@ -863,12 +863,18 @@ private struct RuleRowView: View {
                     .accessibilityLabel("Title pattern for \(app.name)")
             }
             Spacer(minLength: 8)
-            Toggle("Float", isOn: floats)
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-                .fixedSize()
-                .help("Keep these windows where you put them instead of tiling them")
-                .accessibilityLabel("Float the windows of \(app.name)")
+            // The switch carries no label of its own: inside a form, a labelled control takes the
+            // row over as "label on the left, control on the right" and pushes the app out of it.
+            HStack(spacing: 6) {
+                Text("Float").font(.system(size: 11.5)).foregroundStyle(.secondary)
+                Toggle("Float", isOn: floats)
+                    .toggleStyle(.switch)
+                    .controlSize(.mini)
+                    .labelsHidden()
+                    .accessibilityLabel("Float the windows of \(app.name)")
+            }
+            .fixedSize()
+            .help("Keep these windows where you put them instead of tiling them")
             Picker("Desktop for \(app.name)", selection: desktop) {
                 Text("Any Desktop").tag(Int?.none)
                 Divider()
