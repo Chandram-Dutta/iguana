@@ -660,27 +660,38 @@ private struct FloatingPane: View {
         var app: String
         var title: String
         /// False for an exception: windows that match are tiled even if a later rule would float them.
-        var float = true
+        /// Nil for a rule that only names a desktop and says nothing about floating.
+        var float: Bool? = true
+        /// The desktop the rule sends new windows to.
+        var desktop: Int?
         /// A row the user is still typing the app into.
         var isDraft = false
     }
 
     var body: some View {
-        PaneScaffold(title: "Floating Windows", subtitle: "Apps whose windows stay where you put them instead of being tiled.") {
+        // Asked once for the pane, not once for every row.
+        let desktopCount = Desktop.all().count
+        PaneScaffold(title: "Floating Windows", subtitle: "Apps whose windows float instead of being tiled, or open on a desktop of their own.") {
+            if !Private.hasMoveBridge, rows.contains(where: { $0.desktop != nil }) {
+                SettingSection {
+                    Callout(.attention, "This version of macOS can only take a window to another desktop by going there with it, so the desktops chosen here are not used.")
+                }
+            }
+
             SettingSection {
                 if rows.isEmpty {
                     Text("Nothing floats by rule. Every standard window is tiled. Add an app below to keep its windows where you put them.")
                         .foregroundStyle(.secondary)
                 }
                 ForEach($rows) { $row in
-                    RuleRowView(row: $row, commit: commit) {
+                    RuleRowView(row: $row, desktopCount: desktopCount, commit: commit) {
                         rows.removeAll { $0.id == row.id }
                         commit()
                     }
                 }
             }
 
-            SettingSection(footer: "Dialogs, sheets and windows that cannot be resized always float; they need no rule. To float one window for now, focus it and press the Float or tile shortcut.") {
+            SettingSection(footer: "Dialogs, sheets and windows that cannot be resized always float; they need no rule. To float one window for now, focus it and press the Float or tile shortcut. A window goes to the desktop chosen for it once, when it opens, and you stay where you are.") {
             HStack(spacing: 10) {
                 Menu {
                     ForEach(runningApps, id: \.processIdentifier) { app in
@@ -718,14 +729,14 @@ private struct FloatingPane: View {
         guard model.config.rules != loadedFrom else { return }
         loadedFrom = model.config.rules
         let drafts = rows.filter { $0.isDraft && $0.app.trimmingCharacters(in: .whitespaces).isEmpty }
-        rows = model.config.rules.map { RuleRow(app: $0.app ?? "", title: $0.title ?? "", float: $0.float) } + drafts
+        rows = model.config.rules.map { RuleRow(app: $0.app ?? "", title: $0.title ?? "", float: $0.float, desktop: $0.desktop) } + drafts
     }
 
     private func commit() {
         let rules = rows
-            .map { ($0.app.trimmingCharacters(in: .whitespaces), $0.title.trimmingCharacters(in: .whitespaces), $0.float) }
+            .map { ($0.app.trimmingCharacters(in: .whitespaces), $0.title.trimmingCharacters(in: .whitespaces), $0.float, $0.desktop) }
             .filter { !$0.0.isEmpty || !$0.1.isEmpty }
-            .map { Rule(app: $0.0.isEmpty ? nil : $0.0, title: $0.1.isEmpty ? nil : $0.1, float: $0.2) }
+            .map { Rule(app: $0.0.isEmpty ? nil : $0.0, title: $0.1.isEmpty ? nil : $0.1, float: $0.2, desktop: $0.3) }
         for i in rows.indices where !rows[i].app.trimmingCharacters(in: .whitespaces).isEmpty { rows[i].isDraft = false }
         loadedFrom = rules
         model.setRules(rules)
@@ -740,8 +751,32 @@ private func resized(_ image: NSImage, _ side: CGFloat) -> NSImage {
 
 private struct RuleRowView: View {
     @SwiftUI.Binding var row: FloatingPane.RuleRow
+    /// How many desktops there are now, 0 when that is not known.
+    let desktopCount: Int
     let commit: () -> Void
     let remove: () -> Void
+
+    private var floats: SwiftUI.Binding<Bool> {
+        SwiftUI.Binding(get: { row.float ?? false }, set: { on in
+            // Switched off, a rule that names a desktop says nothing about floating. One that
+            // names none has to say `float = false`, or it would mean a floating rule again.
+            row.float = on ? true : (row.desktop == nil ? false : nil)
+            commit()
+        })
+    }
+
+    private var desktop: SwiftUI.Binding<Int?> {
+        SwiftUI.Binding(get: { row.desktop }, set: { n in
+            if n == nil, row.float == nil { row.float = false }
+            row.desktop = n
+            commit()
+        })
+    }
+
+    /// The desktops to offer: the ones there are, and the one the rule names if it is beyond them.
+    private var desktopsOffered: ClosedRange<Int> {
+        1...max(desktopCount > 0 ? desktopCount : 9, row.desktop ?? 1)
+    }
 
     /// The app a rule names, looked up for its proper name and icon.
     private var app: (name: String, icon: NSImage) {
@@ -771,7 +806,7 @@ private struct RuleRowView: View {
                 } else {
                     HStack(spacing: 7) {
                         Text(app.name).font(.system(size: 13, weight: .medium))
-                        if !row.float {
+                        if row.float == false {
                             // An exception written in the settings file: these windows are tiled.
                             Text("Tiled, as an exception")
                                 .font(.system(size: 10.5, weight: .medium))
@@ -791,12 +826,30 @@ private struct RuleRowView: View {
                     .accessibilityLabel("Title pattern for \(app.name)")
             }
             Spacer(minLength: 8)
+            Toggle("Float", isOn: floats)
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .fixedSize()
+                .help("Keep these windows where you put them instead of tiling them")
+                .accessibilityLabel("Float the windows of \(app.name)")
+            Picker("Desktop for \(app.name)", selection: desktop) {
+                Text("Any Desktop").tag(Int?.none)
+                Divider()
+                ForEach(desktopsOffered, id: \.self) { n in
+                    Text(desktopCount > 0 && n > desktopCount ? "Desktop \(n) (not there now)" : "Desktop \(n)").tag(Int?.some(n))
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .controlSize(.small)
+            .fixedSize()
+            .help("Send these windows to a desktop when they open. You stay where you are.")
             Button(role: .destructive, action: remove) {
                 Image(systemName: "minus.circle.fill")
             }
             .buttonStyle(.borderless)
             .foregroundStyle(.secondary)
-            .help("Stop floating \(app.name)")
+            .help("Remove the rule for \(app.name)")
             .accessibilityLabel("Remove the rule for \(app.name)")
         }
         .padding(.vertical, 2)
