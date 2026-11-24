@@ -22,6 +22,8 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let updates = UpdateChecker()
     /// The ring around the focused window (`[focus-ring]`).
     private let focusRing = FocusRing()
+    /// The outline that shows where a tiled window being dragged will land.
+    private let dragPreview = DragPreview()
     /// The menu of the menu bar item. Its first item is a view: the desktops, drawn.
     private let statusMenu = NSMenu()
     private let deskModel = DeskModel()
@@ -55,8 +57,15 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if self?.settings?.isVisible == true { self?.settings?.model.refresh() }
             if let self { self.hooks.changed(self.wm) }
             if let self { self.focusRing.changed(self.wm) }
+            if let self { self.dragPreview.changed(self.wm) }
         }
-        wm.onFrameChange = { [weak self] element in self?.focusRing.moved(element) }
+        wm.onFrameChange = { [weak self] element in
+            self?.focusRing.moved(element)
+            self?.dragPreview.moved()
+        }
+        wm.onDrag = { [weak self] on in
+            if let self { self.dragPreview.drag(on, self.wm) }
+        }
         wm.onConfigChange = { [weak self] in self?.registerHotkeys() }
         wm.statusExtras = { [weak self] in
             guard let self else { return [] }

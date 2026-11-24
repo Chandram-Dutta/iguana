@@ -97,7 +97,8 @@ For status bars such as SketchyBar and for scripts, `iguana list-windows --json`
 | `option-shift-1` … `option-shift-9` | take the window to desktop N and go with it |
 | `option-shift-[`, `option-shift-]` | take the window to the previous, next desktop |
 
-You can also drag a tiled window onto another to swap them, and resize with the mouse; the layout
+You can also drag a tiled window onto another: the middle swaps them, an edge takes that half of
+the tile, and an outline shows where the window will land. Drag an edge to resize; the layout
 keeps the new proportions. With `focus-follows-mouse = true` under `[layout]`, the window the
 pointer comes to rest on gets the focus without a click.
 

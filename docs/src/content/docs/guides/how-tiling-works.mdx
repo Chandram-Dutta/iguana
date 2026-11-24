@@ -221,6 +221,7 @@ one of them is in front of the others.
   end of the stack, or across its direction, the window leaves the stack.
 - **New windows.** A window that opens while a window of a stack is focused joins the stack,
   next to that window. `join` towards a stack and `move` into one add the focused window to it.
+  So does dragging a window onto the middle of a stack with the mouse.
 - **Resize.** The windows of a stack all have the same size, so `resize` grows or shrinks the
   stack as a whole against its neighbours.
 
@@ -259,12 +260,46 @@ neighbour falls below that.
 
 `balance` sets every share on the desktop back to equal.
 
-### Resizing and swapping with the mouse
+### Moving and resizing with the mouse
 
-- Drag the edge of a tiled window. When you let go, the layout keeps the new proportions.
-- Drag a tiled window and drop it on another tile. The two trade places.
+Drag a tiled window by its title bar. While you hold it, an outline in your accent colour
+shows the place the window takes if you let go now. Where the pointer is decides:
 
-While the mouse button is down, Iguana leaves the window alone.
+- **The middle of another tile: the two trade places.**
+- **Near an edge of another tile: the window takes that half.** The edge is a band along each
+  side, a quarter of the tile deep. The tile is split in two there. The window you dragged
+  gets the half on that side and the other window keeps the rest.
+- **Anywhere else: nothing changes.** Over the window's own tile, a gap, the menu bar or a
+  floating window there is no outline, and the window goes back to its tile when you let go.
+
+C dropped near the bottom edge of A:
+
+```text
++------+------+------+        +----------+----------+
+|      |      |      |        |    A     |          |
+|  A   |  B   |  C   |   →    +----------+    B     |
+|      |      |      |        |    C     |          |
++------+------+------+        +----------+----------+
+```
+
+The outline shows the result. The window you drag leaves its own place first and the others
+close up, so the half it gets can be larger than half of the tile as it looks during the drag.
+A drop that would leave every window where it is shows no outline.
+
+- **A stack is one tile.** Near an edge of a stack, the window goes beside the whole stack.
+  On the middle of a stack it joins the stack, after the window you dropped it on.
+- **Out of a stack.** Drag a window of a stack onto another tile and the rules above apply.
+  Its own tile is most of the stack, and dropped there it stays. Dropped on the strip of
+  another window at the end of its stack, it leaves the stack and stands beside it.
+- **Another display.** A tile on another display works the same way, with one difference:
+  dropped on the middle, the window moves in beside the one that is there, which stays on its
+  display.
+
+Drag the **edge** of a tiled window to resize it. When you let go, the layout keeps the new
+proportions. A resize shows no outline.
+
+While the mouse button is down, Iguana leaves the window alone. There is no outline while
+tiling is paused, and none for a floating window or a zoomed one.
 
 ## Windows that are not showing keep their slot
 

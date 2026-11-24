@@ -242,7 +242,10 @@ final class WindowManager {
         if let asked = w.lastSetFrame, nearlyEqual(now, asked) { return }
         if mouseIsDown, !animator.isMoving(id) {
             // The user is dragging or resizing. Leave the window alone until they let go.
-            if drag == nil { drag = (id, slot) }
+            if drag == nil {
+                drag = (id, slot)
+                onDrag?(true)
+            }
             return
         }
         if mouseIsDown { return }
@@ -253,7 +256,9 @@ final class WindowManager {
         stackOrderTries = 0
         guard let d = drag else { return }
         drag = nil
-        defer { scheduleRefresh(after: 0) }
+        onDrag?(false)
+        var wait = 0.0
+        defer { scheduleRefresh(after: wait) }
         guard let w = windows[d.id], let now = w.element.frame, let (_, tree) = treeEntry(containing: d.id) else { return }
         w.lastSetFrame = nil
         let dw = now.width - d.start.width, dh = now.height - d.start.height
@@ -261,19 +266,30 @@ final class WindowManager {
             // Resized by hand: keep the new proportions.
             if abs(dw) > 3 { tree.changeShare(of: d.id, along: .horizontal, .ratio(Double(now.width / d.start.width)), visible: lastVisible) }
             if abs(dh) > 3 { tree.changeShare(of: d.id, along: .vertical, .ratio(Double(now.height / d.start.height)), visible: lastVisible) }
-        } else if let cursor = CGEvent(source: nil)?.location, slots[d.id]?.contains(cursor) != true,
-                  // The windows of a stack overlap: a window let go on its own tile stays, and of
-                  // several tiles under the pointer the one in front is meant.
-                  let target = ScreenSnapshot.take().order.first(where: { $0 != d.id && lastFrames[$0]?.contains(cursor) == true }) {
-            // Dropped on another tile: trade places.
-            if tree.contains(target) {
-                tree.swap(d.id, target)
-            } else if let (_, other) = treeEntry(containing: target) {
-                tree.remove(d.id)
-                other.insert(d.id, after: target)
+        } else if let cursor = CGEvent(source: nil)?.location,
+                  // The same question the outline asked all through the drag (DragPreview.swift),
+                  // so what it showed is what is done: trade places, take half of a tile, join a stack.
+                  let plan = dropPlan(dragging: d.id, from: d.start, now: now, at: cursor) {
+            DragDrop.carryOut(plan.drop, of: d.id, in: displays.compactMap { trees[$0.treeKey] }, visible: lastVisible)
+            if displayIndex(for: now) != displayIndex(for: plan.rect) {
+                // Let go with most of itself on another display than the one it lands on. A
+                // layout is made of the windows on its display, so the window is put there first.
+                w.element.setSize(plan.rect.size)
+                w.element.setPosition(plan.rect.origin)
+                wait = 0.05
             }
         }
     }
+
+    /// A drag of a tiled window by hand began (true) or ended (false). The outline that shows
+    /// where the window will land is drawn for as long as it lasts.
+    var onDrag: ((Bool) -> Void)?
+
+    /// The window the user is dragging or resizing by hand, and the tile it started from.
+    var dragging: (id: CGWindowID, start: CGRect)? { drag }
+
+    /// The tile of every tiled window on screen. A zoomed window is not on its tile, and has none here.
+    var tileFrames: [CGWindowID: CGRect] { lastFrames.filter { !zoomed.values.contains($0.key) } }
 
     // MARK: Refresh
 

@@ -104,6 +104,16 @@ final class OutlineOverlay {
         isShown = true
     }
 
+    /// Put the overlay on screen directly below another window: above everything that window
+    /// is in front of. The outline of a landing place goes under the window being dragged.
+    func order(below window: CGWindowID) {
+        // A window that is not on screen yet is not drawn by asking the window. The view is
+        // asked, so that the colours are in place before the first frame is shown.
+        view.displayIfNeeded()
+        panel.order(.below, relativeTo: Int(window))
+        isShown = true
+    }
+
     func hide() {
         guard isShown else { return }
         panel.orderOut(nil)

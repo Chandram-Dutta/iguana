@@ -301,6 +301,76 @@ public final class Tree {
         return now
     }
 
+    /// The outermost stack around a window that shows as a stack: more than one of its
+    /// children is on screen. A stack with a single window on screen looks like any other tile.
+    func shownStack(around id: WindowID, visible: Set<WindowID>?) -> Node? {
+        stacks(around: id).first { stack in stack.children.filter { hasVisible($0, visible) }.count > 1 }
+    }
+
+    /// Put a window beside another on one side, as a drop on that edge of its tile asks: the
+    /// tile is cut in two across `side`, the window takes the half on that side and the anchor
+    /// keeps the rest. A window that is in this tree already leaves its place first.
+    ///
+    /// An anchor in a stack that shows as one stands for the whole stack: the window goes
+    /// beside the stack, never into it.
+    @discardableResult
+    public func place(_ id: WindowID, beside anchor: WindowID, on side: Direction, visible: Set<WindowID>? = nil) -> Bool {
+        guard id != anchor, let leaf = node(anchor) else { return false }
+        // Looked up before the window leaves, while a stack of two still is a stack. The tree
+        // is put in order once, at the end, so that these nodes stay the ones in the tree.
+        let target = shownStack(around: anchor, visible: visible) ?? leaf
+        node(id)?.detach()
+        let new = Node(window: id)
+        let axis = side.orientation
+        if let p = target.parent, let i = target.index {
+            if p.children.count == 1 {
+                // Alone in its container: the container turns to split the way that was asked.
+                p.kind = .container(axis)
+                p.stacked = false
+                new.weight = target.weight
+                p.insert(new, at: side.isForward ? 1 : 0)
+            } else if p.orientation == axis, !p.stacked {
+                target.weight /= 2
+                new.weight = target.weight
+                p.insert(new, at: side.isForward ? i + 1 : i)
+            } else {
+                let c = Node(container: axis, weight: target.weight)
+                target.detach()
+                p.insert(c, at: i)
+                target.weight = 1
+                c.append(target)
+                c.insert(new, at: side.isForward ? 1 : 0)
+            }
+        } else {
+            // A stack that fills the display: the display is split around it.
+            let old = root
+            root = Node(container: axis)
+            old.weight = 1
+            root.append(old)
+            root.insert(new, at: side.isForward ? 1 : 0)
+        }
+        normalize()
+        return true
+    }
+
+    /// Put a window right after another in the container that one is in, with an even share. A
+    /// window that is in this tree already leaves its place first.
+    ///
+    /// An anchor in a stack that shows as one stands for its branch of the stack: the window
+    /// becomes the next window of that stack.
+    @discardableResult
+    public func place(_ id: WindowID, nextTo anchor: WindowID, visible: Set<WindowID>? = nil) -> Bool {
+        guard id != anchor, var branch = node(anchor) else { return false }
+        if let stack = shownStack(around: anchor, visible: visible) {
+            while let p = branch.parent, p !== stack { branch = p }
+        }
+        guard let p = branch.parent else { return false }
+        node(id)?.detach()
+        p.insert(Node(window: id, weight: p.meanChildWeight), at: (branch.index ?? p.children.count) + 1)
+        normalize()
+        return true
+    }
+
     /// Change how much of its container a window takes. With `axis == nil` the nearest container
     /// that has more than one visible child is used. The windows of a stack all have the same
     /// size, so from inside a stack it is the stack as a whole that grows or shrinks.
