@@ -101,6 +101,8 @@ public struct Config: Equatable {
     public var rules: [Rule] = []
     /// Shell commands to run when something changes. An event without a command is not in here.
     public var hooks: [HookEvent: String] = [:]
+    /// The ring around the window that has the focus.
+    public var focusRing = FocusRingSettings()
 
     public static let defaultText = """
     #:schema ./iguana.schema.json
@@ -120,6 +122,12 @@ public struct Config: Equatable {
     enabled = true       # windows glide to their new place instead of jumping
     duration = 0.16      # seconds, 0.05 to 1
     easing = "ease-out"  # "linear", "ease-out" or "ease-in-out"
+
+    # A ring around the window that has the focus, tiled or floating.
+    [focus-ring]
+    enabled = false
+    width = 3            # points, 1 to 10
+    color = "accent"     # the system accent colour, or a colour such as "#8fd43f"
 
     [stage-manager]
     # "auto" leaves room for the strip of recent apps while Stage Manager shows it.
@@ -246,7 +254,7 @@ public struct Config: Equatable {
             }
         }
 
-        checkKeys(doc, ["gaps", "layout", "animation", "stage-manager", "menu-bar", "hooks", "bindings", "rule"], "the config file")
+        checkKeys(doc, ["gaps", "layout", "animation", "focus-ring", "stage-manager", "menu-bar", "hooks", "bindings", "rule"], "the config file")
 
         if let gaps = doc["gaps"]?.tableValue {
             checkKeys(gaps, ["inner", "outer"], "[gaps]")
@@ -292,6 +300,19 @@ public struct Config: Equatable {
                     c.animationEasing = e
                 } else {
                     warnings.append("animation.easing must be one of: \(Easing.allCases.map(\.rawValue).joined(separator: ", "))")
+                }
+            }
+        }
+
+        if let ring = doc["focus-ring"]?.tableValue {
+            checkKeys(ring, ["enabled", "width", "color"], "[focus-ring]")
+            if let v = flag(ring["enabled"], "focus-ring.enabled") { c.focusRing.enabled = v }
+            if let v = number(ring["width"], "focus-ring.width", min: 1, max: 10) { c.focusRing.width = v }
+            if let v = ring["color"] {
+                if let color = v.stringValue.flatMap(RingColor.init(text:)) {
+                    c.focusRing.color = color
+                } else {
+                    warnings.append("focus-ring.color must be \"accent\" or a colour such as \"#8fd43f\"; keeping the default")
                 }
             }
         }

@@ -205,6 +205,72 @@ How the motion is paced.
 | Default | `"ease-out"` |
 | Allowed | `"linear"`, `"ease-out"`, `"ease-in-out"` |
 
+## `[focus-ring]`
+
+A ring around the window that has the focus, so that you can see at a glance which window
+your typing goes to. It is off until you switch it on.
+
+```toml title="iguana.toml"
+[focus-ring]
+enabled = false
+width = 3            # points, 1 to 10
+color = "accent"     # the system accent colour, or a colour such as "#8fd43f"
+```
+
+- **Tiled and floating windows both get it.** Any standard window can have the ring. Dialogs
+  and sheets do not, and neither does a window in native fullscreen.
+- **It lies outside the window.** The ring is drawn in the gap around the window and never
+  covers what is in it. Its corners follow the corners of a macOS window. Where there is no
+  gap, the ring lies over the edge of the neighbouring window, and a side at the very edge of
+  the screen is off the screen.
+- **It sits directly above the focused window,** not above everything. A window that lies
+  over the focused one covers the ring too.
+- **It steps aside while the window moves.** While a window glides to a new place, and while
+  you drag or resize it, the ring is not drawn. It comes back where the window stops.
+- **It is about focus, not tiling.** The ring stays while tiling is paused.
+- **It marks the window Iguana's shortcuts act on.** When you click the desktop, or one of
+  Iguana's own windows is in front, that is still the window in front of the others, and the
+  ring stays on it.
+
+### `enabled`
+
+When `true`, Iguana draws the ring.
+
+| | |
+| --- | --- |
+| Type | boolean |
+| Default | `false` |
+
+### `width`
+
+How thick the ring is, in points.
+
+| | |
+| --- | --- |
+| Type | number |
+| Default | `3` |
+| Allowed | 1 to 10 |
+
+A ring wider than your [gaps](#gaps) reaches over the neighbouring windows.
+
+### `color`
+
+The colour of the ring.
+
+| | |
+| --- | --- |
+| Type | string |
+| Default | `"accent"` |
+| Allowed | `"accent"`, or a colour written `"#rgb"`, `"#rrggbb"` or `"#rrggbbaa"` |
+
+| Value | Effect |
+| --- | --- |
+| `"accent"` | The accent colour chosen in System Settings > Appearance. The ring follows it when you change it. |
+| `"#8fd43f"` | A colour of your own, as red, green and blue in hexadecimal. `"#8d3"` is short for `"#88dd33"`. |
+| `"#8fd43f80"` | The same with an opacity as a fourth pair of digits: `80` is about half see-through. |
+
+Anything else is a warning, and the ring keeps the accent colour.
+
 ## `[stage-manager]`
 
 Room for Stage Manager's strip of recent apps. These settings do nothing while Stage Manager
@@ -512,6 +578,12 @@ mouse-follows-focus = false
 enabled = true       # windows glide to their new place instead of jumping
 duration = 0.16      # seconds, 0.05 to 1
 easing = "ease-out"  # "linear", "ease-out" or "ease-in-out"
+
+# A ring around the window that has the focus, tiled or floating.
+[focus-ring]
+enabled = false
+width = 3            # points, 1 to 10
+color = "accent"     # the system accent colour, or a colour such as "#8fd43f"
 
 [stage-manager]
 # "auto" leaves room for the strip of recent apps while Stage Manager shows it.

@@ -121,6 +121,9 @@ final class Animator: NSObject {
 
     func isMoving(_ id: CGWindowID) -> Bool { motions[id] != nil || landing[id] != nil }
 
+    /// On its way as a glide, as opposed to having been placed at once.
+    func isGliding(_ id: CGWindowID) -> Bool { motions[id] != nil }
+
     var isIdle: Bool { motions.isEmpty && landing.isEmpty }
 
     /// Take a window to `to`. A window that is already gliding continues from where it is now.

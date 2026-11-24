@@ -61,6 +61,9 @@ final class WindowManager {
     var onOpenTour: (() -> Void)?
     /// Extra lines for `status`, supplied by the app shell.
     var statusExtras: (() -> [String])?
+    /// A window says it moved or changed size, for the focus ring. No refresh follows while
+    /// the user drags a window, so `onChange` alone would not tell.
+    var onFrameChange: ((AXUIElement) -> Void)?
 
     private var apps: [pid_t: AppState] = [:]
     private var windows: [CGWindowID: WindowState] = [:]
@@ -211,6 +214,7 @@ final class WindowManager {
         switch notification {
         case kAXWindowMovedNotification, kAXWindowResizedNotification:
             frameChanged(element)
+            onFrameChange?(element)
         case kAXUIElementDestroyedNotification:
             scheduleRefresh()
         default:
@@ -1138,6 +1142,12 @@ final class WindowManager {
         }
         return Facts(windows: windows, apps: apps, trees: trees, tiled: Set(lastFrames.keys), visible: lastVisible,
                      activeDisplay: activeDisplay)
+    }
+
+    /// Where Iguana is sending a window right now, and whether it glides there or is placed
+    /// at once. Nil for a window Iguana is not moving. The focus ring reads this.
+    func motion(of id: CGWindowID) -> (to: CGRect, gliding: Bool)? {
+        animator.destination(of: id).map { ($0, animator.isGliding(id)) }
     }
 
     // MARK: Saved layouts

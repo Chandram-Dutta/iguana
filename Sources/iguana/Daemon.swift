@@ -16,6 +16,8 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var tour: TourWindowController?
     /// The commands of `[hooks]`, run when the desktop or the focused window changes.
     private let hooks = Hooks()
+    /// The ring around the focused window (`[focus-ring]`).
+    private let focusRing = FocusRing()
     /// The menu of the menu bar item. Its first item is a view: the desktops, drawn.
     private let statusMenu = NSMenu()
     private let deskModel = DeskModel()
@@ -47,7 +49,9 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.updateStatusItem()
             if self?.settings?.isVisible == true { self?.settings?.model.refresh() }
             if let self { self.hooks.changed(self.wm) }
+            if let self { self.focusRing.changed(self.wm) }
         }
+        wm.onFrameChange = { [weak self] element in self?.focusRing.moved(element) }
         wm.onConfigChange = { [weak self] in self?.registerHotkeys() }
         wm.statusExtras = { [weak self] in
             guard let self else { return [] }

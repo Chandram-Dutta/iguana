@@ -332,6 +332,8 @@ private struct LayoutPane: View {
                     }
                 }
             }
+
+            FocusRingSection(model: model)
         }
     }
 

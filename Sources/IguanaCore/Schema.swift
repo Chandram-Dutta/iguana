@@ -64,6 +64,16 @@ extension Config {
             "easing": { "enum": ["linear", "ease-out", "ease-in-out"], "default": "ease-out", "description": "How the motion is paced." }
           }
         },
+        "focus-ring": {
+          "type": "object",
+          "description": "A ring around the window that has the focus, tiled or floating. It is drawn just outside the window and never covers its content.",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean", "default": false, "description": "Draw a ring around the focused window." },
+            "width": { "type": "number", "minimum": 1, "maximum": 10, "default": 3, "description": "Thickness of the ring, in points." },
+            "color": { "type": "string", "pattern": "^(accent|#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8}))$", "default": "accent", "description": "\\"accent\\" follows the accent colour chosen in System Settings. Or a colour of your own: \\"#rgb\\", \\"#rrggbb\\", or \\"#rrggbbaa\\" with an opacity." }
+          }
+        },
         "stage-manager": {
           "type": "object",
           "additionalProperties": false,

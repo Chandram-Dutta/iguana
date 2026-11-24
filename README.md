@@ -100,6 +100,10 @@ There are two ways to change settings and they are the same thing underneath.
 and gaps, animation, shortcuts and floating-window rules. Changes apply to your real windows as
 you make them.
 
+A ring around the focused window, like the border other tiling window managers need a second
+tool for, is built in and off until you switch it on: `enabled = true` under `[focus-ring]`, or
+the Layout pane. It is drawn outside the window in your accent colour, or one you choose.
+
 **The config file** is `~/.config/iguana/iguana.toml`. `iguana config init` writes it with every
 setting explained in comments, plus a schema file that gives editors with TOML support completion
 and validation. Iguana reloads the file the moment it is saved.
