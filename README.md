@@ -61,9 +61,10 @@ open build/Iguana.app      # shows the welcome tour the first time
 `TEAM_ID=...` or `SIGN_IDENTITY="..."`, or the app is signed ad hoc and macOS asks for the
 Accessibility permission again after every build.
 
-The first start shows a full-screen tour: a practice desktop to try the shortcuts on, then the
-Accessibility permission (System Settings > Privacy & Security > Accessibility). Tiling starts
-when the tour ends. `iguana tour`, or Welcome Tour… in the menu, shows it again. The
+The first start shows a full-screen tour: a practice desktop to try the shortcuts on (focus,
+move, resize, stack, desktops), then the Accessibility permission (System Settings > Privacy &
+Security > Accessibility). Tiling starts when the tour ends. `iguana tour`, or Welcome Tour…
+in the menu, shows it again. The
 menu bar icon is a live drawing of the current desktop's layout, with the desktop number beside
 it. Click it for a menu that starts with the desktop in miniature (click a window to focus it) and
 every other desktop with its layout (click one to go there), above Pause, Balance and Settings. With `desktops = "all"` or `"occupied"` under `[menu-bar]`, the icon draws every

@@ -1,16 +1,16 @@
 ---
 title: First ten minutes
-description: A guided tour of Iguana. Open a few windows, then focus, move, resize, zoom and send one to another desktop.
+description: A guided tour of Iguana. Open a few windows, then focus, move, stack, resize, zoom and send one to another desktop.
 ---
 
 import { Steps, Aside } from '@astrojs/starlight/components';
 
 After this tour you will be able to drive Iguana from the keyboard: move between windows,
-rearrange them, resize them, and send one to another desktop.
+rearrange them, stack them, resize them, and send one to another desktop.
 
 The [welcome tour](/start/install/#the-welcome-tour) that Iguana shows on its first start covers
-focusing, moving, resizing and desktops on a practice desktop. This page does the same with
-your real windows, and goes further.
+focusing, moving, resizing, stacking and desktops on a practice desktop. This page does the
+same with your real windows, and goes further.
 
 You need Iguana [installed and running](/start/install/). The tour uses the built-in
 shortcuts.
@@ -131,6 +131,35 @@ and side by side. Press it now and A and C stand next to each other again, with 
 +-----+-----+----------+
 ```
 
+## Stack a row
+
+Three windows side by side are narrow. <kbd>option</kbd>+<kbd>s</kbd> turns the row or column
+the focused window is in into a stack: its windows overlap, each nearly as wide as the whole
+row, and a strip of every one stays in view.
+
+<Steps>
+
+1. With C still focused, press <kbd>option</kbd>+<kbd>s</kbd>. C is in front, with a strip of
+   A at its left and a strip of B at its right.
+
+   ```text
+   +-+----------------+-+
+   | |                | |
+   |A|       C        |B|
+   | |                | |
+   +-+----------------+-+
+   ```
+
+2. Press <kbd>option</kbd>+<kbd>h</kbd>. The focus steps to A, which comes to the front, and
+   C and B show as strips at the right. <kbd>option</kbd>+<kbd>l</kbd> steps back to C.
+
+3. Press <kbd>option</kbd>+<kbd>s</kbd> again. The three are tiles side by side again.
+
+</Steps>
+
+[How tiling works](/guides/how-tiling-works/#stack) has the rest: what moving, opening and
+dragging a window do to a stack.
+
 ## Resize
 
 - <kbd>option</kbd>+<kbd>equal</kbd> grows the focused window.
@@ -192,5 +221,5 @@ covers the rest.
 ## Next
 
 - [Default shortcuts](/reference/default-shortcuts/): the full table.
-- [How tiling works](/guides/how-tiling-works/): what `move`, `join` and `flip` do to the layout.
+- [How tiling works](/guides/how-tiling-works/): what `move`, `join`, `flip` and `stack` do to the layout.
 - [Desktops and displays](/guides/desktops-and-displays/): more than one desktop, more than one display.
