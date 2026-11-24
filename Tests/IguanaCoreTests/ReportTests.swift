@@ -170,11 +170,13 @@ final class ReportTests: XCTestCase {
                       }
                     ],
                     "orientation" : "vertical",
+                    "stacked" : false,
                     "type" : "container",
                     "weight" : 1
                   }
                 ],
                 "orientation" : "horizontal",
+                "stacked" : false,
                 "type" : "container",
                 "weight" : 1
               }

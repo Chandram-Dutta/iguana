@@ -149,8 +149,8 @@ public enum Report {
     // MARK: tree
 
     /// One entry of a layout: a container that splits its area among its children, or a window.
-    /// A container has `orientation` and `children`; a window has `id`, `onScreen`, and `app`
-    /// and `title` once Iguana has looked at it.
+    /// A container has `orientation`, `stacked` and `children`; a window has `id`, `onScreen`,
+    /// and `app` and `title` once Iguana has looked at it.
     public struct Node: Codable, Equatable {
         public enum Kind: String, Codable, Equatable {
             case container, window
@@ -160,6 +160,8 @@ public enum Report {
         /// Share of the parent's area, relative to the weights beside it.
         public var weight: Double
         public var orientation: Orientation?
+        /// Whether the container's windows overlap as a stack instead of sharing its area.
+        public var stacked: Bool?
         public var children: [Node]?
         public var id: WindowID?
         public var app: String?
@@ -180,6 +182,7 @@ public enum Report {
             } else {
                 type = .container
                 orientation = layout.orientation
+                stacked = layout.stacked ?? false
                 children = (layout.children ?? []).map { Node($0, window: window) }
             }
         }

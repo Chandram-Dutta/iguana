@@ -617,11 +617,13 @@ With `--json`, containers and windows nest in `children`:
               }
             ],
             "orientation" : "vertical",
+            "stacked" : false,
             "type" : "container",
             "weight" : 1
           }
         ],
         "orientation" : "horizontal",
+        "stacked" : false,
         "type" : "container",
         "weight" : 1
       }
@@ -643,7 +645,7 @@ it. The other keys depend on the type:
 
 | `type` | Keys |
 | --- | --- |
-| `container` | `orientation`, which is `horizontal` (side by side) or `vertical` (stacked), and `children`. |
+| `container` | `orientation`, which is `horizontal` (side by side) or `vertical` (top to bottom); `stacked`, which is true when its windows overlap as a [stack](/guides/how-tiling-works/) instead of sharing its area; and `children`. |
 | `window` | `id`, `app`, `title` and `onScreen`. `app` and `title` are left out for a window Iguana remembers from before a restart and has not seen again yet. |
 
 ### `status`
