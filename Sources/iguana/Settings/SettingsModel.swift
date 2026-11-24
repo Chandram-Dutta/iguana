@@ -342,7 +342,9 @@ final class SettingsModel: ObservableObject {
                 var entry: [(String, TOMLValue)] = []
                 if let app = rule.app, !app.isEmpty { entry.append(("app", .string(app))) }
                 if let title = rule.title, !title.isEmpty { entry.append(("title", .string(title))) }
-                entry.append(("float", .bool(rule.float)))
+                // A rule that only names a desktop says nothing about floating, and is written that way.
+                if let float = rule.float { entry.append(("float", .bool(float))) }
+                if let desktop = rule.desktop { entry.append(("desktop", .int(desktop))) }
                 return entry
             })
             if rules.isEmpty { editor.set(["rule"], to: .array([])) }

@@ -157,6 +157,42 @@ final class SettingsModelTests: XCTestCase {
         XCTAssertEqual(model.problems, [])
     }
 
+    func testRulesKeepTheirDesktop() throws {
+        try ConfigFile.write("""
+        [[rule]]
+        app = "com.tinyspeck.slackmacgap"
+        desktop = 3
+
+        [[rule]]
+        app = "Music"
+        float = true
+        desktop = 2
+
+        [[rule]]
+        app = "Notes"
+        float = false
+        desktop = 1
+
+        """, to: backend.configURL)
+        backend.reloadConfig()
+        model.refresh()
+        let written = model.config.rules
+        XCTAssertEqual(written.map(\.desktop), [3, 2, 1])
+
+        // Saved from the window with another rule added, every rule says what it said before.
+        model.setRules(written + [Rule(app: "Preview", title: nil)])
+        XCTAssertEqual(model.config.rules, written + [Rule(app: "Preview", title: nil)])
+        XCTAssertEqual(model.config.rules.map(\.float), [nil, true, false, true])
+        XCTAssertTrue(fileText.contains("app = \"com.tinyspeck.slackmacgap\"\ndesktop = 3\n"), "a rule that only names a desktop is not given a float key")
+        XCTAssertTrue(fileText.contains("app = \"Music\"\nfloat = true\ndesktop = 2\n"))
+
+        // The window can take the desktop away again, or give one to a rule that had none.
+        model.setRules([Rule(app: "Music", title: nil, float: true), Rule(app: "Preview", title: nil, float: nil, desktop: 4)])
+        XCTAssertEqual(model.config.rules.map(\.desktop), [nil, 4])
+        XCTAssertEqual(model.config.rules.map(\.floats), [true, false])
+        XCTAssertEqual(model.problems, [])
+    }
+
     func testRecordingSuspendsGlobalShortcuts() {
         model.startRecording(slot: "x") { _ in }
         XCTAssertEqual(model.recording, "x")

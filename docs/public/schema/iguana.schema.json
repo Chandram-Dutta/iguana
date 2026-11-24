@@ -100,7 +100,7 @@
     },
     "rule": {
       "type": "array",
-      "description": "Windows that should stay floating. Written as [[rule]] sections.",
+      "description": "Windows that should stay floating, or be sent to a desktop when they first appear. Written as [[rule]] sections. The first rule that matches a window decides.",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -108,7 +108,8 @@
         "properties": {
           "app": { "type": "string", "description": "A bundle identifier (exact match) or part of the app's name." },
           "title": { "type": "string", "description": "A regular expression matched against the window title, ignoring case." },
-          "float": { "type": "boolean", "default": true }
+          "float": { "type": "boolean", "description": "Whether matching windows float. A rule with neither float nor desktop floats them; a rule with only desktop leaves floating alone." },
+          "desktop": { "type": "integer", "minimum": 1, "maximum": 16, "description": "Send a matching window to this desktop when it first appears, and stay on the desktop being used. Desktops are numbered as Mission Control numbers them." }
         }
       }
     }
