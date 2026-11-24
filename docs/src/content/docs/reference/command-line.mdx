@@ -82,6 +82,7 @@ iguana focus left
 iguana resize grow width
 iguana move-to-space 3 --stay
 iguana status
+iguana list-windows --json
 ```
 
 What happens:
@@ -94,11 +95,24 @@ What happens:
 
 Because every command works this way, anything a shortcut can do can also be scripted.
 
+### Flags
+
+| Flag | On | What it does |
+| --- | --- | --- |
+| `--stay`, `--follow` | [`move-to-space`](/reference/commands/#move-to-space) | Send the window and stay, or go with it (the default). |
+| `--json` | [`list-windows`](/reference/commands/#list-windows), [`list-spaces`](/reference/commands/#list-spaces), [`tree`](/reference/commands/#tree), [`status`](/reference/commands/#status) | Answer with one JSON document instead of text. See [JSON output](/reference/commands/#json-output). |
+
+`--json` can come before or after the command. On any other command it is a mistake, and the
+tool stops with exit code 2.
+
+To be told when something changes, instead of asking, see
+[`[hooks]`](/reference/configuration/#hooks).
+
 ### Exit codes
 
 | Code | Meaning |
 | --- | --- |
-| `0` | The reply did not start with `error`. This includes replies such as `ok: nothing in that direction`. |
+| `0` | The reply did not start with `error`. This includes replies such as `ok: nothing in that direction`, and every JSON document. |
 | `1` | The reply started with `error`, or Iguana is not running. |
 | `2` | The command was not well formed, so it was not sent. |
 
@@ -116,6 +130,8 @@ iguana: the window manager is not running (open Iguana.app or run `iguana daemon
 | [`iguana list-windows`](/reference/commands/#list-windows) | Every window Iguana knows about and how it treats it. |
 | [`iguana tree`](/reference/commands/#tree) | The layout tree of the desktops that are showing. |
 | [`iguana list-spaces`](/reference/commands/#list-spaces) | Which desktop each display is showing. |
+
+Each of the four takes `--json`.
 
 The log is at `~/Library/Logs/Iguana.log`. To watch it:
 

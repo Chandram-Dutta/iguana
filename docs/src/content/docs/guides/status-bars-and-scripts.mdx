@@ -1,0 +1,202 @@
+---
+title: Status bars and scripts
+description: Read what Iguana knows as JSON, and have Iguana run a command of yours when the desktop or the focused window changes, with a SketchyBar example.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+After this page you will be able to show the desktop you are on in a status bar such as
+SketchyBar, and read Iguana's windows and desktops from a script of your own.
+
+There are two halves, and most setups use both:
+
+- **Ask.** `iguana list-windows`, `list-spaces`, `tree` and `status` answer with JSON when
+  you add `--json`.
+- **Be told.** A `[hooks]` entry in the config file runs a command of yours when something
+  changes.
+
+## Ask: JSON from the command line
+
+```sh
+iguana list-spaces --json
+```
+
+```json
+{
+  "desktops" : [
+    {
+      "active" : true,
+      "display" : "Built-in Retina Display",
+      "number" : 1,
+      "showing" : true,
+      "windows" : [
+        1187,
+        1203
+      ]
+    },
+    {
+      "active" : false,
+      "display" : "Built-in Retina Display",
+      "number" : 2,
+      "showing" : false,
+      "windows" : [
+        1320
+      ]
+    }
+  ],
+  "displays" : [
+    {
+      "desktop" : 1,
+      "desktopCount" : 2,
+      "main" : true,
+      "name" : "Built-in Retina Display"
+    }
+  ]
+}
+```
+
+[`jq`](https://jqlang.org) picks out what you need (`brew install jq`):
+
+```sh
+# The desktop you are on.
+iguana list-spaces --json | jq '.desktops[] | select(.active) | .number'
+
+# The desktops that have windows on them.
+iguana list-spaces --json | jq '[.desktops[] | select(.windows | length > 0) | .number]'
+
+# The title of the focused window.
+iguana list-windows --json | jq -r '.windows[] | select(.focused) | .title'
+
+# Is tiling paused?
+iguana status --json | jq '.paused'
+```
+
+Every key of the four documents is listed under
+[Reports](/reference/commands/#json-output) in the command reference.
+
+<Aside>
+When a report cannot be made, for example because Iguana is not running, the reply is a line
+of text that starts with `error` and the exit status is not 0. In a script, check the status
+before you hand the output to `jq`.
+</Aside>
+
+## Be told: hooks
+
+A hook is a shell command in the config file. Iguana runs it when its event happens.
+
+```toml title="~/.config/iguana/iguana.toml"
+[hooks]
+desktop-changed = "sketchybar --trigger iguana_desktop"
+focus-changed = ""
+```
+
+| Event | Runs when |
+| --- | --- |
+| `desktop-changed` | The desktop a display is showing changed, however you switched: a shortcut, a swipe, Mission Control. |
+| `focus-changed` | A different window has the focus. |
+
+The command is told what happened in environment variables: `IGUANA_EVENT`, `IGUANA_DESKTOP`
+and `IGUANA_DISPLAY`, and for the focus also `IGUANA_WINDOW_ID`, `IGUANA_APP` and
+`IGUANA_TITLE`. The [configuration reference](/reference/configuration/#hooks) has the full
+table and the rules a hook runs by.
+
+Try one without a status bar. This keeps a list of the windows you focus:
+
+```toml title="~/.config/iguana/iguana.toml"
+[hooks]
+focus-changed = 'echo "$IGUANA_APP: $IGUANA_TITLE" >> "$HOME/focus.log"'
+```
+
+Save the file, click a few windows, then look:
+
+```sh
+tail ~/focus.log
+```
+
+The single quotes around the command are TOML's: everything between them reaches the shell
+as written, so the shell's own double quotes need no backslashes.
+
+<Aside type="caution" title="Always quote $IGUANA_TITLE">
+A window title is text you did not write. A web page sets the title of its browser window,
+and it can put anything there, including text that a shell would run.
+
+Iguana hands the title over as an environment variable and never writes it into the command.
+That keeps it harmless as long as your script does the same: write `"$IGUANA_TITLE"` with
+the double quotes, and never give it to `eval`.
+</Aside>
+
+## Worked example: the desktop in SketchyBar
+
+This shows one item for each desktop in [SketchyBar](https://github.com/FelixKratz/SketchyBar)
+and highlights the one you are on. It uses both halves: the hook says "something changed",
+and the script asks Iguana what is true now.
+
+<Steps>
+
+1. Tell Iguana to trigger a SketchyBar event when the desktop changes.
+
+   ```toml title="~/.config/iguana/iguana.toml"
+   [hooks]
+   desktop-changed = "sketchybar --trigger iguana_desktop"
+   ```
+
+2. In your `sketchybarrc`, declare the event and add an item for each desktop that listens
+   for it.
+
+   ```sh title="~/.config/sketchybar/sketchybarrc"
+   sketchybar --add event iguana_desktop
+
+   for n in 1 2 3 4; do
+     sketchybar --add item desktop.$n left \
+                --set desktop.$n label="$n" script="$CONFIG_DIR/plugins/iguana_desktop.sh $n" \
+                --subscribe desktop.$n iguana_desktop
+   done
+   ```
+
+3. Write the script the items run. SketchyBar runs it once for each item, with the item's
+   name in `$NAME`.
+
+   ```sh title="~/.config/sketchybar/plugins/iguana_desktop.sh"
+   #!/bin/sh
+   # $1 is the desktop this item stands for.
+   active=$(iguana list-spaces --json | jq '.desktops[] | select(.active) | .number')
+
+   if [ "$1" = "$active" ]; then
+     sketchybar --set "$NAME" background.drawing=on
+   else
+     sketchybar --set "$NAME" background.drawing=off
+   fi
+   ```
+
+   ```sh
+   chmod +x ~/.config/sketchybar/plugins/iguana_desktop.sh
+   ```
+
+4. Reload SketchyBar, then switch desktop.
+
+   ```sh
+   sketchybar --reload
+   ```
+
+</Steps>
+
+Because the script asks Iguana instead of trusting the event, it is also right when
+SketchyBar starts, before any event has happened.
+
+## When a hook does nothing
+
+- **Look at the log.** A command that fails is written to `~/Library/Logs/Iguana.log` the
+  first time it fails. `status 127` means the shell did not find the program.
+- **Give the full path.** A hook does not read your shell's startup files, so it does not
+  have your shell's `PATH`. Homebrew's folders are added for you. For anything else, write
+  the path out, such as `/Users/you/bin/my-script`.
+- **Check the file.** `iguana config check` lists a hook that is not a string, or a key in
+  `[hooks]` that Iguana does not know.
+- **Keep it quick.** Iguana never waits for a hook, and runs one copy of each at a time. While
+  a slow one runs, later events are folded into one more run with the newest values.
+
+## Related
+
+- [Commands: Reports](/reference/commands/#reports): every key of the JSON documents.
+- [Configuration: `[hooks]`](/reference/configuration/#hooks)
+- [Command line](/reference/command-line/)

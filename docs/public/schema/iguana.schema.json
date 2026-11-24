@@ -69,6 +69,15 @@
         "click-to-switch": { "type": "boolean", "default": false, "description": "With more than one desktop drawn, a click on one of them goes to it instead of opening the menu." }
       }
     },
+    "hooks": {
+      "type": "object",
+      "description": "Shell commands Iguana runs when something changes, for status bars and scripts. Each is run with /bin/sh -c and gets the facts in environment variables: IGUANA_EVENT, IGUANA_DESKTOP, IGUANA_DISPLAY and, for the focus, IGUANA_WINDOW_ID, IGUANA_APP and IGUANA_TITLE.",
+      "additionalProperties": false,
+      "properties": {
+        "desktop-changed": { "type": "string", "default": "", "description": "Run when the desktop a display is showing changed. An empty string runs nothing." },
+        "focus-changed": { "type": "string", "default": "", "description": "Run when a different window has the focus. An empty string runs nothing. In a script, write \"$IGUANA_TITLE\" with the quotes: a window title can be any text." }
+      }
+    },
     "bindings": {
       "type": "object",
       "description": "Keyboard shortcuts. The key is modifiers and a key joined by dashes, the value is a command. Leave a shortcut out to keep its built-in command, or set it to \"\" to switch it off.",
