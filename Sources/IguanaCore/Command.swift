@@ -128,10 +128,10 @@ public enum Command: Equatable {
 }
 
 public enum Modifier: String, CaseIterable, Hashable {
-    case cmd, ctrl, alt, shift
+    case cmd, ctrl, option, shift
 }
 
-/// A keyboard shortcut such as `alt-shift-h`.
+/// A keyboard shortcut such as `option-shift-h`.
 public struct KeyCombo: Hashable {
     public let modifiers: Set<Modifier>
     public let key: String
@@ -140,7 +140,7 @@ public struct KeyCombo: Hashable {
         let parts = text.lowercased().split(separator: "-", omittingEmptySubsequences: false).map(String.init)
         guard var key = parts.last else { throw CommandError("empty key binding") }
         var modParts = parts.dropLast()
-        // "alt--" means alt + the minus key.
+        // "option--" means Option and the minus key.
         if key.isEmpty, modParts.last == "" {
             key = "minus"
             modParts = modParts.dropLast()
@@ -151,9 +151,12 @@ public struct KeyCombo: Hashable {
             switch p {
             case "cmd", "command", "super": mods.insert(.cmd)
             case "ctrl", "control": mods.insert(.ctrl)
-            case "alt", "opt", "option": mods.insert(.alt)
+            case "option", "opt": mods.insert(.option)
+            // The name other window managers give the same key. It is read, so that a config
+            // brought over from one of them works, but Iguana itself never writes or shows it.
+            case "alt": mods.insert(.option)
             case "shift": mods.insert(.shift)
-            default: throw CommandError("'\(text)': unknown modifier '\(p)' (use cmd, ctrl, alt, shift)")
+            default: throw CommandError("'\(text)': unknown modifier '\(p)' (use cmd, ctrl, option, shift)")
             }
         }
         guard !mods.isEmpty else { throw CommandError("'\(text)': a binding needs at least one modifier") }

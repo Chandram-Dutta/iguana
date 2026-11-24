@@ -190,8 +190,8 @@ final class TourModelTests: XCTestCase {
     func testALessonWithoutItsShortcutsIsLeftOut() throws {
         let text = """
         [bindings]
-        alt-h = ""
-        alt-1 = ""
+        option-h = ""
+        option-1 = ""
         """
         let (config, _) = try Config.load(text)
         let model = makeModel(config)
@@ -203,19 +203,19 @@ final class TourModelTests: XCTestCase {
     func testShortcutsOfTheUsersOwnAreTheOnesShown() throws {
         let text = """
         [bindings]
-        alt-h = ""
-        alt-j = ""
-        alt-k = ""
-        alt-l = ""
-        ctrl-alt-left = "focus left"
-        ctrl-alt-down = "focus down"
-        ctrl-alt-up = "focus up"
-        ctrl-alt-right = "focus right"
+        option-h = ""
+        option-j = ""
+        option-k = ""
+        option-l = ""
+        ctrl-option-left = "focus left"
+        ctrl-option-down = "focus down"
+        ctrl-option-up = "focus up"
+        ctrl-option-right = "focus right"
         """
         let (config, _) = try Config.load(text)
         let model = makeModel(config)
         let keys = try XCTUnwrap(model.keys(for: .focus))
-        XCTAssertEqual(keys.modifiers, [.ctrl, .alt])
+        XCTAssertEqual(keys.modifiers, [.ctrl, .option])
         XCTAssertEqual(keys.keys.map(\.label), ["←", "↓", "↑", "→"])
     }
 }

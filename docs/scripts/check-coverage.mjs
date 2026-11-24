@@ -165,7 +165,7 @@ for (const [keys, command] of bindings) {
 	expect(new RegExp(`\\| \`${keys}\` \\| \`${command}\` \\|`).test(shortcutsPage),
 		`default-shortcuts.mdx: missing or wrong row for ${keys} = "${command}"`);
 }
-const documentedRows = [...shortcutsPage.matchAll(/\| `((?:alt|cmd|ctrl|shift)-[a-z0-9-]+)` \| `([^`]+)` \|/g)];
+const documentedRows = [...shortcutsPage.matchAll(/\| `((?:option|cmd|ctrl|shift)-[a-z0-9-]+)` \| `([^`]+)` \|/g)];
 expect(documentedRows.length === bindings.length,
 	`default-shortcuts.mdx lists ${documentedRows.length} shortcuts, Config.defaultText has ${bindings.length}`);
 expect(configPage.includes(`The ${bindings.length} [default shortcuts]`), `configuration.mdx should say there are ${bindings.length} default shortcuts`);
@@ -188,6 +188,8 @@ for (const name of keyNames.filter((k) => k.length > 1 && !/^f\d+$/.test(k))) {
 const comboBody = commandSwift.slice(commandSwift.indexOf('for p in modParts'));
 for (const [, list] of comboBody.matchAll(/case ((?:"[a-z]+",? ?)+): mods\.insert/g)) {
 	for (const [, modifier] of list.matchAll(/"([a-z]+)"/g)) {
+		// Read for configs brought over from other window managers, and deliberately not documented.
+		if (modifier === 'alt') continue;
 		expect(keysPage.includes(`\`${modifier}\``), `key-names.mdx never mentions the modifier '${modifier}'`);
 	}
 }

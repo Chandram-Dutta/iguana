@@ -515,7 +515,7 @@ private struct ShortcutsPane: View {
 
             SettingSection {
                 HStack {
-                    Text("In the settings file, alt means the Option key (⌥).")
+                    Text("In the settings file, ⌥ is written option.")
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button("Restore built-in shortcuts") { model.resetShortcuts() }

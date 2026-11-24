@@ -1,6 +1,6 @@
 ---
 title: Install
-description: Download Iguana or build it from source, grant the Accessibility permission and put the command line tool on your PATH.
+description: Download Iguana, install it with Homebrew or build it from source, grant the Accessibility permission and put the command line tool on your PATH.
 ---
 
 import { Steps, Aside } from '@astrojs/starlight/components';
@@ -54,6 +54,23 @@ Iguana needs macOS 14 or later, on Apple silicon or Intel.
    it is waiting for the Accessibility permission, go back to step 4.
 
 </Steps>
+
+## Install with Homebrew
+
+```sh
+brew tap chandram-dutta/tap
+brew trust chandram-dutta/tap
+brew install --cask chandram-dutta/tap/iguana
+```
+
+This installs the same app and puts the `iguana` command on your `PATH`, so step 5 above is
+already done. Open Iguana from Applications and carry on from step 3.
+
+`brew trust` tells Homebrew that this tap is one you mean to use. Older versions of Homebrew
+have no such command and do not need it. Give the cask its full name, as above: Homebrew has
+an unrelated formula that is also called `iguana`.
+
+To update later, run `brew upgrade --cask iguana`.
 
 ## Build from source
 

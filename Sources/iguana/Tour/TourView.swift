@@ -655,7 +655,7 @@ private struct KeyDeck: View {
     @Environment(\.tourPalette) private var palette
 
     private static let names: [Modifier: (symbol: String, name: String)] = [
-        .ctrl: ("⌃", "control"), .alt: ("⌥", "option"), .shift: ("⇧", "shift"), .cmd: ("⌘", "command"),
+        .ctrl: ("⌃", "control"), .option: ("⌥", "option"), .shift: ("⇧", "shift"), .cmd: ("⌘", "command"),
     ]
 
     var body: some View {
@@ -895,14 +895,14 @@ private struct DoneScene: View {
         add(.move, "Take a window along")
         add(.resize, "Make it smaller or larger")
         if let jump = model.bindings.first(where: { $0.command == .space(.index(1)) }) {
-            let order: [Modifier] = [.ctrl, .alt, .shift, .cmd]
+            let order: [Modifier] = [.ctrl, .option, .shift, .cmd]
             out.append(Line(id: out.count, modifiers: order.filter(jump.combo.modifiers.contains), keys: ["1", "…", "9"],
                             text: "Jump to a desktop. Add shift to bring the window."))
         }
         return out
     }
 
-    private static let symbols: [Modifier: String] = [.ctrl: "⌃", .alt: "⌥", .shift: "⇧", .cmd: "⌘"]
+    private static let symbols: [Modifier: String] = [.ctrl: "⌃", .option: "⌥", .shift: "⇧", .cmd: "⌘"]
 
     var body: some View {
         VStack(spacing: 0) {

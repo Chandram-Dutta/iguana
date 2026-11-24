@@ -113,7 +113,7 @@ final class TourWindowController: NSObject {
         guard let window, event.window === window || window.isKeyWindow else { return event }
         if event.type == .flagsChanged {
             var held = Set<Modifier>()
-            if event.modifierFlags.contains(.option) { held.insert(.alt) }
+            if event.modifierFlags.contains(.option) { held.insert(.option) }
             if event.modifierFlags.contains(.shift) { held.insert(.shift) }
             if event.modifierFlags.contains(.control) { held.insert(.ctrl) }
             if event.modifierFlags.contains(.command) { held.insert(.cmd) }
@@ -188,7 +188,7 @@ enum TourSnapshot {
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
             for (name, make) in scenes where (only == nil || name.contains(only ?? "")) && SnapshotStage.wants("\(name)-\(appearance == .aqua ? "light" : "dark")") {
                 let model = make()
-                if name == "3-focus" { model.held = [.alt] }
+                if name == "3-focus" { model.held = [.option] }
                 let window = NSWindow(contentRect: NSRect(origin: origin, size: size), styleMask: .borderless, backing: .buffered, defer: false)
                 window.isOpaque = false
                 window.backgroundColor = .clear

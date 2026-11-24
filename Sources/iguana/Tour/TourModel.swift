@@ -197,7 +197,7 @@ final class TourModel: ObservableObject {
         }
         guard let first = found.first else { return nil }
         let shared = found.allSatisfy { $0.0.combo.modifiers == first.0.combo.modifiers }
-        let order: [Modifier] = [.ctrl, .alt, .shift, .cmd]
+        let order: [Modifier] = [.ctrl, .option, .shift, .cmd]
         return LessonKeys(
             modifiers: shared ? order.filter { first.0.combo.modifiers.contains($0) } : [],
             keys: found.map { b, label, symbol in

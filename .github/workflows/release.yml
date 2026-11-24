@@ -81,7 +81,7 @@ jobs:
         env:
           NOTARY_PROFILE: iguana
           RELEASE_URL_BASE: https://github.com/${{ github.repository }}/releases/download
-          HOMEPAGE: https://iguana.onlychan.xyz
+          HOMEPAGE: https://iguana.onlychan.xyz/
         run: scripts/release.sh
 
       - name: Publish

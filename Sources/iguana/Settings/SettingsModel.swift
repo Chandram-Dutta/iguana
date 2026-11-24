@@ -312,7 +312,7 @@ final class SettingsModel: ObservableObject {
             }
             var parts: [String] = []
             if flags.contains(.control) { parts.append("ctrl") }
-            if flags.contains(.option) { parts.append("alt") }
+            if flags.contains(.option) { parts.append("option") }
             if flags.contains(.shift) { parts.append("shift") }
             if flags.contains(.command) { parts.append("cmd") }
             parts.append(key)
@@ -356,25 +356,25 @@ enum ShortcutFormat {
         "semicolon": ";", "quote": "'", "backslash": "\\", "backtick": "`", "leftbracket": "[", "rightbracket": "]",
     ]
 
-    /// The keys of `alt-shift-h` one by one, as printed on a keyboard: ⌥ ⇧ H.
+    /// The keys of `option-shift-h` one by one, as printed on a keyboard: ⌥ ⇧ H.
     static func keys(_ combo: KeyCombo) -> [String] {
         var keys: [String] = []
         if combo.modifiers.contains(.ctrl) { keys.append("⌃") }
-        if combo.modifiers.contains(.alt) { keys.append("⌥") }
+        if combo.modifiers.contains(.option) { keys.append("⌥") }
         if combo.modifiers.contains(.shift) { keys.append("⇧") }
         if combo.modifiers.contains(.cmd) { keys.append("⌘") }
         keys.append(keySymbols[combo.key] ?? combo.key.uppercased())
         return keys
     }
 
-    /// `alt-shift-h` as it appears on a keyboard: ⌥⇧H.
+    /// `option-shift-h` as it appears on a keyboard: ⌥⇧H.
     static func display(_ combo: KeyCombo) -> String { keys(combo).joined() }
 
     /// The same, spelled out for VoiceOver.
     static func spoken(_ combo: KeyCombo) -> String {
         var words: [String] = []
         if combo.modifiers.contains(.ctrl) { words.append("Control") }
-        if combo.modifiers.contains(.alt) { words.append("Option") }
+        if combo.modifiers.contains(.option) { words.append("Option") }
         if combo.modifiers.contains(.shift) { words.append("Shift") }
         if combo.modifiers.contains(.cmd) { words.append("Command") }
         words.append(combo.key.count == 1 ? combo.key.uppercased() : combo.key)

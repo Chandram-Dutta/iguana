@@ -33,3 +33,12 @@ else
     gh release create "$TAG" "${FILES[@]}" --title "Iguana $VERSION" --generate-notes --target "$(git rev-parse HEAD)"
 fi
 gh release view "$TAG" --json url --jq .url
+
+# The Homebrew tap fetches the cask of the latest release by itself, once an hour. Ask it to do
+# so now where that is allowed; from a workflow in this repository it is not, and the hourly
+# run picks the release up.
+if gh workflow run "Update cask" -R Chandram-Dutta/homebrew-tap >/dev/null 2>&1; then
+    echo "asked the Homebrew tap to update"
+else
+    echo "the Homebrew tap will pick this release up within the hour"
+fi

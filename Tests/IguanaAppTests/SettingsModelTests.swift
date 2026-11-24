@@ -82,35 +82,35 @@ final class SettingsModelTests: XCTestCase {
     }
 
     func testChangingABuiltInShortcut() throws {
-        let old = try XCTUnwrap(model.config.bindings.first { $0.source == "alt-h" })
-        model.bind("cmd-alt-left", to: "focus left", replacing: old)
-        XCTAssertEqual(source(of: "focus left"), ["cmd-alt-left"])
-        XCTAssertTrue(fileText.contains("alt-h = \"\""), "the built-in shortcut is switched off, not just forgotten")
+        let old = try XCTUnwrap(model.config.bindings.first { $0.source == "option-h" })
+        model.bind("cmd-option-left", to: "focus left", replacing: old)
+        XCTAssertEqual(source(of: "focus left"), ["cmd-option-left"])
+        XCTAssertTrue(fileText.contains("option-h = \"\""), "the built-in shortcut is switched off, not just forgotten")
         XCTAssertEqual(model.config.bindings.count, 36)
         XCTAssertEqual(model.problems, [])
 
         // Changing it back restores the original line.
-        let current = try XCTUnwrap(model.config.bindings.first { $0.source == "cmd-alt-left" })
-        model.bind("alt-h", to: "focus left", replacing: current)
-        XCTAssertEqual(source(of: "focus left"), ["alt-h"])
-        XCTAssertFalse(fileText.contains("cmd-alt-left"), "a shortcut that was never built in is removed from the file")
+        let current = try XCTUnwrap(model.config.bindings.first { $0.source == "cmd-option-left" })
+        model.bind("option-h", to: "focus left", replacing: current)
+        XCTAssertEqual(source(of: "focus left"), ["option-h"])
+        XCTAssertFalse(fileText.contains("cmd-option-left"), "a shortcut that was never built in is removed from the file")
         XCTAssertFalse(model.shortcutsDifferFromBuiltIn)
     }
 
     func testAddingRemovingAndStealingShortcuts() throws {
-        model.bind("ctrl-alt-z", to: "zoom", replacing: nil)
-        XCTAssertEqual(source(of: "zoom"), ["alt-f", "ctrl-alt-z"])
+        model.bind("ctrl-option-z", to: "zoom", replacing: nil)
+        XCTAssertEqual(source(of: "zoom"), ["ctrl-option-z", "option-f"])
 
-        // alt-f currently zooms; giving it to another command takes it away from zoom.
-        model.bind("alt-f", to: "float", replacing: nil)
-        XCTAssertEqual(source(of: "zoom"), ["ctrl-alt-z"])
-        XCTAssertTrue(source(of: "float").contains("alt-f"))
+        // option-f currently zooms; giving it to another command takes it away from zoom.
+        model.bind("option-f", to: "float", replacing: nil)
+        XCTAssertEqual(source(of: "zoom"), ["ctrl-option-z"])
+        XCTAssertTrue(source(of: "float").contains("option-f"))
         XCTAssertNotNil(model.notice)
 
-        let extra = try XCTUnwrap(model.config.bindings.first { $0.source == "ctrl-alt-z" })
+        let extra = try XCTUnwrap(model.config.bindings.first { $0.source == "ctrl-option-z" })
         model.unbind(extra)
         XCTAssertEqual(source(of: "zoom"), [])
-        let builtIn = try XCTUnwrap(model.config.bindings.first { $0.source == "alt-slash" })
+        let builtIn = try XCTUnwrap(model.config.bindings.first { $0.source == "option-slash" })
         model.unbind(builtIn)
         XCTAssertEqual(source(of: "flip"), [])
         XCTAssertTrue(model.shortcutsDifferFromBuiltIn)
@@ -123,9 +123,9 @@ final class SettingsModelTests: XCTestCase {
 
     func testCustomCommandsAreListedSeparately() {
         XCTAssertEqual(model.customBindings.count, 0)
-        model.bind("alt-shift-0", to: "move-to-space 3 --stay", replacing: nil)
+        model.bind("option-shift-0", to: "move-to-space 3 --stay", replacing: nil)
         XCTAssertEqual(model.customBindings.map(\.commandText), ["move-to-space 3 --stay"])
-        model.bind("alt-x", to: "not a command", replacing: nil)
+        model.bind("option-x", to: "not a command", replacing: nil)
         XCTAssertEqual(model.customBindings.count, 1, "an invalid command is never written")
     }
 
@@ -168,7 +168,7 @@ final class SettingsModelTests: XCTestCase {
     }
 
     func testShortcutDisplay() throws {
-        XCTAssertEqual(ShortcutFormat.display(try KeyCombo.parse("alt-shift-h")), "⌥⇧H")
+        XCTAssertEqual(ShortcutFormat.display(try KeyCombo.parse("option-shift-h")), "⌥⇧H")
         XCTAssertEqual(ShortcutFormat.display(try KeyCombo.parse("ctrl-cmd-left")), "⌃⌘←")
         XCTAssertEqual(Hotkeys.keyName(for: 4), "h")
         XCTAssertEqual(Hotkeys.keyName(for: 36), "return")

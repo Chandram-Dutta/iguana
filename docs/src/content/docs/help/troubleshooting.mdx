@@ -67,7 +67,7 @@ key and answered, but nothing visible happened.
 Check the last line of `iguana status`:
 
 ```text
-last shortcut: alt-l, 2 s ago, answered "ok: nothing in that direction"
+last shortcut: option-l, 2 s ago, answered "ok: nothing in that direction"
 ```
 
 Replies that mean "nothing to do":
@@ -94,8 +94,6 @@ If the last line of `iguana status` does not change when you press the shortcut,
 - `unknown key` means the key name is not one Iguana knows. See [Key names](/reference/key-names/).
 - If your config file switched the shortcut off, or has a mistake in that line, it will not
   be active. Run `iguana config check`.
-
-Remember that `alt` is the Option (⌥) key.
 
 ### Did the command answer with an error?
 
@@ -125,7 +123,7 @@ Run `iguana list-windows` and find the window. Its state tells you why.
 
 | State | Why | What to do |
 | --- | --- | --- |
-| `floating` | A rule matches it, or you floated it. | Focus it and press <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>space</kbd>, or change the [rule](/guides/floating-windows/#rules). |
+| `floating` | A rule matches it, or you floated it. | Focus it and press <kbd>option</kbd>+<kbd>shift</kbd>+<kbd>space</kbd>, or change the [rule](/guides/floating-windows/#rules). |
 | `unmanaged` | It is not a standard window, or it cannot be both moved and resized. Dialogs, sheets and fixed-size windows are like this. | Nothing. Iguana leaves these alone on purpose. |
 | `not on screen` | It is minimised, hidden, on another desktop, in another Stage Manager stage or a background tab. | Nothing. It keeps its slot and returns to it. |
 | not listed | Iguana does not watch its app. | See [below](#the-windows-of-an-app-are-ignored). |
@@ -149,7 +147,7 @@ What you can do:
 
 - Give the window a bigger share with `resize grow`, or move it to a slot that is large enough.
 - Put fewer windows on that desktop, or send some to another one.
-- Float the window with <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>space</kbd>.
+- Float the window with <kbd>option</kbd>+<kbd>shift</kbd>+<kbd>space</kbd>.
 
 If the minimum sizes of the windows in a row or column add up to more than the display,
 they cannot all fit. One or more of them will then be larger than its slot.

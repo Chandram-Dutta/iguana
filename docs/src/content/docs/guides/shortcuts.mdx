@@ -13,11 +13,11 @@ that have none, and switch off the ones you do not want.
 A shortcut is one or more modifiers and one key, joined by dashes, in lower case:
 
 ```text
-alt-shift-h
+option-shift-h
 ```
 
-The modifiers are `cmd`, `ctrl`, `alt` and `shift`. **`alt` is the Option (⌥) key.** The
-order of the modifiers does not matter. Every shortcut needs at least one modifier.
+The modifiers are `cmd`, `ctrl`, `option` and `shift`. The order of the modifiers does not
+matter. Every shortcut needs at least one modifier.
 
 The key is a letter, a digit or a name such as `minus`, `space` or `left`. The full list is
 on the [Key names](/reference/key-names/) page.
@@ -39,9 +39,9 @@ need to write the ones you want to change.
 
 		```toml title="iguana.toml"
 		[bindings]
-		alt-q = "close"
-		alt-n = "space next"
-		alt-p = "space prev"
+		option-q = "close"
+		option-n = "space next"
+		option-p = "space prev"
 		```
 
 		Every built-in shortcut stays as it was.
@@ -51,19 +51,19 @@ need to write the ones you want to change.
 
 		```toml title="iguana.toml"
 		[bindings]
-		alt-m = "zoom"
-		alt-f = ""
+		option-m = "zoom"
+		option-f = ""
 		```
 
-		If you only add `alt-m`, both `alt-m` and `alt-f` zoom.
+		If you only add `option-m`, both `option-m` and `option-f` zoom.
 	</TabItem>
 	<TabItem label="Switch off">
 		Set the shortcut to an empty string, or to `false`:
 
 		```toml title="iguana.toml"
 		[bindings]
-		alt-slash = ""
-		alt-shift-b = false
+		option-slash = ""
+		option-shift-b = false
 		```
 
 		The keys go back to doing whatever they do without Iguana.
@@ -102,27 +102,27 @@ already used by another command, they move to the new one and a notice says so.
 
 ### Send a window away without following it
 
-By default <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>1</kbd> to <kbd>9</kbd> take the window to a
+By default <kbd>option</kbd>+<kbd>shift</kbd>+<kbd>1</kbd> to <kbd>9</kbd> take the window to a
 desktop and take you with it. Add `--stay` to stay where you are:
 
 ```toml title="iguana.toml"
 [bindings]
-alt-shift-1 = "move-to-space 1 --stay"
-alt-shift-2 = "move-to-space 2 --stay"
-alt-shift-3 = "move-to-space 3 --stay"
+option-shift-1 = "move-to-space 1 --stay"
+option-shift-2 = "move-to-space 2 --stay"
+option-shift-3 = "move-to-space 3 --stay"
 ```
 
 ### Use the arrow keys
 
 ```toml title="iguana.toml"
 [bindings]
-alt-left = "focus left"
-alt-down = "focus down"
-alt-up = "focus up"
-alt-right = "focus right"
+option-left = "focus left"
+option-down = "focus down"
+option-up = "focus up"
+option-right = "focus right"
 ```
 
-The built-in `alt-h`, `alt-j`, `alt-k` and `alt-l` keep working beside these unless you
+The built-in `option-h`, `option-j`, `option-k` and `option-l` keep working beside these unless you
 switch them off.
 
 ### Resize in one direction
@@ -132,16 +132,16 @@ separately:
 
 ```toml title="iguana.toml"
 [bindings]
-alt-ctrl-equal = "resize grow width"
-alt-ctrl-minus = "resize shrink width"
-alt-shift-equal = "resize grow height"
-alt-shift-minus = "resize shrink height"
+option-ctrl-equal = "resize grow width"
+option-ctrl-minus = "resize shrink width"
+option-shift-equal = "resize grow height"
+option-shift-minus = "resize shrink height"
 ```
 
 ### Bind the minus key
 
 Write the key as `minus`. Because dashes separate the parts of a shortcut, Iguana also reads
-a doubled dash at the end as the minus key: `alt--` is the same as `alt-minus`.
+a doubled dash at the end as the minus key: `option--` is the same as `option-minus`.
 
 ## Things to know
 
@@ -156,7 +156,7 @@ touched.
 - **A shortcut another app already owns may be refused.** Iguana then reports
   `the system refused it (another app may own this shortcut)`.
 - **A shortcut with a key name Iguana does not know** is reported as `unknown key`.
-- **The same combination written twice**, for example as `alt-shift-h` and `shift-alt-h`, is
+- **The same combination written twice**, for example as `option-shift-h` and `shift-option-h`, is
   reported as defined twice, and one of the two is ignored.
 - **A command that does not parse** is reported with the reason, and that one shortcut is
   left as it was.

@@ -48,7 +48,7 @@ public struct Rule: Equatable {
 public struct Binding: Equatable {
     public let combo: KeyCombo
     public let command: Command
-    /// The shortcut as written, for example `alt-shift-h`.
+    /// The shortcut as written, for example `option-shift-h`.
     public let source: String
     /// The command as written, for example `move left`.
     public let commandText: String
@@ -135,46 +135,46 @@ public struct Config: Equatable {
 
     # Keys: letters, digits, minus, equal, comma, period, slash, semicolon, quote, backslash,
     # backtick, leftbracket, rightbracket, space, tab, return, delete, esc, left, right, up, down,
-    # f1-f12. Modifiers: cmd, ctrl, alt (the Option key), shift.
+    # f1-f12. Modifiers: cmd, ctrl, option, shift.
     # A shortcut you leave out keeps its built-in command. Set one to "" to switch it off.
     [bindings]
-    alt-h = "focus left"
-    alt-j = "focus down"
-    alt-k = "focus up"
-    alt-l = "focus right"
-    alt-shift-h = "move left"
-    alt-shift-j = "move down"
-    alt-shift-k = "move up"
-    alt-shift-l = "move right"
-    alt-ctrl-h = "join left"
-    alt-ctrl-j = "join down"
-    alt-ctrl-k = "join up"
-    alt-ctrl-l = "join right"
-    alt-minus = "resize shrink"
-    alt-equal = "resize grow"
-    alt-slash = "flip"
-    alt-f = "zoom"
-    alt-shift-space = "float"
-    alt-shift-b = "balance"
-    alt-1 = "space 1"
-    alt-2 = "space 2"
-    alt-3 = "space 3"
-    alt-4 = "space 4"
-    alt-5 = "space 5"
-    alt-6 = "space 6"
-    alt-7 = "space 7"
-    alt-8 = "space 8"
-    alt-9 = "space 9"
+    option-h = "focus left"
+    option-j = "focus down"
+    option-k = "focus up"
+    option-l = "focus right"
+    option-shift-h = "move left"
+    option-shift-j = "move down"
+    option-shift-k = "move up"
+    option-shift-l = "move right"
+    option-ctrl-h = "join left"
+    option-ctrl-j = "join down"
+    option-ctrl-k = "join up"
+    option-ctrl-l = "join right"
+    option-minus = "resize shrink"
+    option-equal = "resize grow"
+    option-slash = "flip"
+    option-f = "zoom"
+    option-shift-space = "float"
+    option-shift-b = "balance"
+    option-1 = "space 1"
+    option-2 = "space 2"
+    option-3 = "space 3"
+    option-4 = "space 4"
+    option-5 = "space 5"
+    option-6 = "space 6"
+    option-7 = "space 7"
+    option-8 = "space 8"
+    option-9 = "space 9"
     # Add --stay (for example "move-to-space 1 --stay") to send the window away and stay where you are.
-    alt-shift-1 = "move-to-space 1"
-    alt-shift-2 = "move-to-space 2"
-    alt-shift-3 = "move-to-space 3"
-    alt-shift-4 = "move-to-space 4"
-    alt-shift-5 = "move-to-space 5"
-    alt-shift-6 = "move-to-space 6"
-    alt-shift-7 = "move-to-space 7"
-    alt-shift-8 = "move-to-space 8"
-    alt-shift-9 = "move-to-space 9"
+    option-shift-1 = "move-to-space 1"
+    option-shift-2 = "move-to-space 2"
+    option-shift-3 = "move-to-space 3"
+    option-shift-4 = "move-to-space 4"
+    option-shift-5 = "move-to-space 5"
+    option-shift-6 = "move-to-space 6"
+    option-shift-7 = "move-to-space 7"
+    option-shift-8 = "move-to-space 8"
+    option-shift-9 = "move-to-space 9"
 
     # Windows that should stay floating. `app` is a bundle id or part of the app name,
     # `title` is a regular expression. Dialogs, sheets and fixed-size windows float on their own.

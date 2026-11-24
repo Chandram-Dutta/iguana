@@ -89,7 +89,7 @@ extension Config {
           "description": "Keyboard shortcuts. The key is modifiers and a key joined by dashes, the value is a command. Leave a shortcut out to keep its built-in command, or set it to \\"\\" to switch it off.",
           "additionalProperties": false,
           "patternProperties": {
-            "^((cmd|command|super|ctrl|control|alt|opt|option|shift)-)+([a-z0-9]|minus|equal|comma|period|slash|semicolon|quote|backslash|backtick|leftbracket|rightbracket|space|tab|return|enter|delete|esc|escape|left|right|up|down|f[1-9]|f1[0-2]|-)$": {
+            "^((cmd|command|super|ctrl|control|opt|option|shift)-)+([a-z0-9]|minus|equal|comma|period|slash|semicolon|quote|backslash|backtick|leftbracket|rightbracket|space|tab|return|enter|delete|esc|escape|left|right|up|down|f[1-9]|f1[0-2]|-)$": {
               "description": "A command, for example \\"focus left\\" or \\"move-to-space 3 --stay\\".",
               "oneOf": [
                 { "const": "" },

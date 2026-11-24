@@ -26,6 +26,14 @@ Download **[Iguana.dmg](https://github.com/Chandram-Dutta/iguana/releases/latest
 open it and drag Iguana into Applications. It needs macOS 14 or later, on Apple silicon or Intel.
 The app is signed and notarized.
 
+Or with Homebrew, which also puts the `iguana` command on your PATH:
+
+```sh
+brew tap chandram-dutta/tap
+brew trust chandram-dutta/tap     # newer versions of Homebrew ask for this; older ones have no such command
+brew install --cask chandram-dutta/tap/iguana
+```
+
 Or build it from source, with Xcode 26 or later (or its Command Line Tools):
 
 ```sh
@@ -56,16 +64,16 @@ iguana help
 
 | Keys | Action |
 | --- | --- |
-| `alt-h/j/k/l` | focus left / down / up / right |
-| `alt-shift-h/j/k/l` | move the window (continues onto the next display at the edge) |
-| `alt-ctrl-h/j/k/l` | stack the window with its neighbour |
-| `alt-minus`, `alt-equal` | shrink, grow |
-| `alt-slash` | flip the container between side-by-side and stacked |
-| `alt-f` | zoom the window to fill the Space |
-| `alt-shift-space` | float or tile the window |
-| `alt-shift-b` | balance sizes |
-| `alt-1` … `alt-9` | go to desktop N |
-| `alt-shift-1` … `alt-shift-9` | take the window to desktop N and go with it |
+| `option-h/j/k/l` | focus left / down / up / right |
+| `option-shift-h/j/k/l` | move the window (continues onto the next display at the edge) |
+| `option-ctrl-h/j/k/l` | stack the window with its neighbour |
+| `option-minus`, `option-equal` | shrink, grow |
+| `option-slash` | flip the container between side-by-side and stacked |
+| `option-f` | zoom the window to fill the Space |
+| `option-shift-space` | float or tile the window |
+| `option-shift-b` | balance sizes |
+| `option-1` … `option-9` | go to desktop N |
+| `option-shift-1` … `option-shift-9` | take the window to desktop N and go with it |
 
 You can also drag a tiled window onto another to swap them, and resize with the mouse; the layout
 keeps the new proportions.
@@ -131,8 +139,9 @@ Program. With the certificate in the keychain, store the notarization credential
 (`xcrun notarytool store-credentials iguana ...`) and pass the profile name as `NOTARY_PROFILE`.
 Without them the script still runs and says plainly that the build is not ready to hand out.
 
-The version comes from `WindowManager.version`. `dist/iguana.rb` goes into a Homebrew tap as
-`Casks/iguana.rb`; it also puts the `iguana` command on the PATH.
+The version comes from `WindowManager.version`. The cask, `iguana.rb`, is published with every
+release, and the [tap](https://github.com/Chandram-Dutta/homebrew-tap) fetches it from the
+latest release by itself, once an hour.
 
 ## Development
 

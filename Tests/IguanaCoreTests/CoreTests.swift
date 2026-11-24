@@ -333,6 +333,16 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(try TOML.parse("a = 1\r\nb = 2\r\n"), ["a": .int(1), "b": .int(2)], "Windows line endings")
     }
 
+    func testOptionIsTheNameOfTheKeyAndTheOldSpellingIsStillRead() throws {
+        let option = try KeyCombo.parse("option-shift-h")
+        XCTAssertEqual(option.modifiers, [.option, .shift])
+        XCTAssertEqual(try KeyCombo.parse("opt-shift-h"), option)
+        XCTAssertEqual(try KeyCombo.parse("alt-shift-h"), option, "configs written for other window managers keep working")
+        // The built-in shortcuts are written with the name Iguana uses.
+        XCTAssertFalse(Config.defaultText.contains("alt-"))
+        XCTAssertTrue(Config.default.bindings.allSatisfy { $0.source.hasPrefix("option-") })
+    }
+
     func testMenuBarDesktopsIsOffUntilAskedFor() throws {
         XCTAssertEqual(Config.default.menuBarDesktops, .current)
         let (all, none) = try Config.load("[menu-bar]\ndesktops = \"all\"\n")
@@ -357,7 +367,7 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(c.stripReserve, .auto)
         XCTAssertEqual(c.bindings.count, 36)
         XCTAssertEqual(c.rules.count, 3)
-        XCTAssertTrue(c.bindings.contains { $0.source == "alt-shift-3" && $0.command == .moveToSpace(.index(3), follow: true) })
+        XCTAssertTrue(c.bindings.contains { $0.source == "option-shift-3" && $0.command == .moveToSpace(.index(3), follow: true) })
         XCTAssertEqual(Config.default, c)
     }
 
@@ -372,8 +382,8 @@ final class ConfigTests: XCTestCase {
         [stage-manager]
         reserve-strip = false
         [bindings]
-        cmd-alt-left = "focus left"
-        alt-q = "explode"
+        cmd-option-left = "focus left"
+        option-q = "explode"
         hyper-x = "zoom"
         """)
         XCTAssertEqual(c.gapInner, 0)
@@ -382,17 +392,17 @@ final class ConfigTests: XCTestCase {
         XCTAssertTrue(c.autoSplit)
         XCTAssertEqual(c.stripReserve, .off)
         XCTAssertEqual(c.bindings.count, 37, "the file's shortcut is added to the 36 built-in ones")
-        XCTAssertTrue(c.bindings.contains { $0.source == "cmd-alt-left" && $0.commandText == "focus left" })
+        XCTAssertTrue(c.bindings.contains { $0.source == "cmd-option-left" && $0.commandText == "focus left" })
         XCTAssertEqual(warnings.count, 4)
     }
 
     func testFileSettingsLayerOverTheDefaults() throws {
         let (c, warnings) = try Config.load("""
         [bindings]
-        alt-h = "focus right"    # replaces a built-in shortcut
-        alt-l = ""               # switches one off
-        alt-j = false            # also switches one off
-        ctrl-alt-z = "zoom"      # adds one
+        option-h = "focus right"    # replaces a built-in shortcut
+        option-l = ""               # switches one off
+        option-j = false            # also switches one off
+        ctrl-option-z = "zoom"      # adds one
 
         [animation]
         enabled = false
@@ -400,9 +410,9 @@ final class ConfigTests: XCTestCase {
         easing = "linear"
         """)
         XCTAssertEqual(warnings, [])
-        XCTAssertEqual(c.bindings.first { $0.source == "alt-h" }?.command, .focus(.right))
-        XCTAssertFalse(c.bindings.contains { $0.source == "alt-l" || $0.source == "alt-j" })
-        XCTAssertTrue(c.bindings.contains { $0.source == "alt-k" }, "untouched shortcuts stay")
+        XCTAssertEqual(c.bindings.first { $0.source == "option-h" }?.command, .focus(.right))
+        XCTAssertFalse(c.bindings.contains { $0.source == "option-l" || $0.source == "option-j" })
+        XCTAssertTrue(c.bindings.contains { $0.source == "option-k" }, "untouched shortcuts stay")
         XCTAssertEqual(c.bindings.count, 36 - 2 + 1)
         XCTAssertEqual(c.rules, Config.default.rules, "no [[rule]] in the file keeps the built-in rules")
         XCTAssertFalse(c.animate)
@@ -485,11 +495,11 @@ final class ConfigTests: XCTestCase {
     }
 
     func testKeyCombos() throws {
-        XCTAssertEqual(try KeyCombo.parse("alt-shift-h"), KeyCombo(modifiers: [.alt, .shift], key: "h"))
-        XCTAssertEqual(try KeyCombo.parse("Cmd-Option-Left"), KeyCombo(modifiers: [.cmd, .alt], key: "left"))
-        XCTAssertEqual(try KeyCombo.parse("alt--"), KeyCombo(modifiers: [.alt], key: "minus"))
+        XCTAssertEqual(try KeyCombo.parse("option-shift-h"), KeyCombo(modifiers: [.option, .shift], key: "h"))
+        XCTAssertEqual(try KeyCombo.parse("Cmd-Option-Left"), KeyCombo(modifiers: [.cmd, .option], key: "left"))
+        XCTAssertEqual(try KeyCombo.parse("option--"), KeyCombo(modifiers: [.option], key: "minus"))
         XCTAssertThrowsError(try KeyCombo.parse("h"))
-        XCTAssertThrowsError(try KeyCombo.parse("alt-"))
+        XCTAssertThrowsError(try KeyCombo.parse("option-"))
         XCTAssertThrowsError(try KeyCombo.parse("meta-h"))
     }
 }
@@ -539,8 +549,8 @@ final class TOMLEditorTests: XCTestCase {
     outer = { top = 8, left = 8 }
 
     [bindings]
-    alt-h = "focus left"
-    "alt-shift-h" = "move left"   # quoted key
+    option-h = "focus left"
+    "option-shift-h" = "move left"   # quoted key
 
     # floating apps
     [[rule]]
@@ -558,8 +568,8 @@ final class TOMLEditorTests: XCTestCase {
         e.set(["gaps", "inner"], to: .int(12))
         XCTAssertTrue(e.text.contains("inner = 12      # between windows"), "the trailing comment and spacing survive")
         XCTAssertEqual(e.text.replacingOccurrences(of: "inner = 12", with: "inner = 8"), original, "nothing else changed")
-        e.set(["bindings", "alt-shift-h"], to: .string("move right"))
-        XCTAssertTrue(e.text.contains("\"alt-shift-h\" = \"move right\"   # quoted key"))
+        e.set(["bindings", "option-shift-h"], to: .string("move right"))
+        XCTAssertTrue(e.text.contains("\"option-shift-h\" = \"move right\"   # quoted key"))
         e.set(["gaps", "outer"], to: .int(4))
         XCTAssertEqual(try parsed(e)["gaps"], .table(["inner": .int(12), "outer": .int(4)]))
     }
@@ -567,7 +577,7 @@ final class TOMLEditorTests: XCTestCase {
     func testAddingKeysAndTables() throws {
         var e = TOMLEditor(original)
         e.set(["gaps", "extra"], to: .bool(true))
-        e.set(["bindings", "alt-l"], to: .string("focus right"))
+        e.set(["bindings", "option-l"], to: .string("focus right"))
         e.set(["animation", "duration"], to: .double(0.25))
         e.set(["animation", "enabled"], to: .bool(false))
         e.set(["other"], to: .string("x"))
@@ -585,10 +595,10 @@ final class TOMLEditorTests: XCTestCase {
 
     func testRemove() throws {
         var e = TOMLEditor(original)
-        XCTAssertTrue(e.remove(["bindings", "alt-h"]))
-        XCTAssertFalse(e.remove(["bindings", "alt-h"]))
+        XCTAssertTrue(e.remove(["bindings", "option-h"]))
+        XCTAssertFalse(e.remove(["bindings", "option-h"]))
         XCTAssertFalse(e.remove(["nope", "x"]))
-        XCTAssertEqual(try parsed(e)["bindings"]?.tableValue?.keys.sorted(), ["alt-shift-h"])
+        XCTAssertEqual(try parsed(e)["bindings"]?.tableValue?.keys.sorted(), ["option-shift-h"])
     }
 
     func testMultiLineValuesAndHashesInStrings() throws {
@@ -629,14 +639,14 @@ final class TOMLEditorTests: XCTestCase {
         var e = TOMLEditor(Config.defaultText)
         e.set(["gaps", "inner"], to: .int(20))
         e.set(["animation", "duration"], to: .double(0.4))
-        e.set(["bindings", "alt-h"], to: .string(""))
+        e.set(["bindings", "option-h"], to: .string(""))
         e.set(["stage-manager", "reserve-strip"], to: .bool(false))
         let (c, warnings) = try Config.load(e.text)
         XCTAssertEqual(warnings, [])
         XCTAssertEqual(c.gapInner, 20)
         XCTAssertEqual(c.animationDuration, 0.4)
         XCTAssertEqual(c.stripReserve, .off)
-        XCTAssertFalse(c.bindings.contains { $0.source == "alt-h" })
+        XCTAssertFalse(c.bindings.contains { $0.source == "option-h" })
         XCTAssertEqual(e.text.components(separatedBy: "\n").count, Config.defaultText.components(separatedBy: "\n").count, "no lines added or lost")
     }
 
@@ -644,7 +654,7 @@ final class TOMLEditorTests: XCTestCase {
         XCTAssertEqual(TOMLEditor.format(.double(0.05)), "0.05")
         XCTAssertEqual(TOMLEditor.format(.double(2)), "2.0")
         XCTAssertEqual(TOMLEditor.format(.string("a\"b\\")), "\"a\\\"b\\\\\"")
-        XCTAssertEqual(TOMLEditor.formatKey("alt-shift-h"), "alt-shift-h")
+        XCTAssertEqual(TOMLEditor.formatKey("option-shift-h"), "option-shift-h")
         XCTAssertEqual(TOMLEditor.formatKey("has space"), "\"has space\"")
     }
 }

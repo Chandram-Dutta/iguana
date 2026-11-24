@@ -60,7 +60,7 @@ final class Hotkeys {
             var mods: UInt32 = 0
             if binding.combo.modifiers.contains(.cmd) { mods |= UInt32(cmdKey) }
             if binding.combo.modifiers.contains(.shift) { mods |= UInt32(shiftKey) }
-            if binding.combo.modifiers.contains(.alt) { mods |= UInt32(optionKey) }
+            if binding.combo.modifiers.contains(.option) { mods |= UInt32(optionKey) }
             if binding.combo.modifiers.contains(.ctrl) { mods |= UInt32(controlKey) }
             let id = UInt32(i + 1)
             var ref: EventHotKeyRef?

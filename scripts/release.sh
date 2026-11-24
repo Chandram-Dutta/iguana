@@ -122,7 +122,7 @@ SHA="$(shasum -a 256 "$ZIP" | awk '{print $1}')"
 
 URL_BASE="${RELEASE_URL_BASE:-https://github.com/Chandram-Dutta/iguana/releases/download}"
 sed -e "s|{{VERSION}}|$VERSION|" -e "s|{{SHA256}}|$SHA|" -e "s|{{URL_BASE}}|$URL_BASE|" \
-    -e "s|{{HOMEPAGE}}|${HOMEPAGE:-https://iguana.onlychan.xyz}|" \
+    -e "s|{{HOMEPAGE}}|${HOMEPAGE:-https://iguana.onlychan.xyz/}|" \
     -e '1,2d' packaging/homebrew/iguana.rb.template > "$DIST/iguana.rb"
 
 echo
