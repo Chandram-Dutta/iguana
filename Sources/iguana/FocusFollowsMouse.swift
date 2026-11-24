@@ -101,7 +101,7 @@ final class FocusFollowsMouse {
     /// those is under the pointer.
     private static func windowUnderPointer() -> CGWindowID? {
         let number = NSWindow.windowNumber(at: NSEvent.mouseLocation, belowWindowWithWindowNumber: 0)
-        return number > 0 ? CGWindowID(number) : nil
+        return number > 0 ? CGWindowID(exactly: number) : nil
     }
 
     /// The ordinary windows on screen and the open menus, front to back.

@@ -38,7 +38,7 @@ enum SnapshotStage {
     static func capture(_ window: NSWindow) -> CGImage? {
         typealias Fn = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
         if let fn = Private.fn("CGWindowListCreateImage", Fn.self),
-           let image = fn(.null, 1 << 3, UInt32(window.windowNumber), 1 << 0 | 1 << 3)?.takeRetainedValue(), image.width > 8 {
+           let image = fn(.null, 1 << 3, UInt32(truncatingIfNeeded: window.windowNumber), 1 << 0 | 1 << 3)?.takeRetainedValue(), image.width > 8 {
             return image
         }
         guard let view = window.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return nil }

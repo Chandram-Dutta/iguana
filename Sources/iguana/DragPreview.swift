@@ -44,8 +44,10 @@ extension WindowManager {
         // it lets clicks through, as the focus ring and this outline do.
         var blockers: [CGWindowID: CGRect] = [:]
         for other in facts.windows.keys where tiles[other] == nil { blockers[other] = onScreen.frames[other] }
-        for window in NSApp?.windows ?? [] where window.isVisible && !window.ignoresMouseEvents && window.windowNumber > 0 {
-            let number = CGWindowID(window.windowNumber)
+        for window in NSApp?.windows ?? [] where window.isVisible && !window.ignoresMouseEvents {
+            // Not every window of an app has a number the window server knows: the menu bar
+            // item's window is kept by another process and reports one that does not fit.
+            guard window.windowNumber > 0, let number = CGWindowID(exactly: window.windowNumber) else { continue }
             blockers[number] = onScreen.frames[number]
         }
         var minSizes: [CGWindowID: CGSize] = [:]
