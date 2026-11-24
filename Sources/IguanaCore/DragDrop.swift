@@ -62,11 +62,15 @@ public struct DropScene {
     public var gap: CGFloat
     public var peek: CGFloat
     public var minSizes: [WindowID: CGSize]
+    /// How far outside a desktop's area the pointer still counts as being at its edge: the
+    /// width of the margin left round the tiles. A window dragged to the edge of the screen has
+    /// the pointer in that margin, and it is the edge of the tile beside it that is meant.
+    public var margin: CGFloat
 
     public init(
         dragged: WindowID, pointer: CGPoint, tiles: [WindowID: CGRect], blockers: [WindowID: CGRect] = [:],
         frontToBack: [WindowID], desks: [Desk], visible: Set<WindowID>, gap: CGFloat = 0, peek: CGFloat = 32,
-        minSizes: [WindowID: CGSize] = [:]
+        minSizes: [WindowID: CGSize] = [:], margin: CGFloat = 0
     ) {
         self.dragged = dragged
         self.pointer = pointer
@@ -78,6 +82,7 @@ public struct DropScene {
         self.gap = gap
         self.peek = peek
         self.minSizes = minSizes
+        self.margin = margin
     }
 }
 
@@ -115,6 +120,18 @@ public enum DragDrop {
         return depths.filter { $0.depth < 1 }.min { $0.depth < $1.depth }?.side
     }
 
+    /// A pointer in the margin round a desktop's tiles, moved onto the edge of that desktop's
+    /// area. Anywhere else it is returned as it is: inside an area, or further out than the
+    /// margin (the menu bar, the Dock, another display's surroundings).
+    public static func reach(_ pointer: CGPoint, into areas: [CGRect], margin: CGFloat) -> CGPoint {
+        guard margin > 0, !areas.contains(where: { $0.contains(pointer) }) else { return pointer }
+        for area in areas where area.insetBy(dx: -margin, dy: -margin).contains(pointer) && area.width > 2 && area.height > 2 {
+            // `contains` leaves out the far edges of a rectangle, so stop just short of them.
+            return CGPoint(x: min(max(pointer.x, area.minX), area.maxX - 1), y: min(max(pointer.y, area.minY), area.maxY - 1))
+        }
+        return pointer
+    }
+
     /// The tile that is dropped on: the frontmost one under the pointer, the dragged window's
     /// own aside. The windows of a stack overlap, which is why the order matters. Nil over a
     /// gap, the menu bar, or a window that is no tile.
@@ -141,6 +158,8 @@ public enum DragDrop {
     /// The drop is tried out on a copy of the layout. That gives the frame the window will have,
     /// and it shows a drop that would leave every window where it is, which counts as nothing.
     public static func plan(_ scene: DropScene) -> DropPlan? {
+        var scene = scene
+        scene.pointer = reach(scene.pointer, into: scene.desks.map(\.area), margin: scene.margin)
         let id = scene.dragged
         guard let own = scene.tiles[id], !own.contains(scene.pointer),
               let target = target(in: scene), let tile = scene.tiles[target],

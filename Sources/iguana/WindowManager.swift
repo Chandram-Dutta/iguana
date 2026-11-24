@@ -84,7 +84,9 @@ final class WindowManager {
     private var refreshPending = false
     private(set) var focusedWindow: CGWindowID?
     private var focusIntent: CGWindowID?
-    private var drag: (id: CGWindowID, start: CGRect)?
+    /// `carried` is set once the window has been seen somewhere else at its own size: it is
+    /// being moved, not resized, and stays a move whatever happens to its size afterwards.
+    private var drag: (id: CGWindowID, start: CGRect, carried: Bool)?
     private var syntheticDrag = false
     private var started = false
     private var restoredFloating = Set<CGWindowID>()
@@ -243,9 +245,10 @@ final class WindowManager {
         if mouseIsDown, !animator.isMoving(id) {
             // The user is dragging or resizing. Leave the window alone until they let go.
             if drag == nil {
-                drag = (id, slot)
+                drag = (id, slot, false)
                 onDrag?(true)
             }
+            if drag?.id == id, drag?.carried == false, let start = drag?.start, DragDrop.isMove(from: start, to: now) { drag?.carried = true }
             return
         }
         if mouseIsDown { return }
@@ -262,14 +265,17 @@ final class WindowManager {
         guard let w = windows[d.id], let now = w.element.frame, let (_, tree) = treeEntry(containing: d.id) else { return }
         w.lastSetFrame = nil
         let dw = now.width - d.start.width, dh = now.height - d.start.height
-        if abs(dw) > 3 || abs(dh) > 3 {
+        // A window that was carried somewhere can come back from the drag with another size:
+        // macOS's own tiling resizes a window let go at a screen edge. That is not the user
+        // resizing it, so it must not change the proportions of the layout.
+        if !d.carried, abs(dw) > 3 || abs(dh) > 3 {
             // Resized by hand: keep the new proportions.
             if abs(dw) > 3 { tree.changeShare(of: d.id, along: .horizontal, .ratio(Double(now.width / d.start.width)), visible: lastVisible) }
             if abs(dh) > 3 { tree.changeShare(of: d.id, along: .vertical, .ratio(Double(now.height / d.start.height)), visible: lastVisible) }
         } else if let cursor = CGEvent(source: nil)?.location,
                   // The same question the outline asked all through the drag (DragPreview.swift),
                   // so what it showed is what is done: trade places, take half of a tile, join a stack.
-                  let plan = dropPlan(dragging: d.id, from: d.start, now: now, at: cursor) {
+                  let plan = dropPlan(dragging: d.id, from: d.start, now: d.carried ? CGRect(origin: now.origin, size: d.start.size) : now, at: cursor) {
             DragDrop.carryOut(plan.drop, of: d.id, in: displays.compactMap { trees[$0.treeKey] }, visible: lastVisible)
             if displayIndex(for: now) != displayIndex(for: plan.rect) {
                 // Let go with most of itself on another display than the one it lands on. A
@@ -286,7 +292,7 @@ final class WindowManager {
     var onDrag: ((Bool) -> Void)?
 
     /// The window the user is dragging or resizing by hand, and the tile it started from.
-    var dragging: (id: CGWindowID, start: CGRect)? { drag }
+    var dragging: (id: CGWindowID, start: CGRect)? { drag.map { ($0.id, $0.start) } }
 
     /// The tile of every tiled window on screen. A zoomed window is not on its tile, and has none here.
     var tileFrames: [CGWindowID: CGRect] { lastFrames.filter { !zoomed.values.contains($0.key) } }

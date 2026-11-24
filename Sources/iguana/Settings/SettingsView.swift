@@ -261,6 +261,9 @@ private struct GeneralPane: View {
 private struct LayoutPane: View {
     @ObservedObject var model: SettingsModel
     @State private var perSide = false
+    /// Looked at when the pane appears and when the user comes back to Iguana, which is how
+    /// they return from switching it off in System Settings.
+    @State private var systemTiles = SystemTiling.tilesDraggedWindows
 
     private var outer: Edges { model.config.gapOuter }
     private var outerIsUniform: Bool { outer.top == outer.left && outer.left == outer.bottom && outer.bottom == outer.right }
@@ -284,6 +287,14 @@ private struct LayoutPane: View {
                 Spacer(minLength: 0)
             }
         } content: {
+            if systemTiles {
+                SettingSection {
+                    Callout(kind: .note, text: "macOS also tiles a window that is dragged to a screen edge, and shows an outline of its own. Iguana's layout wins when you let go. To see only Iguana's outline, turn off the options for tiling by dragging under Windows in Desktop & Dock.") {
+                        Button("Open Desktop & Dock") { SystemTiling.openSettings() }
+                            .controlSize(.small)
+                    }
+                }
+            }
             SettingSection(title: "Gaps") {
                 SettingRow(title: "Between windows") {
                     ValueSlider(label: "Gap between windows", value: model.config.gapInner, range: 0...40, step: 1, format: points) {
@@ -369,6 +380,10 @@ private struct LayoutPane: View {
             }
 
             FocusRingSection(model: model)
+        }
+        .onAppear { systemTiles = SystemTiling.tilesDraggedWindows }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            systemTiles = SystemTiling.tilesDraggedWindows
         }
     }
 

@@ -137,6 +137,18 @@ Other causes:
   so `app = "term"` floats every app with "term" in its name. Use the bundle identifier to be
   exact.
 
+## Two outlines appear when I drag a window
+
+macOS has window tiling of its own (macOS 15 and later). A window dragged to an edge of the
+screen, or to the menu bar, gets an outline from the system, and the system resizes it when you
+let go. Iguana draws its own outline for the same drag.
+
+Iguana's layout wins: when you let go, the window lands where Iguana's outline was, and what
+the system did to its size is undone. To see one outline only, turn the system's off. Open
+System Settings, go to Desktop & Dock, and under Windows switch off the options for tiling by
+dragging a window to a screen edge and to the menu bar. Settings > Layout in Iguana shows a
+note with a button that takes you there while they are on.
+
 ## A window will not shrink
 
 Some windows have a minimum size and refuse to go below it. This is the app's decision, and

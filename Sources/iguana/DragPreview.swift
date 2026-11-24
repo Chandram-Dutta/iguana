@@ -57,7 +57,9 @@ extension WindowManager {
         }
         return DragDrop.plan(DropScene(
             dragged: id, pointer: pointer, tiles: tiles, blockers: blockers, frontToBack: onScreen.order, desks: desks,
-            visible: facts.visible, gap: config.gapInner, peek: config.stackPeek, minSizes: minSizes))
+            visible: facts.visible, gap: config.gapInner, peek: config.stackPeek, minSizes: minSizes,
+            // The margin round the tiles, and a little more for a pointer pressed against the screen's edge.
+            margin: max(config.gapOuter.top, config.gapOuter.left, config.gapOuter.bottom, config.gapOuter.right) + 2))
     }
 }
 

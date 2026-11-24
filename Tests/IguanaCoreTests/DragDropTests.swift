@@ -104,6 +104,31 @@ final class DragDropTests: XCTestCase {
         XCTAssertNil(DragDrop.target(in: gap), "nothing there")
     }
 
+    func testThePointerInTheMarginRoundTheTilesIsAtTheEdgeOfTheTileBesideIt() {
+        // A desktop with a margin of 8 points round its tiles, as the outer gaps leave.
+        let area = screen.insetBy(dx: 8, dy: 8)
+        var s = scene([(row(1, 2), area)], drag: 2, at: CGPoint(x: 1, y: 300))
+        XCTAssertNil(DragDrop.plan(s), "not told about the margin, the pointer is beside the tiles")
+        s.margin = 10
+        XCTAssertEqual(DragDrop.plan(s)?.drop, .split(1, .left), "dragged to the left edge of the screen")
+        XCTAssertEqual(DragDrop.plan(s)?.rect.minX, area.minX)
+
+        s = scene([(row(1, 2), area)], drag: 1, at: CGPoint(x: 999.5, y: 300))
+        s.margin = 10
+        XCTAssertEqual(DragDrop.plan(s)?.drop, .split(2, .right), "and to the right edge")
+
+        // Its own tile is still its own tile from the margin beside it.
+        s = scene([(row(1, 2), area)], drag: 1, at: CGPoint(x: 1, y: 300))
+        s.margin = 10
+        XCTAssertNil(DragDrop.plan(s))
+
+        // Further out than the margin is somewhere else: the menu bar, the Dock.
+        s = scene([(row(1, 2), area)], drag: 2, at: CGPoint(x: 300, y: -30))
+        s.margin = 10
+        XCTAssertNil(DragDrop.plan(s))
+        XCTAssertEqual(DragDrop.reach(CGPoint(x: 300, y: 300), into: [area], margin: 10), CGPoint(x: 300, y: 300), "a pointer over the tiles is left alone")
+    }
+
     func testOverItsOwnTileNothingHappens() {
         XCTAssertNil(plan(row(1, 2), drag: 1, at: CGPoint(x: 100, y: 100)))
         // The window itself is elsewhere by now; it is the tile that counts.
