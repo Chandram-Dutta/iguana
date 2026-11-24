@@ -99,6 +99,8 @@ public struct Config: Equatable {
     public var animationEasing = Easing.easeOut
     public var bindings: [Binding] = []
     public var rules: [Rule] = []
+    /// Shell commands to run when something changes. An event without a command is not in here.
+    public var hooks: [HookEvent: String] = [:]
 
     public static let defaultText = """
     #:schema ./iguana.schema.json
@@ -132,6 +134,13 @@ public struct Config: Equatable {
     # With more than one desktop drawn, true makes a click on one of them go to it. A click on
     # the desktop you are on still opens the menu.
     click-to-switch = false
+
+    # Shell commands that Iguana runs when something changes, for status bars and scripts.
+    # "" runs nothing. The command gets the facts in environment variables: IGUANA_EVENT,
+    # IGUANA_DESKTOP, IGUANA_DISPLAY and, for the focus, IGUANA_WINDOW_ID, IGUANA_APP, IGUANA_TITLE.
+    [hooks]
+    desktop-changed = ""   # the desktop a display is showing changed
+    focus-changed = ""     # a different window has the focus
 
     # Keys: letters, digits, minus, equal, comma, period, slash, semicolon, quote, backslash,
     # backtick, leftbracket, rightbracket, space, tab, return, delete, esc, left, right, up, down,
@@ -237,7 +246,7 @@ public struct Config: Equatable {
             }
         }
 
-        checkKeys(doc, ["gaps", "layout", "animation", "stage-manager", "menu-bar", "bindings", "rule"], "the config file")
+        checkKeys(doc, ["gaps", "layout", "animation", "stage-manager", "menu-bar", "hooks", "bindings", "rule"], "the config file")
 
         if let gaps = doc["gaps"]?.tableValue {
             checkKeys(gaps, ["inner", "outer"], "[gaps]")
@@ -312,6 +321,18 @@ public struct Config: Equatable {
                 } else {
                     warnings.append("menu-bar.desktops must be \"current\", \"all\" or \"occupied\"; keeping the default")
                 }
+            }
+        }
+
+        if let hooks = doc["hooks"]?.tableValue {
+            checkKeys(hooks, ["desktop-changed", "focus-changed"], "[hooks]")
+            for event in HookEvent.allCases {
+                guard let value = hooks[event.rawValue] else { continue }
+                guard let command = value.stringValue else {
+                    warnings.append("hooks.\(event.rawValue) must be a string: a shell command, or \"\" to run nothing")
+                    continue
+                }
+                c.hooks[event] = command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : command
             }
         }
 

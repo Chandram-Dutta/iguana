@@ -2,6 +2,8 @@
 // Run with `npm run check`. It only reads ../Sources; it never writes outside docs/.
 //
 //   commands      Command.usage and Command.parse   -> reference/commands.mdx
+//   reports       the --json examples               -> reference/commands.mdx
+//   hooks         HookEnvironment's variables       -> reference/configuration.mdx
 //   config keys   Config.defaultText and Config.load -> reference/configuration.mdx
 //   shortcuts     the [bindings] of defaultText      -> reference/default-shortcuts.mdx
 //   key names     Hotkeys.keyCodes, KeyCombo.parse   -> reference/key-names.mdx
@@ -17,6 +19,7 @@ const page = (path) => readFileSync(resolve(here, '../src/content/docs', path), 
 const commandSwift = source('IguanaCore/Command.swift');
 const configSwift = source('IguanaCore/Config.swift');
 const schemaSwift = source('IguanaCore/Schema.swift');
+const hooksSwift = source('IguanaCore/Hooks.swift');
 const hotkeysSwift = source('iguana/Hotkeys.swift');
 
 const commandsPage = page('reference/commands.mdx');
@@ -96,6 +99,22 @@ for (const line of usage.split('\n')) {
 const range = commandSwift.match(/n >= (\d+), n <= (\d+)/);
 expect(range && commandsPage.includes(`from ${range[1]} to ${range[2]}`), 'commands.mdx: the Space number range does not match Command.parse');
 
+// The four reports show a JSON document each, and every one of them is JSON.
+const jsonExamples = [...commandsPage.matchAll(/```json\n([\s\S]*?)\n```/g)].map((m) => m[1]);
+expect(jsonExamples.length === 4, `commands.mdx should show 4 JSON documents, one for each report; it shows ${jsonExamples.length}`);
+for (const example of jsonExamples) {
+	let ok = true;
+	try {
+		JSON.parse(example);
+	} catch {
+		ok = false;
+	}
+	expect(ok, `commands.mdx: a JSON example does not parse: ${example.slice(0, 60)}…`);
+}
+for (const name of ['list-windows', 'list-spaces', 'tree', 'status']) {
+	expect(commandsPage.includes(`\n${name} --json\n`), `commands.mdx does not show the grammar line "${name} --json"`);
+}
+
 // ---- Config keys --------------------------------------------------------------------------
 
 const defaults = literal(configSwift, 'defaultText');
@@ -157,6 +176,13 @@ for (const [table, key, pattern, text] of manual) {
 for (const value of ['linear', 'ease-out', 'ease-in-out']) {
 	expect(configSwift.includes(value) && (section(configPage, '### `easing`') ?? '').includes(`"${value}"`),
 		`configuration.mdx: easing should list "${value}"`);
+}
+
+// Every variable a hook's command is given.
+const hookVariables = new Set([...hooksSwift.matchAll(/"(IGUANA_[A-Z_]+)"/g)].map((m) => m[1]));
+expect(hookVariables.size >= 6, 'could not read the hook variables from IguanaCore/Hooks.swift');
+for (const name of hookVariables) {
+	expect((section(configPage, '## `[hooks]`') ?? '').includes(`\`${name}\``), `configuration.mdx: [hooks] never mentions ${name}`);
 }
 
 // ---- Default shortcuts --------------------------------------------------------------------

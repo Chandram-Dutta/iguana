@@ -357,10 +357,37 @@ Quits Iguana. Layouts are saved first. No window moves.
 These print information and change nothing. The window titles, app names, numbers and
 display names in the examples are made up.
 
+### JSON output
+
+From a terminal, each of the four reports takes `--json` and answers with one JSON document
+instead of text, for status bars and scripts. Without the flag the output is the text shown
+below, as it always was.
+
+```sh
+iguana list-spaces --json | jq '.desktops[] | select(.active) | .number'
+```
+
+- **Keys are lower camel case,** such as `bundleId` and `desktopCount`. Values that are words
+  are too, such as `notOnScreen`.
+- **Something that is not known is `null`.** Its key is still there, so every document of a
+  kind has the same shape. The one exception is the layout in [`tree`](#tree), where a
+  container and a window have different keys.
+- **The output is stable.** It is pretty-printed with the keys sorted, so the same facts give
+  the same text. Keys may be added in later versions. A key is not renamed or removed.
+- **An error is not JSON.** When the report cannot be made, the reply is the usual
+  `error: …` line and the exit status is 1, so check the status before parsing.
+- **Titles stay on this Mac.** A document goes to whoever ran the command and nowhere else.
+- **`--json` is for the command line.** A shortcut has nowhere to print a document, so
+  `--json` in [`[bindings]`](/reference/configuration/#bindings) is a warning. No other
+  command takes it.
+
+[Status bars and scripts](/guides/status-bars-and-scripts/) puts these to use.
+
 ### `list-windows`
 
 ```text
 list-windows
+list-windows --json
 ```
 
 Lists every window Iguana knows about, one per line: a `*` for the focused window, the
@@ -376,10 +403,59 @@ window's number, its state, its app and its title, separated by tabs.
 The states are `tiled`, `floating`, `unmanaged` and `not on screen`. They are explained under
 [What gets tiled](/guides/floating-windows/#what-gets-tiled).
 
+With `--json`:
+
+```json
+{
+  "windows" : [
+    {
+      "app" : "Terminal",
+      "bundleId" : "com.apple.Terminal",
+      "desktop" : 1,
+      "display" : "Built-in Retina Display",
+      "focused" : true,
+      "frame" : {
+        "height" : 933,
+        "width" : 748,
+        "x" : 8,
+        "y" : 41
+      },
+      "id" : 1187,
+      "state" : "tiled",
+      "title" : "zsh"
+    },
+    {
+      "app" : "Notes",
+      "bundleId" : "com.apple.Notes",
+      "desktop" : 2,
+      "display" : "Built-in Retina Display",
+      "focused" : false,
+      "frame" : null,
+      "id" : 1320,
+      "state" : "notOnScreen",
+      "title" : "Notes"
+    }
+  ]
+}
+```
+
+| Key | Value |
+| --- | --- |
+| `id` | The window's number. It stays the same until the window closes. |
+| `app` | The name of the window's app. |
+| `bundleId` | The app's bundle identifier, or `null`. |
+| `title` | The window's title. |
+| `state` | `tiled`, `floating`, `unmanaged` or `notOnScreen`. |
+| `focused` | `true` for the focused window. |
+| `desktop` | The number of the desktop the window is on, or `null` when Iguana cannot tell, as for a window in native fullscreen. |
+| `display` | The name of the display the window is on, or `null`. |
+| `frame` | Where the window is, in points from the top-left corner of the main display. `null` when the window is not on screen. |
+
 ### `list-spaces`
 
 ```text
 list-spaces
+list-spaces --json
 ```
 
 Shows, for each display, which desktop it is showing and how many desktops it has.
@@ -391,10 +467,74 @@ Studio Display: showing desktop 4 of 5; this display has 2 desktop(s)
 
 A display showing a native fullscreen app reads `showing a fullscreen Space`.
 
+With `--json`, the document also lists every desktop, in Mission Control order:
+
+```json
+{
+  "desktops" : [
+    {
+      "active" : true,
+      "display" : "Built-in Retina Display",
+      "number" : 1,
+      "showing" : true,
+      "windows" : [
+        1187,
+        1203
+      ]
+    },
+    {
+      "active" : false,
+      "display" : "Built-in Retina Display",
+      "number" : 2,
+      "showing" : false,
+      "windows" : [
+        1320
+      ]
+    },
+    {
+      "active" : false,
+      "display" : "Studio Display",
+      "number" : 3,
+      "showing" : true,
+      "windows" : [
+
+      ]
+    }
+  ],
+  "displays" : [
+    {
+      "desktop" : 1,
+      "desktopCount" : 2,
+      "main" : true,
+      "name" : "Built-in Retina Display"
+    },
+    {
+      "desktop" : 3,
+      "desktopCount" : 1,
+      "main" : false,
+      "name" : "Studio Display"
+    }
+  ]
+}
+```
+
+| Key | Value |
+| --- | --- |
+| `desktops[].number` | The desktop's number, counted across all displays. |
+| `desktops[].display` | The name of the display the desktop belongs to. `null` when the displays share their desktops ("Displays have separate Spaces" is off). |
+| `desktops[].showing` | `true` when a display is showing this desktop. |
+| `desktops[].active` | `true` for the desktop you are on: the one being shown on the display that has the focus. |
+| `desktops[].windows` | The `id` of each window Iguana has seen on this desktop. Iguana learns of a window when its desktop is on screen, so a desktop you have not visited since Iguana started can read as empty. |
+| `displays[].name` | The display's name. |
+| `displays[].desktop` | The number of the desktop the display is showing, or `null` while it shows a fullscreen Space. |
+| `displays[].desktopCount` | How many desktops the display has. |
+| `displays[].main` | `true` for the main display. |
+
 ### `tree`
 
 ```text
 tree
+tree --json
 ```
 
 Prints the layout tree of the desktop each display is showing. Containers are `horizontal`
@@ -412,10 +552,78 @@ Built-in Retina Display, desktop 1
 
 If other desktops have a remembered layout, a last line says how many.
 
+With `--json`, containers and windows nest in `children`:
+
+```json
+{
+  "displays" : [
+    {
+      "desktop" : 1,
+      "display" : "Built-in Retina Display",
+      "layout" : {
+        "children" : [
+          {
+            "app" : "Safari",
+            "id" : 1203,
+            "onScreen" : true,
+            "title" : "Start Page",
+            "type" : "window",
+            "weight" : 1
+          },
+          {
+            "children" : [
+              {
+                "app" : "Terminal",
+                "id" : 1187,
+                "onScreen" : true,
+                "title" : "zsh",
+                "type" : "window",
+                "weight" : 1
+              },
+              {
+                "app" : "Notes",
+                "id" : 1320,
+                "onScreen" : false,
+                "title" : "Notes",
+                "type" : "window",
+                "weight" : 1
+              }
+            ],
+            "orientation" : "vertical",
+            "type" : "container",
+            "weight" : 1
+          }
+        ],
+        "orientation" : "horizontal",
+        "type" : "container",
+        "weight" : 1
+      }
+    }
+  ],
+  "otherLayouts" : 1
+}
+```
+
+| Key | Value |
+| --- | --- |
+| `displays[].display` | The display's name. |
+| `displays[].desktop` | The number of the desktop it is showing, or `null` for a fullscreen Space, which Iguana does not manage. |
+| `displays[].layout` | The root of the layout tree, or `null` when the desktop has no tiled window. |
+| `otherLayouts` | How many desktops that are not being shown have a remembered layout. |
+
+Every entry of a layout has a `type` and a `weight`, its share relative to the entries beside
+it. The other keys depend on the type:
+
+| `type` | Keys |
+| --- | --- |
+| `container` | `orientation`, which is `horizontal` (side by side) or `vertical` (stacked), and `children`. |
+| `window` | `id`, `app`, `title` and `onScreen`. `app` and `title` are left out for a window Iguana remembers from before a restart and has not seen again yet. |
+
 ### `status`
 
 ```text
 status
+status --json
 ```
 
 Shows whether Iguana is tiling, which config file is in use and any problems with it, how
@@ -435,3 +643,62 @@ last shortcut: option-l, 4 s ago, answered "ok"
 Config problems and shortcuts that could not be registered appear as indented `warning:`
 lines. While the welcome tour is on screen, a `welcome tour:` line above the last one says
 so. Before the permission is granted, `status` says that Iguana is waiting for it.
+
+With `--json`:
+
+```json
+{
+  "configExists" : true,
+  "configPath" : "/Users/you/.config/iguana/iguana.toml",
+  "configWarnings" : [
+
+  ],
+  "displays" : [
+    {
+      "desktop" : 1,
+      "desktopCount" : 3,
+      "main" : true,
+      "name" : "Built-in Retina Display"
+    }
+  ],
+  "lastShortcut" : {
+    "keys" : "option-l",
+    "reply" : "ok",
+    "secondsAgo" : 4
+  },
+  "paused" : false,
+  "permission" : true,
+  "shortcuts" : {
+    "active" : 40,
+    "warnings" : [
+
+    ]
+  },
+  "stageManager" : {
+    "on" : false,
+    "reserved" : 0
+  },
+  "tourShowing" : false,
+  "version" : "0.1.2",
+  "windows" : {
+    "apps" : 5,
+    "known" : 7,
+    "tiled" : 3
+  }
+}
+```
+
+| Key | Value |
+| --- | --- |
+| `version` | Iguana's version. |
+| `permission` | `true` when Iguana has the Accessibility permission. |
+| `paused` | `true` while tiling is paused. |
+| `configPath` | Where the config file lives. |
+| `configExists` | `false` when there is no file there and the built-in defaults are in use. |
+| `configWarnings` | The problems in the config file, one string each. |
+| `windows` | `tiled` counts the windows tiled on screen, `known` every window Iguana knows about, `apps` the apps it is watching. |
+| `stageManager` | `on`, and `reserved`: the points left free for the strip of recent apps. |
+| `displays` | The same list as in [`list-spaces --json`](#list-spaces). |
+| `shortcuts` | `active` is how many shortcuts are registered. `warnings` lists the ones that could not be. |
+| `tourShowing` | `true` while the welcome tour is on screen. |
+| `lastShortcut` | The last shortcut received: its `keys`, how many `secondsAgo`, and the `reply` it got. `null` when none has been received since Iguana started. |

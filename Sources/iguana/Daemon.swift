@@ -14,6 +14,8 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var registeredShortcuts = 0
     private var lastShortcut: (keys: String, reply: String, at: Date)?
     private var tour: TourWindowController?
+    /// The commands of `[hooks]`, run when the desktop or the focused window changes.
+    private let hooks = Hooks()
     /// The menu of the menu bar item. Its first item is a view: the desktops, drawn.
     private let statusMenu = NSMenu()
     private let deskModel = DeskModel()
@@ -44,6 +46,7 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
         wm.onChange = { [weak self] in
             self?.updateStatusItem()
             if self?.settings?.isVisible == true { self?.settings?.model.refresh() }
+            if let self { self.hooks.changed(self.wm) }
         }
         wm.onConfigChange = { [weak self] in self?.registerHotkeys() }
         wm.statusExtras = { [weak self] in
@@ -139,11 +142,22 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func handle(_ line: String) -> String {
         do {
-            let command = try Command.parse(line)
+            let (command, json) = try Command.parseRequest(line)
+            if json { return jsonReport(command) }
             return tourReply(command) ?? wm.run(command)
         } catch {
             return "error: \(error)"
         }
+    }
+
+    /// A report as a JSON document (`--json`). The window manager fills in what it knows and
+    /// the app shell hands over its part, the same facts `statusExtras` gives the text.
+    private func jsonReport(_ command: Command) -> String {
+        let last = lastShortcut.map {
+            Report.LastShortcut(keys: $0.keys, secondsAgo: Int(Date().timeIntervalSince($0.at)), reply: $0.reply)
+        }
+        return wm.jsonReport(command, shortcuts: Report.Shortcuts(active: registeredShortcuts, warnings: hotkeyProblems),
+                             tourShowing: tour?.isShowing == true, lastShortcut: last)
     }
 
     private static func signature(of url: URL) -> String {

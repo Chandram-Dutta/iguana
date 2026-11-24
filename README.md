@@ -70,6 +70,8 @@ ln -s /Applications/Iguana.app/Contents/MacOS/iguana /usr/local/bin/iguana
 iguana help
 ```
 
+For status bars such as SketchyBar and for scripts, `iguana list-windows --json` (and `list-spaces`, `tree`, `status`) answers with JSON, and a `[hooks]` section in the config file runs a command of yours when the desktop or the focused window changes.
+
 ## Default shortcuts
 
 | Keys | Action |

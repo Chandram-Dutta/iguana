@@ -52,6 +52,7 @@ export default defineConfig({
 						{ label: 'The settings window', slug: 'guides/settings-window' },
 						{ label: 'Animation', slug: 'guides/animation' },
 						{ label: 'Customising shortcuts', slug: 'guides/shortcuts' },
+						{ label: 'Status bars and scripts', slug: 'guides/status-bars-and-scripts' },
 					],
 				},
 				{

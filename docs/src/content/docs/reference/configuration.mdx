@@ -300,6 +300,93 @@ while `desktops` is `"all"` or `"occupied"`.
 
 Either way, the menu itself has every desktop in it, and a click on one there goes to it.
 
+## `[hooks]`
+
+Shell commands that Iguana runs when something changes, so that a status bar or a script of
+your own can follow along. [Status bars and scripts](/guides/status-bars-and-scripts/) has a
+worked example.
+
+```toml title="iguana.toml"
+[hooks]
+desktop-changed = ""   # the desktop a display is showing changed
+focus-changed = ""     # a different window has the focus
+```
+
+Hooks are set in the file only. The [settings window](/guides/settings-window/) has no pane
+for them, and leaves a `[hooks]` section exactly as you wrote it.
+
+### `desktop-changed`
+
+Runs when the desktop a display is showing changed, however you got there: a shortcut, a
+trackpad swipe, Mission Control, or a click in the Dock. It also runs when a display starts or
+stops showing a fullscreen app, and when the desktop you are on gets another number because a
+desktop before it was added or removed.
+
+| | |
+| --- | --- |
+| Type | string, a shell command |
+| Default | `""` |
+
+### `focus-changed`
+
+Runs when a different window has the focus, and when the last window on a desktop goes away
+and no window has it any more. A window that only changes its title does not run it.
+
+| | |
+| --- | --- |
+| Type | string, a shell command |
+| Default | `""` |
+
+An empty string, or a key you leave out, runs nothing.
+
+### What the command is given
+
+The facts arrive as environment variables.
+
+| Variable | Value | Set for |
+| --- | --- | --- |
+| `IGUANA_EVENT` | `desktop-changed` or `focus-changed`. | both |
+| `IGUANA_DESKTOP` | The number of the desktop, counted as Mission Control counts them. For `focus-changed` it is the desktop of the focused window. Empty for a fullscreen Space. | both |
+| `IGUANA_DISPLAY` | The name of the display, such as `Built-in Retina Display`. | both |
+| `IGUANA_WINDOW_ID` | The window's number, the `id` of [`list-windows --json`](/reference/commands/#list-windows). Empty when no window has the focus. | `focus-changed` |
+| `IGUANA_APP` | The name of the window's app. | `focus-changed` |
+| `IGUANA_TITLE` | The window's title at that moment. | `focus-changed` |
+
+<Aside type="caution" title="Quote the variables">
+A window title can be any text at all: a web page chooses the title of its browser window.
+Iguana never writes a title, or any other fact, into the command it runs. They only ever
+travel as environment variables, so nothing in them is run as code by Iguana.
+
+Keep it that way in your own scripts. Write `"$IGUANA_TITLE"` with the double quotes, and
+never pass it to `eval` or paste it into another command line.
+</Aside>
+
+A value longer than 4096 bytes is cut off there.
+
+### How a command is run
+
+- **With `/bin/sh -c`,** in your home folder, with the environment Iguana itself has plus the
+  variables above. It has no terminal: it reads nothing, and what it prints is discarded.
+- **Homebrew's folders are on its `PATH`.** An app opened from the Finder gets a short
+  `PATH`, so Iguana adds `/opt/homebrew/bin` and `/usr/local/bin` at the end of it. For a
+  program anywhere else, write its full path.
+- **Iguana never waits for it.** A slow command does not slow down your windows.
+- **One run of each hook at a time.** If a hook is still running when its event happens
+  again, the newest event waits for the run to end and then runs once. Events in between are
+  skipped, so a slow command cannot pile up, and what it hears last is always the latest
+  state. With two displays that change at the same moment, that can mean a slow hook hears
+  about only one of them.
+- **Only on a real change.** The first look Iguana takes when it starts is not a change.
+- **Not before tiling starts.** Nothing runs until the Accessibility permission is granted,
+  or while the welcome tour of a first start is still on screen. Pausing tiling does not stop
+  hooks.
+- **Trouble goes to the log, once.** A command that ends with a status other than 0, or that
+  cannot be started, is written to `~/Library/Logs/Iguana.log` the first time it happens.
+  Iguana never shows an alert for a hook. Status 127 means the shell could not find the
+  program.
+
+A value that is not a string is a warning, and that hook stays off.
+
 ## `[bindings]`
 
 Keyboard shortcuts. Each entry has a shortcut on the left and a command on the right.
@@ -439,6 +526,13 @@ desktops = "current"
 # With more than one desktop drawn, true makes a click on one of them go to it. A click on
 # the desktop you are on still opens the menu.
 click-to-switch = false
+
+# Shell commands that Iguana runs when something changes, for status bars and scripts.
+# "" runs nothing. The command gets the facts in environment variables: IGUANA_EVENT,
+# IGUANA_DESKTOP, IGUANA_DISPLAY and, for the focus, IGUANA_WINDOW_ID, IGUANA_APP, IGUANA_TITLE.
+[hooks]
+desktop-changed = ""   # the desktop a display is showing changed
+focus-changed = ""     # a different window has the focus
 
 # Keys: letters, digits, minus, equal, comma, period, slash, semicolon, quote, backslash,
 # backtick, leftbracket, rightbracket, space, tab, return, delete, esc, left, right, up, down,
