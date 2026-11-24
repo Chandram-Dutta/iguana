@@ -16,6 +16,8 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var tour: TourWindowController?
     /// The commands of `[hooks]`, run when the desktop or the focused window changes.
     private let hooks = Hooks()
+    /// Looks once a day whether a newer Iguana has been released.
+    private let updates = UpdateChecker()
     /// The menu of the menu bar item. Its first item is a view: the desktops, drawn.
     private let statusMenu = NSMenu()
     private let deskModel = DeskModel()
@@ -60,17 +62,21 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
             } else {
                 lines.append("last shortcut: none received since Iguana started")
             }
+            if let update = self.knownUpdate { lines.append(UpdateCheck.statusLine(update)) }
             return lines
         }
         wm.onOpenSettings = { [weak self] in self?.openSettings() }
         wm.onOpenTour = { [weak self] in self?.showTour() }
+        wm.onCheckForUpdate = { [weak self] in self?.updates.checkNow() }
+        updates.onChange = { [weak self] in self?.settings?.model.refresh() }
+        updates.start { [weak self] in self?.wm.config.checkForUpdates ?? false }
         NSApp.mainMenu = makeMainMenu()
         wm.reloadConfig()
         configSignature = Self.signature(of: WindowManager.configURL)
         // Pick up the config file as soon as it is saved, whatever saved it.
         Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in self?.checkConfigFile() }
 
-        if !IPC.listen({ [weak self] line in self?.handle(line) ?? "error: shutting down" }) {
+        if !IPC.listen({ [weak self] line, reply in self?.handle(line, reply: reply) ?? reply("error: shutting down") }) {
             Log.write("could not open the command socket at \(IPC.socketPath)")
         }
 
@@ -150,6 +156,16 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// A command from the command line. Every command answers at once except `update`, which
+    /// answers when GitHub has answered.
+    private func handle(_ line: String, reply: @escaping (String) -> Void) {
+        guard (try? Command.parseRequest(line))?.command == .update else { return reply(handle(line)) }
+        updates.checkNow { reply($0.reply(running: WindowManager.version)) }
+    }
+
+    /// The newer release to tell the user about. With the check switched off Iguana says nothing.
+    private var knownUpdate: UpdateCheck.Update? { wm.config.checkForUpdates ? updates.available : nil }
+
     /// A report as a JSON document (`--json`). The window manager fills in what it knows and
     /// the app shell hands over its part, the same facts `statusExtras` gives the text.
     private func jsonReport(_ command: Command) -> String {
@@ -157,7 +173,8 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
             Report.LastShortcut(keys: $0.keys, secondsAgo: Int(Date().timeIntervalSince($0.at)), reply: $0.reply)
         }
         return wm.jsonReport(command, shortcuts: Report.Shortcuts(active: registeredShortcuts, warnings: hotkeyProblems),
-                             tourShowing: tour?.isShowing == true, lastShortcut: last)
+                             tourShowing: tour?.isShowing == true, lastShortcut: last,
+                             update: knownUpdate.map { Report.Update(version: $0.version, url: $0.page.absoluteString) })
     }
 
     private static func signature(of url: URL) -> String {
@@ -361,6 +378,7 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !problems.isEmpty {
             add("\(problems.count) config problem\(problems.count == 1 ? "" : "s") (see log)", #selector(openLog))
         }
+        if let update = knownUpdate { add(UpdateCheck.menuTitle(update), #selector(openUpdatePage)) }
         add("Settings…", #selector(showSettings), key: ",")
         add("Edit Config File", #selector(editConfig))
         add("Welcome Tour…", #selector(showTourFromMenu))
@@ -377,6 +395,10 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func balance() { _ = wm.run(.balance) }
     @objc private func quit() { NSApp.terminate(nil) }
     @objc private func openLog() { NSWorkspace.shared.open(Log.url) }
+
+    /// Opens the page of the newer release in the browser. The address was checked when the
+    /// release was found (`UpdateCheck.page`); the list of releases stands in if it is gone.
+    @objc private func openUpdatePage() { NSWorkspace.shared.open(knownUpdate?.page ?? UpdateCheck.releasesPage) }
 
     @objc private func openAccessibilitySettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
@@ -413,6 +435,8 @@ extension Daemon: SettingsBackend {
 
     var tiledWindowCount: Int { wm.tiledWindowCount }
     var needsPermission: Bool { !AXIsProcessTrusted() }
+    var availableUpdate: UpdateCheck.Update? { knownUpdate }
+    func checkForUpdate(_ completion: @escaping (UpdateCheck.Outcome) -> Void) { updates.checkNow(completion) }
 
     func desktopPreview() -> DesktopPreviewData? {
         guard let p = wm.desktopPreview() else { return nil }

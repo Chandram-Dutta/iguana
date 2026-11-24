@@ -19,7 +19,8 @@ extension DisplayInfo {
 /// account can open. Nothing here sends anything anywhere else.
 extension WindowManager {
     /// - Parameters: what the app shell knows and the window manager does not, for `status`.
-    func jsonReport(_ command: Command, shortcuts: Report.Shortcuts, tourShowing: Bool, lastShortcut: Report.LastShortcut?) -> String {
+    func jsonReport(_ command: Command, shortcuts: Report.Shortcuts, tourShowing: Bool, lastShortcut: Report.LastShortcut?,
+                    update: Report.Update? = nil) -> String {
         let facts = facts(fresh: true)
         // Like its text, `status` answers before the permission is granted, so that the app can
         // always be inspected.
@@ -31,7 +32,8 @@ extension WindowManager {
                 configWarnings: configWarnings,
                 windows: Report.WindowCounts(tiled: facts.tiled.count, known: facts.windows.count, apps: facts.apps.count),
                 stageManager: Report.StageManager(on: StageManager.isOn, reserved: Double(strip)),
-                displays: displays.map(\.report), shortcuts: shortcuts, tourShowing: tourShowing, lastShortcut: lastShortcut))
+                displays: displays.map(\.report), shortcuts: shortcuts, tourShowing: tourShowing, lastShortcut: lastShortcut,
+                update: update))
         }
         guard AXIsProcessTrusted() else {
             return "error: Iguana needs Accessibility permission (System Settings > Privacy & Security > Accessibility)"

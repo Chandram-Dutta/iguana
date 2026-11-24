@@ -230,6 +230,7 @@ final class ReportTests: XCTestCase {
             "reserved" : 0
           },
           "tourShowing" : false,
+          "update" : null,
           "version" : "0.1.2",
           "windows" : {
             "apps" : 5,

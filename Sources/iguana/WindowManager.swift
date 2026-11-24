@@ -59,6 +59,7 @@ final class WindowManager {
     var onConfigChange: (() -> Void)?
     var onOpenSettings: (() -> Void)?
     var onOpenTour: (() -> Void)?
+    var onCheckForUpdate: (() -> Void)?
     /// Extra lines for `status`, supplied by the app shell.
     var statusExtras: (() -> [String])?
 
@@ -642,6 +643,12 @@ final class WindowManager {
         case .tour:
             onOpenTour?()
             return "ok"
+        case .update:
+            // From the command line the app shell answers this one itself, once GitHub has
+            // answered. A shortcut has nowhere to print an answer: it starts the check, and
+            // what is found appears in the menu.
+            onCheckForUpdate?()
+            return "ok: checking"
         case .quit:
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { NSApp.terminate(nil) }
             return "ok"
@@ -705,7 +712,7 @@ final class WindowManager {
             setPaused(!paused)
             return paused ? "ok: paused" : "ok: tiling"
         case .reload: return reloadConfig()
-        case .settings, .tour: return "ok"
+        case .settings, .tour, .update: return "ok"
         case .listWindows: return listWindows()
         case .listSpaces: return listSpaces()
         case .tree: return describeTrees()

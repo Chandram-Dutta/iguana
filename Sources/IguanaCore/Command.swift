@@ -34,6 +34,8 @@ public enum Command: Equatable {
     case status
     case settings
     case tour
+    /// Ask now whether a newer Iguana has been released.
+    case update
     case quit
 
     public static let usage = """
@@ -55,6 +57,7 @@ public enum Command: Equatable {
     list-windows | list-spaces | tree | status    reports; add --json for a JSON document
     settings                        open the settings window
     tour                            show the welcome tour again
+    update                          ask now whether a newer Iguana has been released
     quit
     """
 
@@ -124,6 +127,7 @@ public enum Command: Equatable {
         case "status": return try noArgs(.status)
         case "settings": return try noArgs(.settings)
         case "tour": return try noArgs(.tour)
+        case "update": return try noArgs(.update)
         case "quit": return try noArgs(.quit)
         default: throw CommandError("unknown command '\(name)'")
         }

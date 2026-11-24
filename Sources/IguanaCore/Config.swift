@@ -115,6 +115,8 @@ public struct Config: Equatable {
     public var rules: [Rule] = []
     /// Shell commands to run when something changes. An event without a command is not in here.
     public var hooks: [HookEvent: String] = [:]
+    /// Ask GitHub about once a day whether a newer Iguana has been released.
+    public var checkForUpdates = true
 
     public static let defaultText = """
     #:schema ./iguana.schema.json
@@ -149,6 +151,11 @@ public struct Config: Equatable {
     # With more than one desktop drawn, true makes a click on one of them go to it. A click on
     # the desktop you are on still opens the menu.
     click-to-switch = false
+
+    [updates]
+    # Once a day Iguana asks GitHub whether a newer version has been released, and says so in its
+    # menu. It sends nothing about you or this Mac, and downloads and installs nothing.
+    check = true
 
     # Shell commands that Iguana runs when something changes, for status bars and scripts.
     # "" runs nothing. The command gets the facts in environment variables: IGUANA_EVENT,
@@ -264,7 +271,7 @@ public struct Config: Equatable {
             }
         }
 
-        checkKeys(doc, ["gaps", "layout", "animation", "stage-manager", "menu-bar", "hooks", "bindings", "rule"], "the config file")
+        checkKeys(doc, ["gaps", "layout", "animation", "stage-manager", "menu-bar", "updates", "hooks", "bindings", "rule"], "the config file")
 
         if let gaps = doc["gaps"]?.tableValue {
             checkKeys(gaps, ["inner", "outer"], "[gaps]")
@@ -341,6 +348,11 @@ public struct Config: Equatable {
                     warnings.append("menu-bar.desktops must be \"current\", \"all\" or \"occupied\"; keeping the default")
                 }
             }
+        }
+
+        if let updates = doc["updates"]?.tableValue {
+            checkKeys(updates, ["check"], "[updates]")
+            if let v = flag(updates["check"], "updates.check") { c.checkForUpdates = v }
         }
 
         if let hooks = doc["hooks"]?.tableValue {

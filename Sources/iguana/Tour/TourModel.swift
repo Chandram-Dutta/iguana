@@ -404,7 +404,7 @@ final class TourModel: ObservableObject {
     /// leaves to the window manager.
     func handle(_ command: Command, binding: KeyBinding? = nil) -> String? {
         switch command {
-        case .status, .reload, .quit, .listWindows, .listSpaces, .tree: return nil
+        case .status, .reload, .quit, .listWindows, .listSpaces, .tree, .update: return nil
         default: break
         }
         guard !closing else { return "ok: the tour is closing" }
