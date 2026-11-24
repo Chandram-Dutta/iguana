@@ -68,7 +68,7 @@ enum Pane: String, CaseIterable, Identifiable {
         case .layout: return "Layout"
         case .animation: return "Animation"
         case .shortcuts: return "Shortcuts"
-        case .rules: return "Floating Windows"
+        case .rules: return "Window Rules"
         }
     }
 

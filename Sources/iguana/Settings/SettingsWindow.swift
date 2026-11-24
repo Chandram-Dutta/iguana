@@ -119,6 +119,10 @@ enum SettingsSnapshot {
         let model = SettingsModel(backend: FileBackend(url: configURL))
         let window = SettingsWindowController.makeWindow(model)
         window.staysOffScreen = true
+        // A pane that is longer than the window can be photographed whole: IGUANA_SNAPSHOT_HEIGHT=1600.
+        if let height = ProcessInfo.processInfo.environment["IGUANA_SNAPSHOT_HEIGHT"].flatMap(Double.init), height > 200 {
+            window.setContentSize(NSSize(width: window.frame.width, height: height))
+        }
         window.setFrameOrigin(SnapshotStage.origin)
         window.orderFrontRegardless()
 

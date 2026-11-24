@@ -245,7 +245,15 @@ final class WindowManager {
         if mouseIsDown, !animator.isMoving(id) {
             // The user is dragging or resizing. Leave the window alone until they let go.
             if drag == nil {
-                drag = (id, slot, false)
+                // What the window started from is its tile, at the size it really had there: a
+                // window that will not get as small as its tile is bigger than it, and that
+                // difference is not the user resizing it.
+                var start = slot
+                if let least = w.minSize {
+                    start.size.width = max(start.width, least.width)
+                    start.size.height = max(start.height, least.height)
+                }
+                drag = (id, start, false)
                 onDrag?(true)
             }
             if drag?.id == id, drag?.carried == false, let start = drag?.start, DragDrop.isMove(from: start, to: now) { drag?.carried = true }

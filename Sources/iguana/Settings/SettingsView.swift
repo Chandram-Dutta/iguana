@@ -723,7 +723,7 @@ private struct FloatingPane: View {
     var body: some View {
         // Asked once for the pane, not once for every row.
         let desktopCount = Desktop.all().count
-        PaneScaffold(title: "Floating Windows", subtitle: "Apps whose windows float instead of being tiled, or open on a desktop of their own.") {
+        PaneScaffold(title: "Window Rules", subtitle: "Apps whose windows float instead of being tiled, or open on a desktop of their own.") {
             if !Private.hasMoveBridge, rows.contains(where: { $0.desktop != nil }) {
                 SettingSection {
                     Callout(.attention, "This version of macOS can only take a window to another desktop by going there with it, so the desktops chosen here are not used.")
