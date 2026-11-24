@@ -60,6 +60,14 @@ enum Private {
         return true
     }
 
+    /// Whether this macOS has the bridge `requestMove` asks. Without it a window only reaches
+    /// another Space by being carried there, which takes the user along.
+    static let hasMoveBridge: Bool = {
+        guard let cls = NSClassFromString("SLSBridgedMoveWindowsToManagedSpaceOperation") else { return false }
+        return class_getInstanceMethod(cls, NSSelectorFromString("initWithWindows:spaceID:")) != nil
+            && class_getInstanceMethod(cls, NSSelectorFromString("performWithWMBridgeDelegate")) != nil
+    }()
+
     // MARK: Focus
 
     /// Bring one specific window to the front without raising the app's other windows.
