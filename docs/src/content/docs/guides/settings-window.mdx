@@ -107,7 +107,7 @@ while the settings scroll underneath.
 ## Layout
 
 The miniature follows each change as you make it, and so do your real windows. The settings
-are in three groups: Gaps, New windows and Stage Manager.
+are in four groups: Gaps, New windows, Stage Manager and Focus ring.
 
 | Control | What it sets | Config key |
 | --- | --- | --- |
@@ -118,8 +118,14 @@ are in three groups: Gaps, New windows and Stage Manager.
 | Resize step | How far one press of grow or shrink moves the divider. | [`layout.resize-step`](/reference/configuration/#resize-step) |
 | Stack peek | How much of each window in a stack shows behind the one in front. | [`layout.stack-peek`](/reference/configuration/#stack-peek) |
 | Pointer follows focus | Moves the pointer to a window when a shortcut focuses it. | [`layout.mouse-follows-focus`](/reference/configuration/#mouse-follows-focus) |
+| Focus follows pointer | Focuses the window the pointer comes to rest on, without a click. | [`layout.focus-follows-mouse`](/reference/configuration/#focus-follows-mouse) |
 | Leave room for the strip of recent apps | "While it shows", "Always" or "Never". Only matters while Stage Manager is on. | [`stage-manager.reserve-strip`](/reference/configuration/#reserve-strip) |
 | Room to leave | How wide a space to leave for the strip. Not shown when the choice is "Never". | [`stage-manager.strip-width`](/reference/configuration/#strip-width), or the number in `reserve-strip` when the choice is "Always" |
+| Ring around the focused window | Draws a ring just outside the window that has the focus, tiled or floating. The ring appears on your real windows as you switch it on. | [`focus-ring.enabled`](/reference/configuration/#enabled-1) |
+| Width | How thick the ring is, from 1 to 10 points. | [`focus-ring.width`](/reference/configuration/#width) |
+| Colour | "Accent colour" follows the accent colour chosen in System Settings. "Custom" shows a colour well beside the choice; click it for the system's colour panel. | [`focus-ring.color`](/reference/configuration/#color) |
+
+Width and Colour are dimmed while the ring is switched off.
 
 ## Animation
 

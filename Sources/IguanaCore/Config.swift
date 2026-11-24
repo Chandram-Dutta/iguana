@@ -101,6 +101,8 @@ public struct Config: Equatable {
     /// Points of each window of a stack that stay in view behind the one in front.
     public var stackPeek: Double = 32
     public var mouseFollowsFocus = false
+    /// The window the pointer comes to rest on gets the focus, without a click.
+    public var focusFollowsMouse = false
     public var stripReserve = StripReserve.auto
     public var stripWidth: Double = 150
     public var menuBarDesktops = MenuBarDesktops.current
@@ -117,6 +119,8 @@ public struct Config: Equatable {
     public var hooks: [HookEvent: String] = [:]
     /// Ask GitHub about once a day whether a newer Iguana has been released.
     public var checkForUpdates = true
+    /// The ring around the window that has the focus.
+    public var focusRing = FocusRingSettings()
 
     public static let defaultText = """
     #:schema ./iguana.schema.json
@@ -132,11 +136,18 @@ public struct Config: Equatable {
     resize-step = 0.05   # share of the container that one `resize` step moves
     stack-peek = 32      # points of each window in a stack that stay visible behind the front one
     mouse-follows-focus = false
+    focus-follows-mouse = false   # the window the pointer rests on gets the focus
 
     [animation]
     enabled = true       # windows glide to their new place instead of jumping
     duration = 0.16      # seconds, 0.05 to 1
     easing = "ease-out"  # "linear", "ease-out" or "ease-in-out"
+
+    # A ring around the window that has the focus, tiled or floating.
+    [focus-ring]
+    enabled = false
+    width = 3            # points, 1 to 10
+    color = "accent"     # the system accent colour, or a colour such as "#8fd43f"
 
     [stage-manager]
     # "auto" leaves room for the strip of recent apps while Stage Manager shows it.
@@ -271,7 +282,7 @@ public struct Config: Equatable {
             }
         }
 
-        checkKeys(doc, ["gaps", "layout", "animation", "stage-manager", "menu-bar", "updates", "hooks", "bindings", "rule"], "the config file")
+        checkKeys(doc, ["gaps", "layout", "animation", "focus-ring", "stage-manager", "menu-bar", "updates", "hooks", "bindings", "rule"], "the config file")
 
         if let gaps = doc["gaps"]?.tableValue {
             checkKeys(gaps, ["inner", "outer"], "[gaps]")
@@ -290,10 +301,11 @@ public struct Config: Equatable {
         }
 
         if let layout = doc["layout"]?.tableValue {
-            checkKeys(layout, ["auto-split", "resize-step", "stack-peek", "mouse-follows-focus"], "[layout]")
+            checkKeys(layout, ["auto-split", "resize-step", "stack-peek", "mouse-follows-focus", "focus-follows-mouse"], "[layout]")
             if let v = flag(layout["auto-split"], "layout.auto-split") { c.autoSplit = v }
             if let v = number(layout["stack-peek"], "layout.stack-peek", min: 8, max: 120) { c.stackPeek = v }
             if let v = flag(layout["mouse-follows-focus"], "layout.mouse-follows-focus") { c.mouseFollowsFocus = v }
+            if let v = flag(layout["focus-follows-mouse"], "layout.focus-follows-mouse") { c.focusFollowsMouse = v }
             if let v = layout["resize-step"] {
                 if let d = v.doubleValue, d > 0, d <= 0.5 {
                     c.resizeStep = d
@@ -318,6 +330,19 @@ public struct Config: Equatable {
                     c.animationEasing = e
                 } else {
                     warnings.append("animation.easing must be one of: \(Easing.allCases.map(\.rawValue).joined(separator: ", "))")
+                }
+            }
+        }
+
+        if let ring = doc["focus-ring"]?.tableValue {
+            checkKeys(ring, ["enabled", "width", "color"], "[focus-ring]")
+            if let v = flag(ring["enabled"], "focus-ring.enabled") { c.focusRing.enabled = v }
+            if let v = number(ring["width"], "focus-ring.width", min: 1, max: 10) { c.focusRing.width = v }
+            if let v = ring["color"] {
+                if let color = v.stringValue.flatMap(RingColor.init(text:)) {
+                    c.focusRing.color = color
+                } else {
+                    warnings.append("focus-ring.color must be \"accent\" or a colour such as \"#8fd43f\"; keeping the default")
                 }
             }
         }

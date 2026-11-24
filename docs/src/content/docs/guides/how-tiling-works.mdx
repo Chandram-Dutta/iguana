@@ -302,6 +302,24 @@ If the minimum sizes together are larger than the container, the slots are scale
 together so the layout still ends at the edge of the display. A window that still refuses to
 shrink is then larger than its slot.
 
+## The focused window
+
+Every command on this page acts on the focused window: the one your typing goes to. `focus`
+moves the focus to the nearest window in a direction, and a click on a window focuses it as
+it always has.
+
+To see which window that is, switch on the focus ring. Iguana then draws a ring in your
+accent colour just outside the focused window, tiled or floating:
+
+```toml title="iguana.toml"
+[focus-ring]
+enabled = true
+```
+
+The ring never covers the window. It steps aside while the window is moving and comes back
+where it stops. [`[focus-ring]`](/reference/configuration/#focus-ring) has the width and the
+colour.
+
 ## Zoom
 
 `zoom` makes the focused window fill the desktop, inside the outer gaps. The layout

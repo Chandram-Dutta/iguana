@@ -6,6 +6,8 @@ import SwiftUI
 final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let wm = WindowManager()
     private var hotkeys: Hotkeys?
+    /// `focus-follows-mouse`: gives the focus to the window the pointer rests on.
+    private let pointerFocus = FocusFollowsMouse()
     private var statusItem: NSStatusItem?
     private var trustTimer: Timer?
     private var hotkeyProblems: [String] = []
@@ -18,6 +20,8 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let hooks = Hooks()
     /// Looks once a day whether a newer Iguana has been released.
     private let updates = UpdateChecker()
+    /// The ring around the focused window (`[focus-ring]`).
+    private let focusRing = FocusRing()
     /// The menu of the menu bar item. Its first item is a view: the desktops, drawn.
     private let statusMenu = NSMenu()
     private let deskModel = DeskModel()
@@ -46,10 +50,13 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
         setUpStatusItem()
         hotkeys = Hotkeys()
         wm.onChange = { [weak self] in
+            if let self { self.pointerFocus.changed(self.wm) }
             self?.updateStatusItem()
             if self?.settings?.isVisible == true { self?.settings?.model.refresh() }
             if let self { self.hooks.changed(self.wm) }
+            if let self { self.focusRing.changed(self.wm) }
         }
+        wm.onFrameChange = { [weak self] element in self?.focusRing.moved(element) }
         wm.onConfigChange = { [weak self] in self?.registerHotkeys() }
         wm.statusExtras = { [weak self] in
             guard let self else { return [] }

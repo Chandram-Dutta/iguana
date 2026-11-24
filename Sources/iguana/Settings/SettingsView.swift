@@ -341,6 +341,12 @@ private struct LayoutPane: View {
                         .toggleStyle(.switch)
                         .labelsHidden()
                 }
+                SettingRow(title: "Focus follows pointer", detail: "Focus the window the pointer comes to rest on, without a click.") {
+                    Toggle("Focus follows pointer", isOn: SwiftUI.Binding(
+                        get: { model.config.focusFollowsMouse }, set: { model.set(["layout", "focus-follows-mouse"], .bool($0)) }))
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
             }
 
             SettingSection(title: "Stage Manager") {
@@ -361,6 +367,8 @@ private struct LayoutPane: View {
                     }
                 }
             }
+
+            FocusRingSection(model: model)
         }
     }
 

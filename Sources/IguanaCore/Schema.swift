@@ -52,7 +52,8 @@ extension Config {
             "auto-split": { "type": "boolean", "default": true, "description": "A new window splits the focused window along its longer side. When false it is added to the focused window's row or column." },
             "resize-step": { "type": "number", "exclusiveMinimum": 0, "maximum": 0.5, "default": 0.05, "description": "Share of the container that one resize step moves (0.05 is five percent)." },
             "stack-peek": { "type": "number", "minimum": 8, "maximum": 120, "default": 32, "description": "Points of each window in a stack that stay visible behind the window in front." },
-            "mouse-follows-focus": { "type": "boolean", "default": false, "description": "Move the pointer to the centre of a window when a shortcut focuses it." }
+            "mouse-follows-focus": { "type": "boolean", "default": false, "description": "Move the pointer to the centre of a window when a shortcut focuses it." },
+            "focus-follows-mouse": { "type": "boolean", "default": false, "description": "Focus the window the pointer comes to rest on, without a click." }
           }
         },
         "animation": {
@@ -63,6 +64,16 @@ extension Config {
             "enabled": { "type": "boolean", "default": true, "description": "Windows glide to their new place instead of jumping." },
             "duration": { "type": "number", "minimum": 0.05, "maximum": 1, "default": 0.16, "description": "Seconds a window takes to reach its new place." },
             "easing": { "enum": ["linear", "ease-out", "ease-in-out"], "default": "ease-out", "description": "How the motion is paced." }
+          }
+        },
+        "focus-ring": {
+          "type": "object",
+          "description": "A ring around the window that has the focus, tiled or floating. It is drawn just outside the window and never covers its content.",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean", "default": false, "description": "Draw a ring around the focused window." },
+            "width": { "type": "number", "minimum": 1, "maximum": 10, "default": 3, "description": "Thickness of the ring, in points." },
+            "color": { "type": "string", "pattern": "^(accent|#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8}))$", "default": "accent", "description": "\\"accent\\" follows the accent colour chosen in System Settings. Or a colour of your own: \\"#rgb\\", \\"#rrggbb\\", or \\"#rrggbbaa\\" with an opacity." }
           }
         },
         "stage-manager": {

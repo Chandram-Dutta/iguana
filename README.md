@@ -98,7 +98,8 @@ For status bars such as SketchyBar and for scripts, `iguana list-windows --json`
 | `option-shift-[`, `option-shift-]` | take the window to the previous, next desktop |
 
 You can also drag a tiled window onto another to swap them, and resize with the mouse; the layout
-keeps the new proportions.
+keeps the new proportions. With `focus-follows-mouse = true` under `[layout]`, the window the
+pointer comes to rest on gets the focus without a click.
 
 ## Settings
 
@@ -107,6 +108,10 @@ There are two ways to change settings and they are the same thing underneath.
 **The settings window** (menu bar item > Settings…, or `iguana settings`) has panes for layout
 and gaps, animation, shortcuts and the rules that float an app's windows or send them to a
 desktop, and the switch for the daily check for a newer version. Changes apply to your real windows as you make them.
+
+A ring around the focused window, like the border other tiling window managers need a second
+tool for, is built in and off until you switch it on: `enabled = true` under `[focus-ring]`, or
+the Layout pane. It is drawn outside the window in your accent colour, or one you choose.
 
 **The config file** is `~/.config/iguana/iguana.toml`. `iguana config init` writes it with every
 setting explained in comments, plus a schema file that gives editors with TOML support completion

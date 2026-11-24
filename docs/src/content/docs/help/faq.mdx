@@ -105,10 +105,25 @@ add a [rule](/guides/floating-windows/#rules).
 
 Choose **Pause Tiling** from the menu bar item, or run `iguana pause`.
 
+### Can Iguana draw a border around the focused window?
+
+Yes, and it needs no second tool. Switch on **Ring around the focused window** in the Layout
+pane of the settings window, or set `enabled = true` under
+[`[focus-ring]`](/reference/configuration/#focus-ring). The ring is drawn outside the window,
+in your accent colour or one you choose.
+
 ### Can I resize and rearrange with the mouse?
 
 Yes. Drag an edge to resize, and the layout keeps the new proportions. Drag a window onto
 another tile to swap the two.
+
+### Can the focus follow the pointer?
+
+Yes. Switch on **Focus follows pointer** in the Layout pane of the settings window, or set
+[`focus-follows-mouse = true`](/reference/configuration/#focus-follows-mouse) under
+`[layout]`. The window the pointer comes to rest on gets the focus without a click. The
+keyboard still has the last word: a shortcut that moves the focus is not undone by a pointer
+that lies on another window.
 
 ## Behaviour
 
