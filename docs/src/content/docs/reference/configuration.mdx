@@ -314,6 +314,48 @@ while `desktops` is `"all"` or `"occupied"`.
 
 Either way, the menu itself has every desktop in it, and a click on one there goes to it.
 
+## `[updates]`
+
+Whether Iguana looks for a newer version of itself. It only ever looks and tells you: it
+downloads nothing and installs nothing.
+
+```toml title="iguana.toml"
+[updates]
+check = true
+```
+
+### `check`
+
+Whether Iguana asks GitHub, about once a day, if a newer version has been released.
+
+| | |
+| --- | --- |
+| Type | boolean |
+| Default | `true` |
+
+| Value | Effect |
+| --- | --- |
+| `true` | Iguana asks about twenty seconds after it starts, if a day has passed since it last asked, and then once every 24 hours while it runs. It remembers when it last asked, so restarting often does not mean asking often. |
+| `false` | Iguana never asks by itself, and says nothing about versions in its menu or in `status`. [`iguana update`](/reference/commands/#update) and **Check Now** in the settings window still ask when you tell them to. |
+
+When there is a newer version:
+
+- The menu of the menu bar item gains one item, **Update to Iguana 0.1.3…** with the real
+  number, above **Settings…**. Choosing it opens that release's page in your browser.
+- [`status`](/reference/commands/#status) gains one line, and `status --json` an `update`.
+
+There is no alert, no notification, no badge and no sound. You update Iguana the way you
+installed it: see [Staying up to date](/start/install/#staying-up-to-date).
+
+A check that cannot be made, because the Mac is offline or GitHub does not answer, changes
+nothing you can see. It is written to the log once, and tried again a day later.
+
+The request carries nothing about you or your Mac: no identifier, no cookie and no stored
+credentials. It is one request for a public address that names itself `Iguana/0.1.2`, with
+the version you are running, and nothing else of note.
+[The one network request](/help/under-the-hood/#the-one-network-request) lists exactly what
+is sent and what is read.
+
 ## `[hooks]`
 
 Shell commands that Iguana runs when something changes, so that a status bar or a script of
@@ -594,6 +636,11 @@ desktops = "current"
 # With more than one desktop drawn, true makes a click on one of them go to it. A click on
 # the desktop you are on still opens the menu.
 click-to-switch = false
+
+[updates]
+# Once a day Iguana asks GitHub whether a newer version has been released, and says so in its
+# menu. It sends nothing about you or this Mac, and downloads and installs nothing.
+check = true
 
 # Shell commands that Iguana runs when something changes, for status bars and scripts.
 # "" runs nothing. The command gets the facts in environment variables: IGUANA_EVENT,

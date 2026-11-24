@@ -181,6 +181,30 @@ private struct GeneralPane: View {
                 }
             }
 
+            SettingSection(title: "Updates") {
+                SettingRow(title: "Check for updates",
+                           detail: "Once a day, ask GitHub whether a newer Iguana is out. Nothing about you is sent, and nothing is downloaded.") {
+                    Toggle("Check for updates", isOn: SwiftUI.Binding(
+                        get: { model.config.checkForUpdates }, set: { model.set(["updates", "check"], .bool($0)) }))
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+                SettingRow(title: model.updateSummary(running: WindowManager.version)) {
+                    HStack(spacing: 8) {
+                        if model.checkingForUpdate { ProgressView().controlSize(.small) }
+                        if let update = model.updateOffered {
+                            Button("Show Iguana \(update.version)…") { NSWorkspace.shared.open(update.page) }
+                                .glassButton()
+                                .help("Open the page of this release in your browser")
+                        }
+                        Button("Check Now") { model.checkForUpdate() }
+                            .glassButton()
+                            .disabled(model.checkingForUpdate)
+                    }
+                    .controlSize(.small)
+                }
+            }
+
             SettingSection(title: "Settings file") {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 10) {

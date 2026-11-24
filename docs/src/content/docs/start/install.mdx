@@ -70,7 +70,7 @@ already done. Open Iguana from Applications and carry on from step 3.
 have no such command and do not need it. Give the cask its full name, as above: Homebrew has
 an unrelated formula that is also called `iguana`.
 
-To update later, run `brew upgrade --cask iguana`.
+To update later, run `brew upgrade --cask iguana`. See [Staying up to date](#staying-up-to-date).
 
 ## Build from source
 
@@ -153,7 +153,8 @@ Click the item to open its menu. The top of the menu is a drawing:
 
 Under the drawing are the commands: Pause Tiling, Balance Windows, Settings…, Edit Config
 File, Welcome Tour…, Show Log and Quit Iguana. When the config file has problems, the menu
-says how many.
+says how many, and when a newer Iguana is out, an item above Settings… says
+[which version](#staying-up-to-date).
 
 The icon can also draw every desktop side by side, each with its own layout, so that you
 see what is on the others. That is off until you ask for it: choose **Those in use** or
@@ -166,6 +167,48 @@ also off to begin with, makes a click on one of those desktops go to it
 
 Open the settings window from the menu bar item, or run `iguana settings`, and switch on
 **Open at login** in the General pane.
+
+## Staying up to date
+
+Iguana tells you when a newer version is out, and leaves the updating to you.
+
+About once a day it asks GitHub which release is the latest. When that is newer than the one
+you are running, the menu of the menu bar item gains one item above Settings…: **Update to
+Iguana 0.1.3…**, with the real number. Choosing it opens that release's page in your browser.
+There is no alert and no notification, and Iguana never downloads or installs anything itself.
+
+To update:
+
+- **Installed with Homebrew:** run `brew upgrade --cask iguana`.
+- **Installed from the disk image:** quit Iguana, download the new
+  [Iguana.dmg](https://github.com/Chandram-Dutta/iguana/releases/latest/download/Iguana.dmg)
+  and drag Iguana into Applications again, replacing the old one.
+- **Built from source:** `git pull`, then run `scripts/bundle.sh` again.
+
+Your config file is not touched by any of these.
+
+To ask right now instead of waiting for the daily check:
+
+```sh
+iguana update
+```
+
+It answers with one line: that yours is the latest version, or the newer version and the
+address of its page. **Check Now** in the General pane of the settings window does the same,
+and `iguana status` has a line about a newer version once Iguana knows of one.
+
+The check sends nothing about you or your Mac: no identifier, no cookie, no stored
+credentials, only a request that names itself `Iguana/0.1.2` with the version you are
+running. To switch it off, turn off **Check for updates** in the General pane, or put this in
+the config file:
+
+```toml title="iguana.toml"
+[updates]
+check = false
+```
+
+[The one network request](/help/under-the-hood/#the-one-network-request) has every detail of
+what is sent and when.
 
 ## Stop Iguana
 

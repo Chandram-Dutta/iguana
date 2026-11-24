@@ -3,7 +3,10 @@ import Foundation
 /// The command line talks to the running app over a socket in the user's own Library folder:
 /// one line in, one reply out.
 enum IPC {
-    static var socketPath: String { WindowManager.supportDirectory.appendingPathComponent("iguana.sock").path }
+    static var socketPath: String { socketPathOverride ?? WindowManager.supportDirectory.appendingPathComponent("iguana.sock").path }
+    /// A test listens on a socket of its own, so that it never touches the one a running
+    /// Iguana answers on.
+    static var socketPathOverride: String?
 
     private static func address() -> sockaddr_un? {
         var addr = sockaddr_un()
@@ -63,10 +66,36 @@ enum IPC {
 
     private static var source: DispatchSourceRead?
 
-    /// `handler` runs on the main queue.
-    static func listen(_ handler: @escaping (String) -> String) -> Bool {
+    /// The reply to one command, on its way from the main queue to the thread that writes it
+    /// back. Most commands answer at once; one that has to wait for something (`update` waits
+    /// for GitHub) answers when it can, and the main queue is free in the meantime.
+    final class Answer {
+        private let given = DispatchSemaphore(value: 0)
+        private let lock = NSLock()
+        private var text: String?
+
+        /// Only the first reply counts.
+        func give(_ reply: String) {
+            lock.lock()
+            let first = text == nil
+            if first { text = reply }
+            lock.unlock()
+            if first { given.signal() }
+        }
+
+        func wait() -> String {
+            given.wait()
+            lock.lock()
+            defer { lock.unlock() }
+            return text ?? ""
+        }
+    }
+
+    /// `handler` runs on the main queue. It answers by calling what it is given, once, at once
+    /// or later, from any thread.
+    static func listen(_ handler: @escaping (String, @escaping (String) -> Void) -> Void) -> Bool {
         guard let addr = address() else { return false }
-        try? FileManager.default.createDirectory(at: WindowManager.supportDirectory, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: URL(fileURLWithPath: socketPath).deletingLastPathComponent(), withIntermediateDirectories: true)
         unlink(socketPath)
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { return false }
@@ -83,8 +112,9 @@ enum IPC {
             setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
             DispatchQueue.global(qos: .userInitiated).async {
                 let line = readAll(client, untilNewline: true).trimmingCharacters(in: .whitespacesAndNewlines)
-                let reply = DispatchQueue.main.sync { handler(line) }
-                writeAll(client, reply + "\n")
+                let answer = Answer()
+                DispatchQueue.main.async { handler(line, answer.give) }
+                writeAll(client, answer.wait() + "\n")
                 close(client)
             }
         }

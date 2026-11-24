@@ -70,6 +70,14 @@
         "click-to-switch": { "type": "boolean", "default": false, "description": "With more than one desktop drawn, a click on one of them goes to it instead of opening the menu." }
       }
     },
+    "updates": {
+      "type": "object",
+      "description": "Noticing a newer Iguana. Nothing is ever downloaded or installed.",
+      "additionalProperties": false,
+      "properties": {
+        "check": { "type": "boolean", "default": true, "description": "About once a day, ask GitHub whether a newer version has been released, and say so in the menu of the menu bar item. The request carries nothing about you or this Mac." }
+      }
+    },
     "hooks": {
       "type": "object",
       "description": "Shell commands Iguana runs when something changes, for status bars and scripts. Each is run with /bin/sh -c and gets the facts in environment variables: IGUANA_EVENT, IGUANA_DESKTOP, IGUANA_DISPLAY and, for the focus, IGUANA_WINDOW_ID, IGUANA_APP and IGUANA_TITLE.",
@@ -93,7 +101,7 @@
             { "type": "string", "pattern": "^resize( (width|height))? (grow|shrink)( (width|height))?$" },
             { "type": "string", "pattern": "^space ([1-9]|1[0-6]|next|prev|previous)$" },
             { "type": "string", "pattern": "^move-to-space( (--stay|--follow))? ([1-9]|1[0-6]|next|prev|previous)( (--stay|--follow))?$" },
-            { "enum": ["flip", "stack", "balance", "float", "zoom", "close", "pause", "reload", "settings", "tour", "list-windows", "list-spaces", "tree", "status", "quit"] }
+            { "enum": ["flip", "stack", "balance", "float", "zoom", "close", "pause", "reload", "settings", "tour", "update", "list-windows", "list-spaces", "tree", "status", "quit"] }
           ]
         }
       }

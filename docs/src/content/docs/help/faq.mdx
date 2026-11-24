@@ -33,6 +33,21 @@ Iguana can use the system's own route. It has been tested on macOS 27.2.
 Download the disk image and drag Iguana into Applications, or build it from source with
 `scripts/bundle.sh`. See [Install](/start/install/).
 
+### How do I update it?
+
+With `brew upgrade --cask iguana`, or by downloading the new disk image. Iguana tells you in
+its menu when a newer version is out, and leaves the updating to you. See
+[Staying up to date](/start/install/#staying-up-to-date).
+
+### Does Iguana connect to the internet?
+
+For one thing only: about once a day it asks GitHub whether a newer version has been
+released. The request carries nothing about you or your Mac, and nothing is downloaded. To
+switch it off, turn off **Check for updates** in the General pane of the settings window, or
+set `check = false` under `[updates]` in the config file.
+[The one network request](/help/under-the-hood/#the-one-network-request) lists exactly what
+is sent.
+
 ## Everyday use
 
 ### What happens to my windows when I quit Iguana?

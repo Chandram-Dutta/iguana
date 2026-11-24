@@ -264,6 +264,18 @@ public enum Report {
         }
     }
 
+    /// A newer release than the one that is running.
+    public struct Update: Codable, Equatable {
+        public var version: String
+        /// The page of that release.
+        public var url: String
+
+        public init(version: String, url: String) {
+            self.version = version
+            self.url = url
+        }
+    }
+
     public struct Status: Codable, Equatable {
         public var version: String
         /// Whether Iguana has the Accessibility permission.
@@ -282,10 +294,13 @@ public enum Report {
         public var tourShowing: Bool
         /// `null` until a shortcut has been received.
         @Nullable public var lastShortcut: LastShortcut?
+        /// `null` when no newer release is known: there is none, Iguana has not looked yet, or
+        /// looking is switched off.
+        @Nullable public var update: Update?
 
         public init(version: String, permission: Bool, paused: Bool, configPath: String, configExists: Bool,
                     configWarnings: [String], windows: WindowCounts, stageManager: StageManager, displays: [Display],
-                    shortcuts: Shortcuts, tourShowing: Bool, lastShortcut: LastShortcut?) {
+                    shortcuts: Shortcuts, tourShowing: Bool, lastShortcut: LastShortcut?, update: Update? = nil) {
             self.version = version
             self.permission = permission
             self.paused = paused
@@ -298,6 +313,7 @@ public enum Report {
             self.shortcuts = shortcuts
             self.tourShowing = tourShowing
             self.lastShortcut = lastShortcut
+            self.update = update
         }
     }
 }

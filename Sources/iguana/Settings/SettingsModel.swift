@@ -19,12 +19,18 @@ protocol SettingsBackend: AnyObject {
     func desktopPreview() -> DesktopPreviewData?
     var tiledWindowCount: Int { get }
     var needsPermission: Bool { get }
+    /// A newer release than the one running, when one is known and may be shown.
+    var availableUpdate: UpdateCheck.Update? { get }
+    /// Ask now whether there is a newer release. `completion` runs on the main thread.
+    func checkForUpdate(_ completion: @escaping (UpdateCheck.Outcome) -> Void)
 }
 
 extension SettingsBackend {
     func desktopPreview() -> DesktopPreviewData? { nil }
     var tiledWindowCount: Int { 0 }
     var needsPermission: Bool { false }
+    var availableUpdate: UpdateCheck.Update? { nil }
+    func checkForUpdate(_ completion: @escaping (UpdateCheck.Outcome) -> Void) { completion(.failed("there is nothing to ask here")) }
 }
 
 /// What the miniature desktop in the settings window draws.
@@ -136,6 +142,11 @@ final class SettingsModel: ObservableObject {
     @Published private(set) var preview = DesktopPreviewData.example
     @Published private(set) var tiledWindowCount = 0
     @Published private(set) var needsPermission = false
+    /// A newer release found by the daily check.
+    @Published private(set) var availableUpdate: UpdateCheck.Update?
+    /// What Check Now found, the last time it was pressed in this window.
+    @Published private(set) var updateOutcome: UpdateCheck.Outcome?
+    @Published private(set) var checkingForUpdate = false
     /// The shortcut slot that is listening for keys right now.
     @Published var recording: String?
     @Published var notice: String?
@@ -153,6 +164,7 @@ final class SettingsModel: ObservableObject {
         preview = backend.desktopPreview() ?? .example
         tiledWindowCount = backend.tiledWindowCount
         needsPermission = backend.needsPermission
+        availableUpdate = backend.availableUpdate
     }
 
     var configURL: URL { backend.configURL }
@@ -166,6 +178,38 @@ final class SettingsModel: ObservableObject {
         preview = backend.desktopPreview() ?? .example
         tiledWindowCount = backend.tiledWindowCount
         needsPermission = backend.needsPermission
+        availableUpdate = backend.availableUpdate
+    }
+
+    // MARK: Updates
+
+    /// Ask now whether a newer Iguana has been released, whatever the setting says.
+    func checkForUpdate() {
+        guard !checkingForUpdate else { return }
+        checkingForUpdate = true
+        backend.checkForUpdate { [weak self] outcome in
+            guard let self else { return }
+            self.checkingForUpdate = false
+            self.updateOutcome = outcome
+            self.availableUpdate = self.backend.availableUpdate
+        }
+    }
+
+    /// The newer release to offer: what Check Now just found, or else what the daily check found.
+    var updateOffered: UpdateCheck.Update? {
+        switch updateOutcome {
+        case .newer(let update): return update
+        case .latest: return nil
+        case .failed, nil: return availableUpdate
+        }
+    }
+
+    /// What the settings window says beside Check Now.
+    func updateSummary(running: String) -> String {
+        if checkingForUpdate { return "Asking GitHub…" }
+        if let updateOutcome { return updateOutcome.summary(running: running) }
+        if let availableUpdate { return UpdateCheck.Outcome.newer(availableUpdate).summary(running: running) }
+        return "You have Iguana \(running)."
     }
 
     // MARK: Editing the file

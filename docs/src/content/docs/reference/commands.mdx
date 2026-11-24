@@ -32,8 +32,8 @@ In a terminal the reply is printed. For a shortcut, the last reply is shown by
 
 ### Before the permission is granted
 
-Until Iguana has the Accessibility permission, only `status`, `reload`, `settings`, `tour` and
-`quit` work. Every other command replies:
+Until Iguana has the Accessibility permission, only `status`, `reload`, `settings`, `tour`,
+`update` and `quit` work. Every other command replies:
 
 ```text
 error: Iguana needs Accessibility permission (System Settings > Privacy & Security > Accessibility)
@@ -59,6 +59,7 @@ error: Iguana needs Accessibility permission (System Settings > Privacy & Securi
 | [`reload`](#reload) | Reload the config file. |
 | [`settings`](#settings) | Open the settings window. |
 | [`tour`](#tour) | Show the welcome tour again. |
+| [`update`](#update) | Ask now whether a newer Iguana has been released. |
 | [`list-windows`](#list-windows) | List the windows Iguana knows about. |
 | [`list-spaces`](#list-spaces) | Show which desktop each display is showing. |
 | [`tree`](#tree) | Print the layout tree. |
@@ -360,12 +361,39 @@ Shows the [welcome tour](/start/install/#the-welcome-tour) again, the same as ch
 While the tour is in front, commands go to its practice desktop instead of your real
 windows and reply `ok: in the welcome tour`. The tour acts on `focus`, `move`, `resize`,
 `space` and `move-to-space` once it has reached the lesson for them, and ignores every other
-command, `settings` and `pause` included. `status`, `reload`, `list-windows`, `list-spaces`,
-`tree` and `quit` work as usual.
+command, `settings` and `pause` included. `status`, `reload`, `update`, `list-windows`,
+`list-spaces`, `tree` and `quit` work as usual.
 
 | Reply | When |
 | --- | --- |
 | `ok` | |
+
+### `update`
+
+```text
+update
+```
+
+Asks GitHub now whether a newer Iguana has been released, whatever
+[`updates.check`](/reference/configuration/#check) says, and answers with one line once GitHub
+has answered. That usually takes a moment, and never more than about ten seconds.
+
+| Reply | When |
+| --- | --- |
+| `ok: Iguana 0.1.2 is the latest version` | Nothing newer has been released. The number is the version you are running. |
+| `ok: Iguana 0.1.3 is available at https://github.com/Chandram-Dutta/iguana/releases/tag/v0.1.3` | The newer version, and the address of its page. |
+| `error: could not check for a newer version: …` | The check could not be made, and why: the Mac is offline, or GitHub did not answer as expected. |
+
+Nothing is downloaded or installed. To update, see
+[Staying up to date](/start/install/#staying-up-to-date). The request sends nothing about you
+or your Mac: see [The one network request](/help/under-the-hood/#the-one-network-request).
+
+Unlike the daily check, a check that fails here is not silent: the reply says why. Asking by
+hand also counts as the day's check, so the next one Iguana makes by itself is a day later.
+
+A shortcut has nowhere to print an answer. Bound to one, `update` starts the check and
+replies `ok: checking`; a newer version then shows in the menu of the menu bar item, as it
+does after the daily check, provided `updates.check` is on.
 
 ### `quit`
 
@@ -670,8 +698,17 @@ last shortcut: option-l, 4 s ago, answered "ok"
 ```
 
 Config problems and shortcuts that could not be registered appear as indented `warning:`
-lines. While the welcome tour is on screen, a `welcome tour:` line above the last one says
-so. Before the permission is granted, `status` says that Iguana is waiting for it.
+lines. While the welcome tour is on screen, a `welcome tour:` line above the `last shortcut:`
+line says so. Before the permission is granted, `status` says that Iguana is waiting for it.
+
+When Iguana knows of a newer version of itself, one more line at the end says so:
+
+```text
+update: Iguana 0.1.3 is available (https://github.com/Chandram-Dutta/iguana/releases/tag/v0.1.3)
+```
+
+The line is there after the [daily check](/reference/configuration/#check) or
+[`update`](#update) has found one, and not while `updates.check` is `false`.
 
 With `--json`:
 
@@ -708,6 +745,7 @@ With `--json`:
     "reserved" : 0
   },
   "tourShowing" : false,
+  "update" : null,
   "version" : "0.1.2",
   "windows" : {
     "apps" : 5,
@@ -731,3 +769,4 @@ With `--json`:
 | `shortcuts` | `active` is how many shortcuts are registered. `warnings` lists the ones that could not be. |
 | `tourShowing` | `true` while the welcome tour is on screen. |
 | `lastShortcut` | The last shortcut received: its `keys`, how many `secondsAgo`, and the `reply` it got. `null` when none has been received since Iguana started. |
+| `update` | A newer version of Iguana: its `version`, for example `"0.1.3"`, and the `url` of its page. `null` when none is known: there is none, Iguana has not looked yet, or [`updates.check`](/reference/configuration/#check) is `false`. |
