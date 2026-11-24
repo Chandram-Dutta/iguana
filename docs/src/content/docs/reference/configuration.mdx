@@ -1,0 +1,502 @@
+---
+title: Configuration
+description: Every section and key of Iguana's config file, with types, defaults and allowed ranges, plus the complete default file.
+---
+
+import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
+
+This page lists every setting Iguana has: its type, default, allowed values and what it does.
+The complete default file is [at the end](#the-default-file).
+
+## The file
+
+Iguana reads one file, written in [TOML](https://toml.io/):
+
+```text
+~/.config/iguana/iguana.toml
+```
+
+If the `XDG_CONFIG_HOME` environment variable is set, the file is
+`$XDG_CONFIG_HOME/iguana/iguana.toml` instead. `iguana config path` prints the location in use.
+
+**You do not need a config file.** With no file, the built-in defaults apply.
+
+### Create it
+
+```sh
+iguana config init
+```
+
+This writes two files and leaves an existing config untouched:
+
+<FileTree>
+
+- ~/.config/iguana/
+  - iguana.toml the default config, ready to edit
+  - iguana.schema.json describes the file to your editor
+
+</FileTree>
+
+### How the file is applied
+
+- **Every setting is optional.** Your file is laid over the built-in defaults. Anything you
+  leave out keeps its built-in value.
+- **Shortcuts are merged one by one.** Each entry in `[bindings]` is laid over the built-in
+  shortcuts. Leave a shortcut out to keep it. Set it to `""` or `false` to switch it off.
+- **Rules are the exception.** Once a file has any `[[rule]]`, it lists all of the rules. The
+  built-in rules no longer apply unless they are in the file.
+- **The file is reloaded when you save it.** `iguana reload` does the same on request.
+
+The [settings window](/guides/settings-window/) edits this same file.
+
+### When the file has a mistake
+
+A broken file never stops Iguana.
+
+- **A syntax error** means the file cannot be read as TOML. Iguana reports it with its line
+  number and keeps the settings it had before.
+- **A smaller problem** is a warning: an unknown key, a value out of range, a value of the
+  wrong type, a shortcut or command it cannot parse. That one setting keeps its default and
+  everything else in the file is applied.
+
+Problems are shown by `iguana status`, in the General pane of the settings window and in the
+log. The menu bar item's menu says how many there are. To check a file without loading it:
+
+```sh
+iguana config check                 # the file Iguana uses
+iguana config check path/to/file    # any other file
+```
+
+`config check` prints every problem. It exits with a non-zero status only if the file cannot
+be loaded at all. If there is no file, it says that the built-in settings apply.
+
+### Completion and validation in your editor
+
+The first line of the default file is:
+
+```toml
+#:schema ./iguana.schema.json
+```
+
+Editors with TOML support read that line and use the schema beside the config file to offer
+completion, help on hover and validation as you type. Taplo and the "Even Better TOML"
+extension for VS Code both do.
+
+The same schema is published with these docs at
+[`/schema/iguana.schema.json`](/schema/iguana.schema.json).
+
+## `[gaps]`
+
+Empty space around and between tiled windows, in points.
+
+```toml title="iguana.toml"
+[gaps]
+inner = 8
+outer = 8            # or: outer = { top = 8, left = 8, bottom = 8, right = 8 }
+```
+
+### `inner`
+
+Space between neighbouring windows.
+
+| | |
+| --- | --- |
+| Type | number |
+| Default | `8` |
+| Allowed | 0 to 200 |
+
+### `outer`
+
+Space between the windows and the edge of the area macOS leaves for windows, which is the
+screen minus the menu bar and the Dock.
+
+| | |
+| --- | --- |
+| Type | number, or a table with `top`, `left`, `bottom` and `right` |
+| Default | `8` |
+| Allowed | 0 to 500, for the single number and for each side |
+
+One number sets all four sides. A table sets sides individually. A side you leave out of the
+table keeps the default.
+
+```toml title="iguana.toml"
+[gaps]
+outer = { top = 4, left = 8, bottom = 8, right = 8 }
+```
+
+## `[layout]`
+
+```toml title="iguana.toml"
+[layout]
+auto-split = true    # new windows split the focused window along its longer side
+resize-step = 0.05   # share of the container that one `resize` step moves
+mouse-follows-focus = false
+```
+
+### `auto-split`
+
+When `true`, a new window splits the focused window along its longer side. When `false`, it
+is added to the focused window's row or column.
+[How tiling works](/guides/how-tiling-works/#where-a-new-window-opens) shows both.
+
+| | |
+| --- | --- |
+| Type | boolean |
+| Default | `true` |
+
+### `resize-step`
+
+The share of the container that one `resize grow` or `resize shrink` moves. `0.05` is five
+percent.
+
+| | |
+| --- | --- |
+| Type | number |
+| Default | `0.05` |
+| Allowed | greater than 0, up to 0.5 |
+
+### `mouse-follows-focus`
+
+When `true`, Iguana moves the pointer to the centre of a window when a shortcut focuses it.
+
+| | |
+| --- | --- |
+| Type | boolean |
+| Default | `false` |
+
+## `[animation]`
+
+How windows travel to their new place. Animation is switched off automatically while macOS's
+Reduce Motion setting is on. The [Animation guide](/guides/animation/) has the background.
+
+```toml title="iguana.toml"
+[animation]
+enabled = true       # windows glide to their new place instead of jumping
+duration = 0.16      # seconds, 0.05 to 1
+easing = "ease-out"  # "linear", "ease-out" or "ease-in-out"
+```
+
+### `enabled`
+
+When `true`, windows glide to their new place. When `false`, they jump.
+
+| | |
+| --- | --- |
+| Type | boolean |
+| Default | `true` |
+
+### `duration`
+
+Seconds a window takes to reach its new place.
+
+| | |
+| --- | --- |
+| Type | number |
+| Default | `0.16` |
+| Allowed | 0.05 to 1 |
+
+### `easing`
+
+How the motion is paced.
+
+| | |
+| --- | --- |
+| Type | string |
+| Default | `"ease-out"` |
+| Allowed | `"linear"`, `"ease-out"`, `"ease-in-out"` |
+
+## `[stage-manager]`
+
+Room for Stage Manager's strip of recent apps. These settings do nothing while Stage Manager
+is off. The [Stage Manager guide](/guides/stage-manager-fullscreen-tabs/#stage-manager)
+explains the behaviour.
+
+```toml title="iguana.toml"
+[stage-manager]
+# "auto" leaves room for the strip of recent apps while Stage Manager shows it.
+# Use true to always leave room, false to tile underneath it, or a number of points to reserve.
+reserve-strip = "auto"
+strip-width = 150
+```
+
+### `reserve-strip`
+
+| | |
+| --- | --- |
+| Type | the string `"auto"`, a boolean, or a number |
+| Default | `"auto"` |
+| Allowed | `"auto"`, `true`, `false`, or a number from 0 to 600 |
+
+| Value | Effect |
+| --- | --- |
+| `"auto"` | Leave `strip-width` points free while Stage Manager is on and its strip is set to stay visible. |
+| `true` | Leave `strip-width` points free whenever Stage Manager is on. |
+| `false` or `0` | Leave no room. Windows are tiled underneath the strip. |
+| a number | Leave that many points free whenever Stage Manager is on. |
+
+### `strip-width`
+
+The width, in points, used when `reserve-strip` is `"auto"` or `true`.
+
+| | |
+| --- | --- |
+| Type | number |
+| Default | `150` |
+| Allowed | 0 to 600 |
+
+## `[menu-bar]`
+
+What the menu bar item draws.
+
+```toml title="iguana.toml"
+[menu-bar]
+desktops = "current"
+click-to-switch = false
+```
+
+### `desktops`
+
+Which desktops the icon in the menu bar draws. Each desktop is drawn as its layout: one
+block for each tiled window, in the place the window has on screen.
+
+| | |
+| --- | --- |
+| Type | string |
+| Default | `"current"` |
+| Allowed | `"current"`, `"all"`, `"occupied"` |
+
+| Value | Effect |
+| --- | --- |
+| `"current"` | Draw the desktop you are on. |
+| `"all"` | Draw every desktop side by side, in Mission Control order. An empty desktop is an outline. |
+| `"occupied"` | Draw every desktop that has tiled windows, and the one you are on. |
+
+With `"all"` or `"occupied"`:
+
+- The desktop you are on is drawn at full strength with a mark under it. The others are faint.
+- The windows of a desktop you are not on are drawn as Iguana last knew them. A window that
+  was minimised or hidden there still shows.
+- A click anywhere on the item opens its menu, unless
+  [`click-to-switch`](#click-to-switch) is on.
+- While tiling is paused, or when there is only one desktop to draw, the item is the single
+  drawing again.
+
+The item takes more room in the menu bar, about 23 points for each desktop drawn.
+
+### `click-to-switch`
+
+Whether a click on a desktop drawn in the menu bar goes to that desktop. It only matters
+while `desktops` is `"all"` or `"occupied"`.
+
+| | |
+| --- | --- |
+| Type | boolean |
+| Default | `false` |
+
+| Value | Effect |
+| --- | --- |
+| `false` | A click anywhere on the item opens its menu. |
+| `true` | A click on another desktop goes to it. A click on the desktop you are on opens the menu. |
+
+Either way, the menu itself has every desktop in it, and a click on one there goes to it.
+
+## `[bindings]`
+
+Keyboard shortcuts. Each entry has a shortcut on the left and a command on the right.
+
+```toml title="iguana.toml"
+[bindings]
+alt-h = "focus left"
+alt-shift-1 = "move-to-space 1 --stay"
+alt-f = ""                # switches the built-in shortcut off
+```
+
+| | |
+| --- | --- |
+| Key | Modifiers and a key joined by dashes, such as `alt-shift-h`. See [Key names](/reference/key-names/). |
+| Value | A [command](/reference/commands/) as a string, or `""` or `false` to switch the shortcut off. |
+| Default | The 36 [default shortcuts](/reference/default-shortcuts/). |
+
+Entries are merged over the built-in shortcuts one by one, so you only write the ones you want
+to change. [Customising shortcuts](/guides/shortcuts/) has worked examples.
+
+A shortcut that cannot be used is a warning, and the others still work:
+
+- the shortcut does not parse (unknown modifier, no modifier, no key),
+- the command does not parse,
+- the value is neither a string nor `false`,
+- the same combination is written twice,
+- the key name is not one Iguana knows,
+- macOS refuses to register the combination, usually because another app owns it.
+
+## `[[rule]]`
+
+Windows that should stay floating. Each rule is its own `[[rule]]` section. Dialogs, sheets
+and fixed-size windows float on their own and need no rule.
+
+**The first rule that matches a window decides.** Rules are tried in the order they appear in
+the file, so order matters.
+[Floating windows and rules](/guides/floating-windows/) explains matching in detail.
+
+```toml title="iguana.toml"
+[[rule]]
+app = "com.apple.calculator"
+float = true
+```
+
+<Aside type="caution">
+Once the file has any `[[rule]]`, the built-in rules no longer apply by themselves. A file
+that lists rules lists all of them.
+</Aside>
+
+A rule needs `app` or `title`. A rule with neither is skipped with a warning.
+
+### `app`
+
+A bundle identifier, matched exactly, or part of the app's name. Case is ignored.
+
+| | |
+| --- | --- |
+| Type | string |
+| Default | none |
+
+### `title`
+
+A regular expression matched against the window title. Case is ignored. A rule whose `title`
+is not a valid regular expression is skipped with a warning.
+
+| | |
+| --- | --- |
+| Type | string |
+| Default | none |
+
+### `float`
+
+Whether matching windows float.
+
+| | |
+| --- | --- |
+| Type | boolean |
+| Default | `true` |
+
+`float = false` makes the rule an exception: windows that match it are tiled, even if a
+rule further down would float them. Because the first matching rule decides, an exception
+goes above the general rule it is an exception to.
+
+```toml title="iguana.toml"
+# Safari's windows float, except those whose title contains "Downloads".
+[[rule]]
+app = "com.apple.Safari"
+title = "Downloads"
+float = false
+
+[[rule]]
+app = "com.apple.Safari"
+float = true
+```
+
+### Built-in rules
+
+| `app` | Which app |
+| --- | --- |
+| `com.apple.systempreferences` | System Settings |
+| `com.apple.calculator` | Calculator |
+| `com.apple.ActivityMonitor` | Activity Monitor |
+
+## The default file
+
+This is exactly what `iguana config init` writes, and what Iguana uses when there is no file.
+
+```toml title="~/.config/iguana/iguana.toml"
+#:schema ./iguana.schema.json
+# Iguana configuration. Changes are picked up as soon as the file is saved.
+# Every setting is optional: anything left out keeps its built-in value.
+
+[gaps]
+inner = 8
+outer = 8            # or: outer = { top = 8, left = 8, bottom = 8, right = 8 }
+
+[layout]
+auto-split = true    # new windows split the focused window along its longer side
+resize-step = 0.05   # share of the container that one `resize` step moves
+mouse-follows-focus = false
+
+[animation]
+enabled = true       # windows glide to their new place instead of jumping
+duration = 0.16      # seconds, 0.05 to 1
+easing = "ease-out"  # "linear", "ease-out" or "ease-in-out"
+
+[stage-manager]
+# "auto" leaves room for the strip of recent apps while Stage Manager shows it.
+# Use true to always leave room, false to tile underneath it, or a number of points to reserve.
+reserve-strip = "auto"
+strip-width = 150
+
+[menu-bar]
+# Which desktops the menu bar icon draws: "current" for the one you are on, "all" for every
+# desktop side by side, or "occupied" to leave out the empty ones.
+desktops = "current"
+# With more than one desktop drawn, true makes a click on one of them go to it. A click on
+# the desktop you are on still opens the menu.
+click-to-switch = false
+
+# Keys: letters, digits, minus, equal, comma, period, slash, semicolon, quote, backslash,
+# backtick, leftbracket, rightbracket, space, tab, return, delete, esc, left, right, up, down,
+# f1-f12. Modifiers: cmd, ctrl, alt (the Option key), shift.
+# A shortcut you leave out keeps its built-in command. Set one to "" to switch it off.
+[bindings]
+alt-h = "focus left"
+alt-j = "focus down"
+alt-k = "focus up"
+alt-l = "focus right"
+alt-shift-h = "move left"
+alt-shift-j = "move down"
+alt-shift-k = "move up"
+alt-shift-l = "move right"
+alt-ctrl-h = "join left"
+alt-ctrl-j = "join down"
+alt-ctrl-k = "join up"
+alt-ctrl-l = "join right"
+alt-minus = "resize shrink"
+alt-equal = "resize grow"
+alt-slash = "flip"
+alt-f = "zoom"
+alt-shift-space = "float"
+alt-shift-b = "balance"
+alt-1 = "space 1"
+alt-2 = "space 2"
+alt-3 = "space 3"
+alt-4 = "space 4"
+alt-5 = "space 5"
+alt-6 = "space 6"
+alt-7 = "space 7"
+alt-8 = "space 8"
+alt-9 = "space 9"
+# Add --stay (for example "move-to-space 1 --stay") to send the window away and stay where you are.
+alt-shift-1 = "move-to-space 1"
+alt-shift-2 = "move-to-space 2"
+alt-shift-3 = "move-to-space 3"
+alt-shift-4 = "move-to-space 4"
+alt-shift-5 = "move-to-space 5"
+alt-shift-6 = "move-to-space 6"
+alt-shift-7 = "move-to-space 7"
+alt-shift-8 = "move-to-space 8"
+alt-shift-9 = "move-to-space 9"
+
+# Windows that should stay floating. `app` is a bundle id or part of the app name,
+# `title` is a regular expression. Dialogs, sheets and fixed-size windows float on their own.
+# Once the file has any [[rule]], the built-in rules below no longer apply by themselves.
+# The first rule that matches a window decides, so an exception (float = false) goes above
+# the general rule it is an exception to.
+[[rule]]
+app = "com.apple.systempreferences"
+float = true
+
+[[rule]]
+app = "com.apple.calculator"
+float = true
+
+[[rule]]
+app = "com.apple.ActivityMonitor"
+float = true
+```

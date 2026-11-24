@@ -1,0 +1,178 @@
+---
+title: Customising shortcuts
+description: Change, add and switch off Iguana's keyboard shortcuts, in the config file or the settings window.
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+After this page you will be able to change any built-in shortcut, add shortcuts for commands
+that have none, and switch off the ones you do not want.
+
+## How a shortcut is written
+
+A shortcut is one or more modifiers and one key, joined by dashes, in lower case:
+
+```text
+alt-shift-h
+```
+
+The modifiers are `cmd`, `ctrl`, `alt` and `shift`. **`alt` is the Option (⌥) key.** The
+order of the modifiers does not matter. Every shortcut needs at least one modifier.
+
+The key is a letter, a digit or a name such as `minus`, `space` or `left`. The full list is
+on the [Key names](/reference/key-names/) page.
+
+Each shortcut runs one [command](/reference/commands/), written exactly as you would type it
+after `iguana` in a terminal.
+
+## Change shortcuts in the config file
+
+Shortcuts live in the `[bindings]` section of `~/.config/iguana/iguana.toml`. If you do not
+have a config file yet, `iguana config init` writes one with every built-in shortcut in it.
+
+Your `[bindings]` section is laid over the built-in shortcuts one entry at a time. You only
+need to write the ones you want to change.
+
+<Tabs>
+	<TabItem label="Add">
+		Give a new key combination a command:
+
+		```toml title="iguana.toml"
+		[bindings]
+		alt-q = "close"
+		alt-n = "space next"
+		alt-p = "space prev"
+		```
+
+		Every built-in shortcut stays as it was.
+	</TabItem>
+	<TabItem label="Change">
+		Bind the new keys and switch off the old ones:
+
+		```toml title="iguana.toml"
+		[bindings]
+		alt-m = "zoom"
+		alt-f = ""
+		```
+
+		If you only add `alt-m`, both `alt-m` and `alt-f` zoom.
+	</TabItem>
+	<TabItem label="Switch off">
+		Set the shortcut to an empty string, or to `false`:
+
+		```toml title="iguana.toml"
+		[bindings]
+		alt-slash = ""
+		alt-shift-b = false
+		```
+
+		The keys go back to doing whatever they do without Iguana.
+	</TabItem>
+	<TabItem label="Keep">
+		Leave it out. A shortcut you do not mention keeps its built-in command.
+	</TabItem>
+</Tabs>
+
+The file is reloaded when you save it. You can also run `iguana reload`.
+
+## Change shortcuts in the settings window
+
+Open the settings window from the menu bar item, or with `iguana settings`, and go to the
+**Shortcuts** pane.
+
+<Steps>
+
+1. Find the command. Directions, the focused window and desktops each have a table. Any
+   other command goes under **Other commands**, where you type it first.
+2. Click its shortcut, or the empty slot if it has none, and type the new keys.
+3. To switch a shortcut off, click it and press <kbd>delete</kbd>. To cancel, press
+   <kbd>esc</kbd>.
+
+</Steps>
+
+Right-click a shortcut to add a second one for the same command or to remove it.
+**Restore built-in shortcuts** removes your shortcut entries from the file, which brings the
+built-in set back.
+
+The window writes the same `[bindings]` entries described above. If the keys you type were
+already used by another command, they move to the new one and a notice says so.
+[The settings window](/guides/settings-window/#shortcuts) has the details.
+
+## Recipes
+
+### Send a window away without following it
+
+By default <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>1</kbd> to <kbd>9</kbd> take the window to a
+desktop and take you with it. Add `--stay` to stay where you are:
+
+```toml title="iguana.toml"
+[bindings]
+alt-shift-1 = "move-to-space 1 --stay"
+alt-shift-2 = "move-to-space 2 --stay"
+alt-shift-3 = "move-to-space 3 --stay"
+```
+
+### Use the arrow keys
+
+```toml title="iguana.toml"
+[bindings]
+alt-left = "focus left"
+alt-down = "focus down"
+alt-up = "focus up"
+alt-right = "focus right"
+```
+
+The built-in `alt-h`, `alt-j`, `alt-k` and `alt-l` keep working beside these unless you
+switch them off.
+
+### Resize in one direction
+
+The built-in resize shortcuts work on the nearest neighbour. To control width and height
+separately:
+
+```toml title="iguana.toml"
+[bindings]
+alt-ctrl-equal = "resize grow width"
+alt-ctrl-minus = "resize shrink width"
+alt-shift-equal = "resize grow height"
+alt-shift-minus = "resize shrink height"
+```
+
+### Bind the minus key
+
+Write the key as `minus`. Because dashes separate the parts of a shortcut, Iguana also reads
+a doubled dash at the end as the minus key: `alt--` is the same as `alt-minus`.
+
+## Things to know
+
+<Aside type="caution" title="Iguana's shortcuts take the keys away from apps">
+While Iguana is running, a key combination that is bound to a command is not passed to the
+app in front. With the built-in shortcuts that includes Option with a letter or digit, which
+macOS otherwise uses to type special characters. If you need one of those combinations,
+switch that shortcut off or move it to other keys. Combinations that are not bound are not
+touched.
+</Aside>
+
+- **A shortcut another app already owns may be refused.** Iguana then reports
+  `the system refused it (another app may own this shortcut)`.
+- **A shortcut with a key name Iguana does not know** is reported as `unknown key`.
+- **The same combination written twice**, for example as `alt-shift-h` and `shift-alt-h`, is
+  reported as defined twice, and one of the two is ignored.
+- **A command that does not parse** is reported with the reason, and that one shortcut is
+  left as it was.
+
+All of these are warnings. The rest of your shortcuts keep working. To see them:
+
+```sh
+iguana status
+```
+
+The output shows how many shortcuts are active, lists any that failed, and shows the last
+shortcut Iguana received together with its answer. That last line is the quickest way to
+tell whether a key press reached Iguana at all.
+
+## Related
+
+- [Default shortcuts](/reference/default-shortcuts/)
+- [Key names](/reference/key-names/)
+- [Commands](/reference/commands/)

@@ -1,0 +1,1731 @@
+---
+// The landing page. One desktop stays on screen while the page scrolls, and the same few
+// windows carry the whole story: they tile, the focus moves, a window moves, travels to another
+// desktop, and stays put when Iguana quits. At the end the desktop is handed to the visitor.
+import '@fontsource-variable/bricolage-grotesque/standard.css';
+import '@fontsource-variable/geist-mono';
+import { Image } from 'astro:assets';
+import logo from '../assets/landing/logo.svg';
+import settings from '../assets/landing/settings.png';
+import tour from '../assets/landing/tour.png';
+
+const description =
+	'Iguana is a tiling window manager for macOS that arranges the windows on your native desktops and never hides or parks them.';
+
+const directions = [
+	['h', 'H', '←'],
+	['j', 'J', '↓'],
+	['k', 'K', '↑'],
+	['l', 'L', '→'],
+];
+
+// The chapters, in the order the scroll goes through them. `keys` are drawn under the line and
+// light up as the desktop acts them out.
+const chapters = [
+	{ id: 'place', line: 'Every window finds its place.' },
+	{ id: 'focus', line: 'Move the focus.', mods: ['alt'], keys: 'hjkl' },
+	{ id: 'move', line: 'Move the window.', mods: ['alt', 'shift'], keys: 'hjkl' },
+	{ id: 'resize', line: 'Give it room.', mods: ['alt'], keys: 'size' },
+	{ id: 'desktops', line: 'Your desktops are the workspaces.', mods: ['alt', 'shift'], keys: '123' },
+	{ id: 'quit', line: 'Quit it. Nothing moves.' },
+];
+const symbols: Record<string, string> = { alt: '⌥', shift: '⇧' };
+
+const docs = [
+	['GitHub', 'https://github.com/Chandram-Dutta/iguana'],
+	['Why Iguana', '/start/why-iguana/'],
+	['Install', '/start/install/'],
+	['First ten minutes', '/start/first-ten-minutes/'],
+	['Shortcuts', '/reference/default-shortcuts/'],
+	['Configuration', '/reference/configuration/'],
+	['Limitations', '/help/limitations/'],
+];
+const steps = chapters.length + 2;
+const repository = 'https://github.com/Chandram-Dutta/iguana';
+// The latest release's disk image, under the name that stays the same between versions.
+const download = `${repository}/releases/latest/download/Iguana.dmg`;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Iguana: tiling on the desktops you already have</title>
+		<meta name="description" content={description} />
+		<meta property="og:title" content="Iguana" />
+		<meta property="og:description" content={description} />
+		<meta name="theme-color" content="#061a14" />
+		<meta name="color-scheme" content="dark" />
+		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+	</head>
+	<body>
+		<a class="skip" href="#after">Skip the demonstration</a>
+
+		<nav class="nav" aria-label="Main">
+			<a class="brand" href="/">
+				<img src={logo.src} width="34" height="34" alt="" />
+				<span>Iguana</span>
+			</a>
+			<div class="nav-links">
+				<a href="/start/why-iguana/">Docs</a>
+				<a href={repository}>GitHub</a>
+				<a class="nav-cta" href={download}>Download</a>
+			</div>
+		</nav>
+
+		<main>
+			<section class="story" data-story style={`--steps:${steps}`} aria-label="What Iguana does, shown on a small desktop">
+				<div class="pin">
+					<div class="glow" data-glow aria-hidden="true"></div>
+
+					<div class="captions">
+						<div class="caption is-on" data-step="0">
+							<h1>Tiling, on the desktops you already have.</h1>
+							<p class="lede">A window manager for macOS that never hides a window.</p>
+							<div class="actions">
+								<a class="button" href={download}>Download for macOS</a>
+								<a class="quiet" href="/start/why-iguana/">Read the docs</a>
+							</div>
+						</div>
+
+						{
+							chapters.map((chapter, i) => (
+								<div class="caption" data-step={i + 1} data-chapter={chapter.id}>
+									<h2>{chapter.line}</h2>
+									{chapter.keys && (
+										<div class="caps" aria-hidden="true">
+											{chapter.mods?.map((mod) => (
+												<span class="cap cap-wide" data-cap={mod}>
+													<i>{symbols[mod]}</i>
+													{mod === 'alt' ? 'option' : mod}
+												</span>
+											))}
+											<span class="plus">+</span>
+											{chapter.keys === 'hjkl' &&
+												directions.map(([id, label, arrow]) => (
+													<span class="cap" data-cap={id}>
+														<i>{arrow}</i>
+														{label}
+													</span>
+												))}
+											{chapter.keys === 'size' && (
+												<>
+													<span class="cap" data-cap="minus">−</span>
+													<span class="cap" data-cap="equal">=</span>
+												</>
+											)}
+											{chapter.keys === '123' && [1, 2, 3].map((n) => <span class="cap" data-cap={`d${n}`}>{n}</span>)}
+										</div>
+									)}
+									{chapter.id === 'quit' && (
+										<div class="power" aria-hidden="true">
+											<span>Iguana</span>
+											<span class="switch is-on" data-power>
+												<i />
+											</span>
+										</div>
+									)}
+								</div>
+							))
+						}
+
+						<div class="caption caption-play" data-step={steps - 1}>
+							<h2>Your turn.</h2>
+							<div class="deck" data-deck>
+								<div class="keys" role="group" aria-label="Keys">
+									<button type="button" class="key key-wide" data-key="alt"><i>⌥</i>option</button>
+									<button type="button" class="key key-wide" data-key="shift" aria-pressed="false"><i>⇧</i>shift</button>
+									<span class="plus" aria-hidden="true">+</span>
+									{
+										directions.map(([id, label, arrow]) => (
+											<button type="button" class="key" data-key={id} aria-label={`${label}: ${arrow}`}>
+												<i>{arrow}</i>
+												{label}
+											</button>
+										))
+									}
+									<button type="button" class="key" data-key="minus" aria-label="Shrink">−</button>
+									<button type="button" class="key" data-key="equal" aria-label="Grow">=</button>
+								</div>
+								<div class="deck-actions">
+									<button type="button" class="chip" data-action="open">New window</button>
+									<button type="button" class="chip" data-action="close">Close</button>
+								</div>
+								<div class="tune">
+									<label>
+										<span>Gap</span>
+										<input type="range" min="0" max="36" value="11" data-gap="inner" />
+									</label>
+									<label>
+										<span>Edge</span>
+										<input type="range" min="0" max="36" value="0" data-gap="outer" />
+									</label>
+									<code class="toml" aria-label="The same values in the config file">
+										<span class="t-name">[gaps]</span> inner = <b data-value="inner">11</b> outer = <b data-value="outer">0</b>
+									</code>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="stage" data-stage>
+						<div class="display" tabindex="0" data-display aria-label="A small desktop. In the last chapter, press H, J, K or L to move the focus, with Shift to move the window.">
+							<div class="menubar" aria-hidden="true">
+								<span class="menubar-app">Finder</span>
+								<span class="menubar-item">File</span>
+								<span class="menubar-item">Edit</span>
+								<span class="menubar-item">View</span>
+								<span class="menubar-space"></span>
+								<svg class="glyph" data-glyph viewBox="0 0 22 14" width="22" height="14"></svg>
+								<span class="menubar-number" data-number>1</span>
+							</div>
+							<div class="desk" data-desk></div>
+						</div>
+					</div>
+
+					<ol class="rail" aria-label="Chapters">
+						{
+							Array.from({ length: steps }, (_, i) => (
+								<li>
+									<button type="button" data-go={i} aria-label={`Chapter ${i + 1} of ${steps}`} />
+								</li>
+							))
+						}
+					</ol>
+					<p class="sr" data-status aria-live="polite"></p>
+					<div class="scroll-cue" data-cue aria-hidden="true"><span></span></div>
+				</div>
+			</section>
+
+			<section class="after" id="after">
+				<div class="wrap">
+					<h2>The real thing.</h2>
+					<div class="shots">
+						<figure class="shot">
+							<div class="frame">
+								<Image src={tour} alt="The welcome tour: three practice desktops side by side, with an outline showing where a window will land." widths={[720, 1080, 1600]} sizes="(min-width: 900px) 560px, 92vw" />
+							</div>
+							<figcaption>A one-minute tour on first launch</figcaption>
+						</figure>
+						<figure class="shot">
+							<div class="frame frame-fit">
+								<Image src={settings} alt="The Layout pane of Iguana's settings window, with a live miniature of the desktop above sliders for the gaps." widths={[640, 960, 1280]} sizes="(min-width: 900px) 560px, 92vw" />
+							</div>
+							<figcaption>Settings, in a window or a file</figcaption>
+						</figure>
+					</div>
+				</div>
+			</section>
+
+			<section class="install">
+				<div class="wrap">
+					<h2>Download it. Open it.</h2>
+					<div class="actions">
+						<a class="button" href={download}>Download for macOS</a>
+						<span class="note">macOS 14 or later, Apple silicon and Intel</span>
+					</div>
+					<p class="also">
+						<a class="quiet" href="/start/install/">Install guide</a>
+						<a class="quiet" href={repository}>Source on GitHub</a>
+					</p>
+				</div>
+			</section>
+		</main>
+
+		<footer class="footer">
+			<div class="wrap footer-row">
+				<a class="brand" href="/">
+					<img src={logo.src} width="28" height="28" alt="" />
+					<span>Iguana</span>
+				</a>
+				<nav aria-label="Documentation">
+					{docs.map(([name, href]) => <a href={href}>{name}</a>)}
+				</nav>
+				<p>MIT licence. Not affiliated with Apple.</p>
+			</div>
+		</footer>
+	</body>
+</html>
+
+<style is:global>
+	:root {
+		color-scheme: dark;
+		--night: #061a14;
+		--lift: #08231b;
+		--canopy: #0c3b2e;
+		--fern: #18a67e;
+		--lime: #8fd43f;
+		--text: #eef7e0;
+		--soft: rgba(238, 247, 224, 0.64);
+		--panel: rgba(238, 247, 224, 0.055);
+		--line: rgba(238, 247, 224, 0.12);
+		--display: 'Bricolage Grotesque Variable', ui-rounded, system-ui, sans-serif;
+		--mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+		--ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+		--move: 0.42s;
+	}
+
+	*,
+	*::before,
+	*::after {
+		box-sizing: border-box;
+	}
+
+	html {
+		-webkit-text-size-adjust: 100%;
+		background: var(--night);
+	}
+
+	body {
+		margin: 0;
+		background: var(--night);
+		color: var(--text);
+		font-family: var(--display);
+		font-optical-sizing: auto;
+		font-size: 1.0625rem;
+		line-height: 1.5;
+		-webkit-font-smoothing: antialiased;
+	}
+
+	a {
+		color: inherit;
+	}
+	figure {
+		margin: 0;
+	}
+	i {
+		font-style: normal;
+	}
+
+	:focus-visible {
+		outline: 3px solid var(--lime);
+		outline-offset: 3px;
+		border-radius: 8px;
+	}
+
+	.skip {
+		position: fixed;
+		left: 1rem;
+		top: -4rem;
+		z-index: 30;
+		background: var(--text);
+		color: var(--canopy);
+		padding: 0.6rem 1rem;
+		border-radius: 10px;
+	}
+	.skip:focus {
+		top: 1rem;
+	}
+
+	.sr {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.wrap {
+		width: min(1160px, 100% - 3rem);
+		margin-inline: auto;
+	}
+
+	h1,
+	h2 {
+		font-weight: 760;
+		letter-spacing: -0.022em;
+		text-wrap: balance;
+		margin: 0;
+	}
+	h1 {
+		font-size: clamp(2.5rem, 5vw, 4.5rem);
+		line-height: 0.98;
+		max-width: 12ch;
+	}
+	h2 {
+		font-size: clamp(2.1rem, 4.3vw, 3.9rem);
+		line-height: 1;
+		max-width: 11ch;
+	}
+
+	/* ---- Nav ------------------------------------------------------------------------------- */
+
+	.nav {
+		position: fixed;
+		inset: 0 0 auto 0;
+		z-index: 20;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 1.1rem max(1.5rem, (100vw - 1280px) / 2);
+		pointer-events: none;
+	}
+	.nav > * {
+		pointer-events: auto;
+	}
+	.brand {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.6rem;
+		font-weight: 760;
+		font-size: 1.2rem;
+		letter-spacing: -0.02em;
+		text-decoration: none;
+	}
+	.brand img {
+		display: block;
+		border-radius: 9px;
+	}
+	.nav-links {
+		display: flex;
+		align-items: center;
+		gap: clamp(0.9rem, 2.4vw, 1.6rem);
+		font-weight: 550;
+		font-size: 0.98rem;
+	}
+	.nav-links a {
+		text-decoration: none;
+		color: var(--soft);
+	}
+	.nav-links a:hover {
+		color: var(--text);
+	}
+	.nav-links .nav-cta {
+		color: var(--text);
+		padding: 0.4rem 1rem;
+		border-radius: 999px;
+		background: rgba(238, 247, 224, 0.09);
+		box-shadow: inset 0 0 0 1px var(--line);
+		backdrop-filter: blur(12px);
+	}
+	.nav-links .nav-cta:hover {
+		box-shadow: inset 0 0 0 1.5px var(--lime);
+	}
+
+	/* ---- The story: a pinned desktop and one line beside it ---------------------------------- */
+
+	.story {
+		height: calc(var(--steps) * 92vh);
+		position: relative;
+	}
+
+	.pin {
+		position: sticky;
+		top: 0;
+		height: 100vh;
+		height: 100svh;
+		overflow: hidden;
+		display: grid;
+		grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+		align-items: center;
+		gap: clamp(2rem, 4.5vw, 5rem);
+		padding: 5.5rem max(1.5rem, (100vw - 1280px) / 2) 3.5rem;
+	}
+
+	/* The light behind the desktop takes the colour of the focused window. */
+	.glow {
+		position: absolute;
+		right: -6%;
+		top: 12%;
+		width: 62%;
+		height: 76%;
+		border-radius: 50%;
+		background: var(--fern);
+		opacity: 0.2;
+		filter: blur(110px);
+		transition: background-color 0.8s ease;
+		pointer-events: none;
+	}
+
+	.captions {
+		position: relative;
+		height: min(34rem, 70vh);
+	}
+	.caption {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 1.6rem;
+		opacity: 0;
+		transform: translateY(26px);
+		pointer-events: none;
+		transition:
+			opacity 0.45s var(--ease),
+			transform 0.55s var(--ease);
+	}
+	.caption.is-on {
+		opacity: 1;
+		transform: none;
+		pointer-events: auto;
+		transition-delay: 0.08s;
+	}
+	.caption.is-past {
+		transform: translateY(-26px);
+	}
+
+	.lede {
+		font-size: clamp(1.15rem, 1.6vw, 1.35rem);
+		line-height: 1.4;
+		max-width: 24ch;
+		margin: -0.3rem 0 0;
+		color: var(--soft);
+	}
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.9rem 1.6rem;
+	}
+	.button {
+		display: inline-block;
+		background: var(--lime);
+		color: var(--canopy);
+		font-weight: 700;
+		text-decoration: none;
+		padding: 0.82rem 1.5rem;
+		border-radius: 999px;
+		transition:
+			transform 0.18s var(--ease),
+			background 0.18s;
+	}
+	.button:hover {
+		background: #a3e257;
+		transform: translateY(-1px);
+	}
+	.quiet {
+		font-weight: 600;
+		text-decoration-thickness: 2px;
+		text-underline-offset: 0.24em;
+		text-decoration-color: rgba(238, 247, 224, 0.35);
+	}
+	.quiet:hover {
+		text-decoration-color: var(--lime);
+	}
+	.note {
+		color: var(--soft);
+	}
+
+	/* Keys under a line. They go down when the desktop acts them out. */
+	.caps,
+	.keys {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.45rem;
+	}
+	.plus {
+		color: var(--soft);
+		font-weight: 600;
+		padding: 0 0.1rem;
+	}
+	.cap,
+	.key {
+		appearance: none;
+		border: 0;
+		margin: 0;
+		font: inherit;
+		font-weight: 650;
+		font-size: 1.05rem;
+		line-height: 1;
+		color: var(--text);
+		min-width: 3rem;
+		height: 3rem;
+		padding: 0 0.6rem;
+		border-radius: 13px;
+		background: rgba(238, 247, 224, 0.09);
+		box-shadow: inset 0 0 0 1px rgba(238, 247, 224, 0.14);
+		display: inline-flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.2rem;
+		transition:
+			transform 0.14s var(--ease),
+			background 0.14s,
+			color 0.14s;
+	}
+	.cap i,
+	.key i {
+		font-size: 0.68rem;
+		opacity: 0.6;
+	}
+	.cap-wide,
+	.key-wide {
+		min-width: 4.9rem;
+		align-items: flex-start;
+		justify-content: space-between;
+		padding: 0.5rem 0.6rem;
+		font-size: 0.76rem;
+		font-weight: 560;
+	}
+	.cap-wide i,
+	.key-wide i {
+		align-self: flex-end;
+		font-size: 0.9rem;
+		opacity: 1;
+	}
+	.cap.is-down,
+	.key.is-down,
+	.key[aria-pressed='true'] {
+		background: var(--lime);
+		color: var(--canopy);
+		transform: scale(0.93);
+		box-shadow: none;
+	}
+	.key {
+		cursor: pointer;
+	}
+	.key:hover:not(.is-down) {
+		background: rgba(238, 247, 224, 0.16);
+	}
+	.is-yours .key[data-key='alt']:not(.is-down) {
+		animation: call 1.7s ease-in-out infinite;
+	}
+	@keyframes call {
+		50% {
+			box-shadow:
+				inset 0 0 0 1px rgba(238, 247, 224, 0.14),
+				0 0 0 3px var(--lime);
+		}
+	}
+
+	/* The switch that quits Iguana. */
+	.power {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.9rem;
+		font-weight: 600;
+		font-size: 1.1rem;
+	}
+	.switch {
+		position: relative;
+		width: 54px;
+		height: 32px;
+		border-radius: 999px;
+		background: rgba(238, 247, 224, 0.18);
+		transition: background 0.3s;
+	}
+	.switch i {
+		position: absolute;
+		top: 3px;
+		left: 3px;
+		width: 26px;
+		height: 26px;
+		border-radius: 50%;
+		background: #fff;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+		transition: transform 0.3s var(--ease);
+	}
+	.switch.is-on {
+		background: var(--fern);
+	}
+	.switch.is-on i {
+		transform: translateX(22px);
+	}
+
+	/* The last chapter: the keys are real, and so are two settings. */
+	.deck {
+		display: grid;
+		gap: 1rem;
+		justify-items: start;
+	}
+	.deck-actions {
+		display: flex;
+		gap: 0.5rem;
+	}
+	.chip {
+		appearance: none;
+		font: inherit;
+		font-weight: 600;
+		font-size: 0.95rem;
+		color: var(--text);
+		background: transparent;
+		border: 1.5px solid rgba(238, 247, 224, 0.28);
+		border-radius: 999px;
+		padding: 0.48rem 1rem;
+		cursor: pointer;
+		transition:
+			border-color 0.15s,
+			opacity 0.15s;
+	}
+	.chip:hover {
+		border-color: var(--lime);
+	}
+	.chip:disabled {
+		opacity: 0.4;
+		cursor: default;
+		border-color: rgba(238, 247, 224, 0.28);
+	}
+	.tune {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 11rem));
+		gap: 0.6rem 1.25rem;
+		align-items: end;
+		margin-top: 0.4rem;
+	}
+	.tune label {
+		display: grid;
+		gap: 0.2rem;
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: var(--soft);
+	}
+	.tune input {
+		width: 100%;
+		margin: 0;
+		height: 1.5rem;
+		accent-color: var(--lime);
+	}
+	.toml {
+		grid-column: 1 / -1;
+		font-family: var(--mono);
+		font-size: 0.86rem;
+		color: var(--soft);
+	}
+	.toml .t-name {
+		color: var(--lime);
+	}
+	.toml b {
+		font-weight: 500;
+		color: #7fe0bf;
+		display: inline-block;
+		min-width: 2ch;
+		margin-right: 0.6ch;
+	}
+
+	/* ---- The desktop ------------------------------------------------------------------------- */
+
+	.stage {
+		position: relative;
+		min-width: 0;
+	}
+	.display {
+		border-radius: 22px;
+		background: rgba(238, 247, 224, 0.055);
+		box-shadow:
+			0 0 0 1px rgba(238, 247, 224, 0.13),
+			0 50px 90px -40px rgba(0, 0, 0, 0.7);
+		overflow: hidden;
+		backdrop-filter: blur(6px);
+	}
+	.menubar {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		height: 30px;
+		padding: 0 14px;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		color: var(--soft);
+		background: rgba(0, 0, 0, 0.22);
+	}
+	.menubar-app {
+		font-weight: 700;
+		color: var(--text);
+	}
+	.menubar-space {
+		flex: 1;
+	}
+	.menubar-number {
+		font-weight: 600;
+		color: var(--text);
+		margin-left: -0.55rem;
+	}
+	.glyph {
+		display: block;
+		color: var(--text);
+		overflow: visible;
+		transition: opacity 0.35s;
+	}
+	.glyph.is-off,
+	.glyph.is-off + .menubar-number {
+		opacity: 0.22;
+	}
+	.glyph rect {
+		transition:
+			x var(--move) var(--ease),
+			y var(--move) var(--ease),
+			width var(--move) var(--ease),
+			height var(--move) var(--ease),
+			opacity 0.2s;
+	}
+	.desk {
+		position: relative;
+		aspect-ratio: 16 / 10;
+		margin: 11px;
+	}
+
+	/* A desktop among several, when the view pulls back. */
+	.panel {
+		position: absolute;
+		top: 0;
+		left: 0;
+		border-radius: 12px;
+		background: rgba(238, 247, 224, 0.05);
+		box-shadow: inset 0 0 0 1px var(--line);
+		opacity: 0;
+		transition:
+			transform var(--move) var(--ease),
+			width var(--move) var(--ease),
+			height var(--move) var(--ease),
+			opacity 0.3s,
+			box-shadow 0.25s;
+		pointer-events: none;
+	}
+	.is-overview .panel {
+		opacity: 1;
+	}
+	.panel.is-active {
+		box-shadow: 0 0 0 2.5px var(--text);
+	}
+	.panel span {
+		position: absolute;
+		left: 50%;
+		top: calc(100% + 0.7rem);
+		translate: -50% 0;
+		display: grid;
+		place-items: center;
+		width: 1.7rem;
+		height: 1.7rem;
+		border-radius: 50%;
+		font-size: 0.85rem;
+		font-weight: 700;
+		background: rgba(238, 247, 224, 0.1);
+		transition:
+			background 0.25s,
+			color 0.25s;
+	}
+	.panel.is-active span {
+		background: var(--text);
+		color: var(--canopy);
+	}
+
+	.tile {
+		position: absolute;
+		top: 0;
+		left: 0;
+		border-radius: 13px;
+		background: var(--tile);
+		box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.5);
+		transition:
+			transform var(--move) var(--ease),
+			width var(--move) var(--ease),
+			height var(--move) var(--ease),
+			border-radius var(--move) var(--ease),
+			opacity 0.25s,
+			box-shadow 0.2s;
+		overflow: hidden;
+	}
+	.is-playing .tile {
+		cursor: pointer;
+	}
+	.tile::before {
+		content: '';
+		position: absolute;
+		top: 11px;
+		left: 12px;
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: rgba(0, 0, 0, 0.2);
+		box-shadow:
+			12px 0 0 rgba(0, 0, 0, 0.2),
+			24px 0 0 rgba(0, 0, 0, 0.2);
+		transition: opacity 0.2s;
+	}
+	.tile::after {
+		content: '';
+		position: absolute;
+		top: 32px;
+		left: 12px;
+		width: 34%;
+		height: 7px;
+		border-radius: 4px;
+		background: rgba(0, 0, 0, 0.16);
+		box-shadow:
+			0 14px 0 rgba(0, 0, 0, 0.1),
+			0 28px 0 rgba(0, 0, 0, 0.1);
+		transition: opacity 0.2s;
+	}
+	.tile.is-small {
+		border-radius: 7px;
+	}
+	.tile.is-small::before,
+	.tile.is-small::after {
+		opacity: 0;
+	}
+	.tile.is-focused {
+		box-shadow:
+			0 0 0 3px var(--text),
+			0 0 0 4.5px rgba(6, 26, 20, 0.9),
+			0 18px 30px -12px rgba(0, 0, 0, 0.6);
+		z-index: 2;
+	}
+	.tile.is-small.is-focused {
+		box-shadow:
+			0 0 0 2px var(--text),
+			0 0 0 3px rgba(6, 26, 20, 0.9);
+	}
+	.tile.is-away,
+	.tile.is-entering,
+	.tile.is-leaving {
+		opacity: 0;
+		pointer-events: none;
+	}
+	.tile[data-color='fern'] {
+		--tile: #18a67e;
+	}
+	.tile[data-color='lime'] {
+		--tile: #8fd43f;
+	}
+	.tile[data-color='dew'] {
+		--tile: #d5f0a0;
+	}
+	.tile[data-color='amber'] {
+		--tile: #f2b84b;
+	}
+	.tile[data-color='moss'] {
+		--tile: #4d8f6c;
+	}
+
+	/* Where you are in the story. */
+	.rail {
+		position: absolute;
+		left: 50%;
+		bottom: 1.4rem;
+		translate: -50% 0;
+		display: flex;
+		gap: 0.4rem;
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.rail button {
+		appearance: none;
+		border: 0;
+		padding: 0;
+		display: block;
+		width: 8px;
+		height: 8px;
+		border-radius: 999px;
+		background: rgba(238, 247, 224, 0.2);
+		cursor: pointer;
+		transition:
+			width 0.35s var(--ease),
+			background 0.25s;
+	}
+	.rail button::before {
+		/* a larger target than the dot */
+		content: '';
+		position: absolute;
+		width: 20px;
+		height: 28px;
+		translate: -6px -10px;
+	}
+	.rail li {
+		position: relative;
+	}
+	.rail .is-done button {
+		background: rgba(238, 247, 224, 0.5);
+	}
+	.rail .is-here button {
+		width: 26px;
+		background: var(--text);
+	}
+
+	.scroll-cue {
+		position: absolute;
+		right: max(1.5rem, (100vw - 1280px) / 2);
+		bottom: 1.2rem;
+		width: 22px;
+		height: 34px;
+		border-radius: 12px;
+		box-shadow: inset 0 0 0 1.5px rgba(238, 247, 224, 0.35);
+		transition: opacity 0.4s;
+	}
+	.scroll-cue span {
+		position: absolute;
+		left: 50%;
+		top: 7px;
+		width: 3px;
+		height: 7px;
+		margin-left: -1.5px;
+		border-radius: 2px;
+		background: var(--text);
+		animation: wheel 1.6s var(--ease) infinite;
+	}
+	@keyframes wheel {
+		0% {
+			transform: translateY(0);
+			opacity: 1;
+		}
+		70%,
+		100% {
+			transform: translateY(11px);
+			opacity: 0;
+		}
+	}
+	.scroll-cue.is-gone {
+		opacity: 0;
+	}
+
+	/* On a narrow screen the desktop stays at the top and the line sits under it. */
+	@media (max-width: 899px) {
+		.pin {
+			grid-template-columns: minmax(0, 1fr);
+			grid-template-rows: auto minmax(0, 1fr);
+			align-items: start;
+			gap: 1.25rem;
+			padding: 4.6rem 1.25rem 3rem;
+		}
+		.stage {
+			order: -1;
+		}
+		.captions {
+			height: 100%;
+		}
+		.caption {
+			justify-content: flex-start;
+			gap: 1rem;
+		}
+		.glow {
+			right: -20%;
+			top: 0;
+			width: 120%;
+			height: 50%;
+		}
+		.menubar-item,
+		.toml,
+		.scroll-cue {
+			display: none;
+		}
+		.cap,
+		.key {
+			min-width: 2.5rem;
+			height: 2.5rem;
+			font-size: 0.95rem;
+		}
+		.cap-wide,
+		.key-wide {
+			min-width: 4.2rem;
+			padding: 0.35rem 0.5rem;
+			font-size: 0.68rem;
+		}
+		.cap-wide i,
+		.key-wide i {
+			font-size: 0.78rem;
+		}
+		.tune {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			width: 100%;
+		}
+		.lede {
+			max-width: none;
+		}
+	}
+
+	/* ---- After the story --------------------------------------------------------------------- */
+
+	.after,
+	.install {
+		padding: clamp(4rem, 9vw, 7.5rem) 0;
+	}
+	.after {
+		background: var(--lift);
+	}
+	.after h2,
+	.install h2 {
+		max-width: none;
+		font-size: clamp(2rem, 3.6vw, 3.1rem);
+		margin-bottom: clamp(1.75rem, 3.5vw, 2.75rem);
+	}
+	.shots {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: clamp(1rem, 2.5vw, 2rem);
+	}
+	@media (max-width: 899px) {
+		.shots {
+			grid-template-columns: 1fr;
+		}
+	}
+	/* Both pictures in the same frame, whatever shape they were taken in. */
+	.frame {
+		aspect-ratio: 3 / 2;
+		border-radius: 18px;
+		overflow: hidden;
+		background: #0a1512;
+		box-shadow:
+			0 0 0 1px var(--line),
+			0 40px 70px -34px rgba(0, 0, 0, 0.8);
+	}
+	.frame img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	.frame-fit {
+		display: grid;
+		place-items: center;
+		padding: 5%;
+		background: radial-gradient(80% 80% at 30% 20%, #14362b, #0a1512);
+	}
+	.frame-fit img {
+		object-fit: contain;
+		filter: drop-shadow(0 18px 26px rgba(0, 0, 0, 0.5));
+	}
+	.shot figcaption {
+		margin-top: 0.9rem;
+		font-weight: 600;
+		color: var(--soft);
+	}
+
+	.also {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.6rem 1.75rem;
+		margin: 1.75rem 0 0;
+	}
+
+	.footer {
+		border-top: 1px solid var(--line);
+		padding: 2rem 0 2.5rem;
+		font-size: 0.95rem;
+		color: var(--soft);
+	}
+	.footer-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 1rem 2rem;
+	}
+	.footer .brand {
+		color: var(--text);
+		font-size: 1.1rem;
+	}
+	.footer nav {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem 1.4rem;
+		flex: 1;
+	}
+	.footer a {
+		text-decoration: none;
+	}
+	.footer nav a:hover {
+		color: var(--text);
+	}
+	.footer p {
+		margin: 0;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		*::before,
+		*::after {
+			animation: none !important;
+			transition: none !important;
+		}
+	}
+</style>
+
+<script>
+	// One small desktop tells the whole page. It is a real, if small, tiling engine: every
+	// window has a place in a tree of splits, a new window halves the focused one along its
+	// longer side, and the shortcuts move the focus or the window through that tree. The scroll
+	// position only chooses the chapter; inside a chapter the desktop acts by itself, and in the
+	// last one it listens to the keyboard.
+
+	type Rect = { x: number; y: number; w: number; h: number };
+	type Leaf = { id: number; color: string };
+	type Split = { dir: 'h' | 'v'; ratio: number; a: Node; b: Node };
+	type Node = Leaf | Split;
+	type Direction = 'left' | 'right' | 'up' | 'down';
+	type Step = { split: Split; side: 'a' | 'b' };
+
+	const isLeaf = (n: Node): n is Leaf => 'id' in n;
+
+	const story = document.querySelector<HTMLElement>('[data-story]');
+	if (story) {
+		const pin = story.querySelector<HTMLElement>('.pin')!;
+		const desk = story.querySelector<HTMLElement>('[data-desk]')!;
+		const display = story.querySelector<HTMLElement>('[data-display]')!;
+		const status = story.querySelector<HTMLElement>('[data-status]')!;
+		const glow = story.querySelector<HTMLElement>('[data-glow]')!;
+		const glyph = story.querySelector<SVGSVGElement>('[data-glyph]')!;
+		const number = story.querySelector<HTMLElement>('[data-number]')!;
+		const cue = story.querySelector<HTMLElement>('[data-cue]')!;
+		const power = story.querySelector<HTMLElement>('[data-power]');
+		const captions = Array.from(story.querySelectorAll<HTMLElement>('.caption'));
+		const marks = Array.from(story.querySelectorAll<HTMLElement>('.rail li'));
+		const openButton = story.querySelector<HTMLButtonElement>('[data-action="open"]')!;
+		const closeButton = story.querySelector<HTMLButtonElement>('[data-action="close"]')!;
+		const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		const steps = captions.length;
+		const last = steps - 1;
+
+		const colors = ['fern', 'lime', 'dew', 'amber', 'moss'];
+		const hues: Record<string, string> = { fern: '#18a67e', lime: '#8fd43f', dew: '#d5f0a0', amber: '#f2b84b', moss: '#4d8f6c' };
+		const limit = 5;
+
+		// ---- The world: three desktops, each with its own tree --------------------------------
+
+		let desks: (Node | null)[] = [null, null, null];
+		let focus: (number | null)[] = [null, null, null];
+		let active = 0;
+		let overview = false;
+		let running = true;
+		let gaps = { inner: 11, outer: 0 };
+		let shiftLatched = false;
+		const tiles = new Map<number, HTMLElement>();
+
+		const panels = desks.map((_, i) => {
+			const panel = document.createElement('div');
+			panel.className = 'panel';
+			panel.innerHTML = `<span>${i + 1}</span>`;
+			desk.append(panel);
+			return panel;
+		});
+
+		function leaves(node: Node | null, out: Leaf[] = []): Leaf[] {
+			if (!node) return out;
+			if (isLeaf(node)) out.push(node);
+			else {
+				leaves(node.a, out);
+				leaves(node.b, out);
+			}
+			return out;
+		}
+
+		function place(node: Node | null, r: Rect, gap: number, out = new Map<number, Rect>()): Map<number, Rect> {
+			if (!node) return out;
+			if (isLeaf(node)) {
+				out.set(node.id, r);
+			} else if (node.dir === 'h') {
+				const w = (r.w - gap) * node.ratio;
+				place(node.a, { x: r.x, y: r.y, w, h: r.h }, gap, out);
+				place(node.b, { x: r.x + w + gap, y: r.y, w: r.w - gap - w, h: r.h }, gap, out);
+			} else {
+				const h = (r.h - gap) * node.ratio;
+				place(node.a, { x: r.x, y: r.y, w: r.w, h }, gap, out);
+				place(node.b, { x: r.x, y: r.y + h + gap, w: r.w, h: r.h - gap - h }, gap, out);
+			}
+			return out;
+		}
+
+		function path(id: number, node: Node | null, trail: Step[] = []): Step[] | null {
+			if (!node) return null;
+			if (isLeaf(node)) return node.id === id ? trail : null;
+			return path(id, node.a, [...trail, { split: node, side: 'a' }]) ?? path(id, node.b, [...trail, { split: node, side: 'b' }]);
+		}
+
+		/** Where a desktop is drawn: filling the screen, or one of three when the view pulls back. */
+		function room(index: number): Rect {
+			const W = desk.clientWidth;
+			const H = desk.clientHeight;
+			if (!overview) return { x: (index - active) * (W + 60), y: 0, w: W, h: H };
+			const between = W * 0.035;
+			const w = (W - between * 2) / 3;
+			const h = (w * H) / W;
+			return { x: index * (w + between), y: (H - h) / 2 - 8, w, h };
+		}
+
+		function frames(index: number): Map<number, Rect> {
+			const r = room(index);
+			const scale = r.w / Math.max(desk.clientWidth, 1);
+			const narrow = desk.clientWidth < 460 ? 0.65 : 1;
+			const edge = (overview ? Math.max(gaps.outer, 6) : gaps.outer) * scale * narrow;
+			const gap = Math.max(gaps.inner * scale * narrow, overview ? 3 : 0);
+			return place(desks[index], { x: r.x + edge, y: r.y + edge, w: r.w - edge * 2, h: r.h - edge * 2 }, gap);
+		}
+
+		function neighbour(direction: Direction): number | null {
+			const from = focus[active];
+			if (from === null) return null;
+			const all = frames(active);
+			const origin = all.get(from);
+			if (!origin) return null;
+			let best: { id: number; score: number } | null = null;
+			for (const [id, r] of all) {
+				if (id === from) continue;
+				const horizontal = direction === 'left' || direction === 'right';
+				const ahead =
+					direction === 'left' ? origin.x - (r.x + r.w)
+					: direction === 'right' ? r.x - (origin.x + origin.w)
+					: direction === 'up' ? origin.y - (r.y + r.h)
+					: r.y - (origin.y + origin.h);
+				if (ahead < -1) continue;
+				const overlap = horizontal
+					? Math.min(origin.y + origin.h, r.y + r.h) - Math.max(origin.y, r.y)
+					: Math.min(origin.x + origin.w, r.x + r.w) - Math.max(origin.x, r.x);
+				const offset = horizontal
+					? Math.abs(r.y + r.h / 2 - (origin.y + origin.h / 2))
+					: Math.abs(r.x + r.w / 2 - (origin.x + origin.w / 2));
+				const score = (overlap > 1 ? 0 : 100000) + ahead * 10 + offset;
+				if (!best || score < best.score) best = { id, score };
+			}
+			return best?.id ?? null;
+		}
+
+		// ---- What the shortcuts do ------------------------------------------------------------
+
+		/** Add a window to a desktop the way Iguana does: split the focused one along its longer side. */
+		function adopt(leaf: Leaf, index: number) {
+			const root = desks[index];
+			const anchor = focus[index];
+			if (!root || anchor === null) {
+				desks[index] = leaf;
+			} else {
+				const rect = frames(index).get(anchor)!;
+				const trail = path(anchor, root)!;
+				const current = leaves(root).find((l) => l.id === anchor)!;
+				const split: Split = { dir: rect.w >= rect.h ? 'h' : 'v', ratio: 0.5, a: current, b: leaf };
+				const parent = trail.at(-1);
+				if (parent) parent.split[parent.side] = split;
+				else desks[index] = split;
+			}
+			focus[index] = leaf.id;
+		}
+
+		function detach(id: number, index: number) {
+			const trail = path(id, desks[index]);
+			if (!trail) return;
+			const parent = trail.at(-1);
+			if (!parent) {
+				desks[index] = null;
+				focus[index] = null;
+				return;
+			}
+			const sibling = parent.split[parent.side === 'a' ? 'b' : 'a'];
+			const grand = trail.at(-2);
+			if (grand) grand.split[grand.side] = sibling;
+			else desks[index] = sibling;
+			focus[index] = leaves(sibling)[0].id;
+		}
+
+		function unused(): number {
+			const taken = new Set(desks.flatMap((d) => leaves(d).map((l) => l.id)));
+			let id = 1;
+			while (taken.has(id)) id++;
+			return id;
+		}
+
+		function open(): boolean {
+			if (leaves(desks[active]).length >= limit) return false;
+			const id = unused();
+			adopt({ id, color: colors[(id - 1) % colors.length] }, active);
+			return true;
+		}
+
+		function close(): boolean {
+			const id = focus[active];
+			if (id === null) return false;
+			detach(id, active);
+			return true;
+		}
+
+		function moveFocus(direction: Direction): boolean {
+			const target = neighbour(direction);
+			if (target === null) return false;
+			focus[active] = target;
+			return true;
+		}
+
+		function moveWindow(direction: Direction): boolean {
+			const target = neighbour(direction);
+			const id = focus[active];
+			if (target === null || id === null) return false;
+			const all = leaves(desks[active]);
+			const a = all.find((l) => l.id === id)!;
+			const b = all.find((l) => l.id === target)!;
+			[a.id, b.id] = [b.id, a.id];
+			[a.color, b.color] = [b.color, a.color];
+			return true;
+		}
+
+		function resize(grow: boolean): boolean {
+			const id = focus[active];
+			if (id === null) return false;
+			const step = path(id, desks[active])?.at(-1);
+			if (!step) return false;
+			const delta = (grow ? 0.07 : -0.07) * (step.side === 'a' ? 1 : -1);
+			const next = Math.min(0.78, Math.max(0.22, step.split.ratio + delta));
+			if (next === step.split.ratio) return false;
+			step.split.ratio = next;
+			return true;
+		}
+
+		/** Take the focused window to another desktop, and go with it. */
+		function carry(to: number) {
+			const id = focus[active];
+			if (id === null || to === active) return;
+			const leaf = leaves(desks[active]).find((l) => l.id === id)!;
+			detach(id, active);
+			adopt({ ...leaf }, to);
+			active = to;
+		}
+
+		/** A desktop tiled from scratch, with the same windows as before so that they glide into place. */
+		function arrange(index: number, ids: number[]) {
+			desks[index] = null;
+			focus[index] = null;
+			for (const id of ids) adopt({ id, color: colors[(id - 1) % colors.length] }, index);
+		}
+
+		// ---- Drawing --------------------------------------------------------------------------
+
+		function render() {
+			const shown = new Set<number>();
+			pin.classList.toggle('is-overview', overview);
+			panels.forEach((panel, i) => {
+				const r = room(i);
+				panel.style.width = `${r.w}px`;
+				panel.style.height = `${r.h}px`;
+				panel.style.transform = `translate(${r.x}px, ${r.y}px)`;
+				panel.classList.toggle('is-active', overview && i === active);
+			});
+
+			desks.forEach((root, index) => {
+				const all = frames(index);
+				for (const leaf of leaves(root)) {
+					const r = all.get(leaf.id)!;
+					shown.add(leaf.id);
+					let tile = tiles.get(leaf.id);
+					if (!tile) {
+						tile = document.createElement('div');
+						tile.className = 'tile is-entering';
+						tile.dataset.id = String(leaf.id);
+						tile.addEventListener('click', () => {
+							if (step !== last) return;
+							const owner = desks.findIndex((d) => leaves(d).some((l) => l.id === leaf.id));
+							if (owner !== active) return;
+							focus[active] = leaf.id;
+							render();
+						});
+						desk.append(tile);
+						tiles.set(leaf.id, tile);
+						tile.style.width = `${r.w}px`;
+						tile.style.height = `${r.h}px`;
+						tile.style.transform = `translate(${r.x}px, ${r.y}px) scale(0.9)`;
+						void tile.offsetWidth;
+						tile.classList.remove('is-entering');
+					}
+					tile.dataset.color = leaf.color;
+					tile.style.width = `${r.w}px`;
+					tile.style.height = `${r.h}px`;
+					tile.style.transform = `translate(${r.x}px, ${r.y}px)`;
+					tile.classList.toggle('is-focused', index === active && leaf.id === focus[index]);
+					tile.classList.toggle('is-small', r.w < 120 || r.h < 90);
+					tile.classList.toggle('is-away', !overview && index !== active);
+				}
+			});
+
+			for (const [id, tile] of tiles) {
+				if (shown.has(id)) continue;
+				tiles.delete(id);
+				tile.classList.add('is-leaving');
+				window.setTimeout(() => tile.remove(), 280);
+			}
+
+			const here = leaves(desks[active]);
+			const focused = here.find((l) => l.id === focus[active]);
+			glow.style.backgroundColor = hues[focused?.color ?? 'fern'];
+			number.textContent = String(active + 1);
+			glyph.classList.toggle('is-off', !running);
+			if (power) power.classList.toggle('is-on', running);
+			openButton.disabled = here.length >= limit;
+			closeButton.disabled = here.length === 0;
+			drawGlyph();
+		}
+
+		/** The menu bar icon: the layout of the desktop in use, twenty-two units wide. */
+		function drawGlyph() {
+			const small = place(desks[active], { x: 0, y: 0, w: 22, h: 14 }, 1.5);
+			for (const rect of Array.from(glyph.querySelectorAll('rect[data-id]'))) {
+				if (!small.has(Number((rect as SVGRectElement).dataset.id))) rect.remove();
+			}
+			let outline = glyph.querySelector<SVGRectElement>('[data-outline]');
+			if (!outline) {
+				outline = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+				outline.dataset.outline = '';
+				for (const [name, value] of Object.entries({ x: 1, y: 1, width: 20, height: 12, rx: 3, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.3 })) {
+					outline.setAttribute(name, String(value));
+				}
+				glyph.append(outline);
+			}
+			outline.setAttribute('opacity', small.size === 0 ? '0.7' : '0');
+			for (const [id, r] of small) {
+				let rect = glyph.querySelector<SVGRectElement>(`rect[data-id="${id}"]`);
+				if (!rect) {
+					rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+					rect.dataset.id = String(id);
+					rect.setAttribute('fill', 'currentColor');
+					glyph.append(rect);
+				}
+				rect.setAttribute('x', String(r.x));
+				rect.setAttribute('y', String(r.y));
+				rect.setAttribute('width', String(Math.max(r.w, 1)));
+				rect.setAttribute('height', String(Math.max(r.h, 1)));
+				rect.setAttribute('rx', String(Math.min(2.4, r.w / 2, r.h / 2)));
+				rect.setAttribute('opacity', id === focus[active] || small.size === 1 ? '1' : '0.4');
+			}
+		}
+
+		/** Light the keys of the chapter on screen, or of the real deck in the last one. */
+		function press(names: string[]) {
+			const scope = captions[step];
+			for (const name of names) {
+				const key = scope.querySelector<HTMLElement>(`[data-cap="${name}"], [data-key="${name}"]`);
+				if (!key) continue;
+				key.classList.add('is-down');
+				window.setTimeout(() => key.classList.remove('is-down'), 260);
+			}
+		}
+
+		// ---- The chapters ---------------------------------------------------------------------
+
+		const arrows: Record<string, Direction> = { h: 'left', j: 'down', k: 'up', l: 'right' };
+		let step = -1;
+		let beat = 0;
+		let ticker = 0;
+
+		/** Put the desktop in the state a chapter starts from. The windows keep their identity,
+		    so whatever came before, they glide to where the chapter needs them. */
+		function enter(chapter: number) {
+			overview = false;
+			running = true;
+			active = 0;
+			beat = 0;
+			pin.classList.toggle('is-playing', chapter === last);
+			pin.classList.toggle('is-yours', chapter === last);
+			const name = captions[chapter].dataset.chapter;
+
+			if (chapter === 0 || name === 'place') {
+				arrange(0, [1, 2, 3]);
+				desks[1] = desks[2] = null;
+			} else if (name === 'desktops') {
+				overview = true;
+				arrange(0, [1, 2, 3]);
+				arrange(1, [4]);
+				desks[2] = null;
+				focus[2] = null;
+				focus[0] = 3;
+			} else {
+				arrange(0, [1, 2, 3, 4]);
+				desks[1] = desks[2] = null;
+			}
+			render();
+		}
+
+		/** One beat of a chapter acting itself out. */
+		function act(chapter: number) {
+			const name = captions[chapter].dataset.chapter;
+			if (name === 'place') {
+				// Windows open one after another, then close again: each time the rest make room.
+				const moves = ['open', 'open', 'close', 'close', 'close', 'open'];
+				if (moves[beat % moves.length] === 'open') open();
+				else close();
+			} else if (name === 'focus') {
+				const key = ['h', 'k', 'l', 'j', 'l', 'h'][beat % 6];
+				moveFocus(arrows[key]);
+				press(['alt', key]);
+			} else if (name === 'move') {
+				const key = ['h', 'h', 'l', 'l'][beat % 4];
+				moveWindow(arrows[key]);
+				press(['alt', 'shift', key]);
+			} else if (name === 'resize') {
+				const grow = beat % 4 < 2;
+				resize(grow);
+				press(['alt', grow ? 'equal' : 'minus']);
+			} else if (name === 'desktops') {
+				// Go to a desktop; then take a window along to the next.
+				const moves: [string, number][] = [['go', 1], ['carry', 2], ['go', 0], ['go', 2], ['carry', 1], ['go', 0]];
+				const [kind, to] = moves[beat % moves.length];
+				if (kind === 'go') {
+					active = to;
+					press(['alt', `d${to + 1}`]);
+				} else {
+					carry(to);
+					press(['alt', 'shift', `d${to + 1}`]);
+				}
+			} else if (name === 'quit') {
+				running = !running;
+			} else {
+				return;
+			}
+			beat += 1;
+			render();
+		}
+
+		function go(next: number) {
+			if (next === step) return;
+			step = next;
+			captions.forEach((caption, i) => {
+				caption.classList.toggle('is-on', i === step);
+				caption.classList.toggle('is-past', i < step);
+				caption.toggleAttribute('inert', i !== step);
+			});
+			marks.forEach((mark, i) => {
+				mark.classList.toggle('is-here', i === step);
+				mark.classList.toggle('is-done', i < step);
+			});
+			cue.classList.toggle('is-gone', step > 0);
+			status.textContent = captions[step].querySelector('h1, h2')?.textContent ?? '';
+			window.clearInterval(ticker);
+			enter(step);
+			if (!reduced && step > 0 && step < last) {
+				ticker = window.setInterval(() => act(step), captions[step].dataset.chapter === 'quit' ? 1700 : 1150);
+			}
+		}
+
+		let held = false;
+		function measure() {
+			if (held) return;
+			const top = story!.offsetTop;
+			const span = story!.offsetHeight - window.innerHeight;
+			const progress = Math.min(Math.max((window.scrollY - top) / Math.max(span, 1), 0), 0.9999);
+			go(Math.floor(progress * steps));
+		}
+
+		// The page opens with an empty desktop that fills up, once.
+		if (reduced || window.scrollY > 40) {
+			measure();
+		} else {
+			step = 0;
+			marks[0]?.classList.add('is-here');
+			captions.forEach((caption, i) => caption.toggleAttribute('inert', i !== 0));
+			render();
+			let opened = 0;
+			const fill = window.setInterval(() => {
+				if (step !== 0 || opened >= 3) {
+					window.clearInterval(fill);
+					return;
+				}
+				open();
+				opened += 1;
+				render();
+			}, 520);
+		}
+
+		let queued = false;
+		window.addEventListener(
+			'scroll',
+			() => {
+				if (queued) return;
+				queued = true;
+				window.requestAnimationFrame(() => {
+					queued = false;
+					measure();
+				});
+			},
+			{ passive: true }
+		);
+		new ResizeObserver(() => render()).observe(desk);
+
+		for (const button of Array.from(story.querySelectorAll<HTMLButtonElement>('[data-go]'))) {
+			button.addEventListener('click', () => {
+				const span = story.offsetHeight - window.innerHeight;
+				const target = story.offsetTop + ((Number(button.dataset.go) + 0.5) / steps) * span;
+				window.scrollTo({ top: target, behavior: reduced ? 'auto' : 'smooth' });
+			});
+		}
+
+		// For looking at one chapter without scrolling to it: /?chapter=5 shows it and holds it.
+		const asked = new URLSearchParams(window.location.search).get('chapter');
+		if (asked !== null) {
+			held = true;
+			go(Math.min(Math.max(Number(asked) || 0, 0), last));
+			// Something to keep time passing for a browser that takes a picture when the page goes quiet.
+			window.setInterval(() => {}, 250);
+		}
+
+		// ---- The last chapter: the keys are yours ---------------------------------------------
+
+		function command(key: string, shift: boolean) {
+			if (step !== last) return;
+			pin.classList.remove('is-yours');
+			if (key in arrows) {
+				press(shift ? ['alt', 'shift', key] : ['alt', key]);
+				if (shift) moveWindow(arrows[key]);
+				else moveFocus(arrows[key]);
+			} else if (key === 'minus' || key === 'equal') {
+				press(['alt', key]);
+				resize(key === 'equal');
+			} else if (key === 'open') {
+				open();
+			} else if (key === 'close') {
+				close();
+			}
+			render();
+		}
+
+		const codes: Record<string, string> = {
+			KeyH: 'h', KeyJ: 'j', KeyK: 'k', KeyL: 'l',
+			ArrowLeft: 'h', ArrowDown: 'j', ArrowUp: 'k', ArrowRight: 'l',
+			Minus: 'minus', Equal: 'equal',
+		};
+
+		window.addEventListener('keydown', (event) => {
+			if (step !== last) return;
+			if (event.key === 'Alt' || event.key === 'Shift') {
+				captions[last].querySelector(`[data-key="${event.key === 'Alt' ? 'alt' : 'shift'}"]`)?.classList.add('is-down');
+				return;
+			}
+			if (event.metaKey || event.ctrlKey) return;
+			// The sliders keep their own keys.
+			const target = event.target as HTMLElement | null;
+			if (target && (target.tagName === 'INPUT' || target.isContentEditable)) return;
+			const onDesk = document.activeElement === display;
+			// Option is not required. Someone who already runs Iguana would never get a key through
+			// with it: the real thing takes Option H J K L before the browser sees them. The arrow
+			// keys are left to scrolling unless Option is held or the desktop has the keyboard.
+			const arrow = event.code.startsWith('Arrow');
+			if (arrow && !event.altKey && !onDesk) return;
+			const key = codes[event.code];
+			if (key) {
+				event.preventDefault();
+				command(key, event.shiftKey);
+			} else if (event.code === 'KeyN' || (onDesk && event.code === 'Enter')) {
+				event.preventDefault();
+				command('open', false);
+			} else if (event.code === 'KeyW' || (onDesk && event.code === 'Backspace')) {
+				event.preventDefault();
+				command('close', false);
+			}
+		});
+		window.addEventListener('keyup', (event) => {
+			if (event.key === 'Alt') captions[last].querySelector('[data-key="alt"]')?.classList.remove('is-down');
+			if (event.key === 'Shift') captions[last].querySelector('[data-key="shift"]')?.classList.remove('is-down');
+		});
+
+		for (const button of Array.from(story.querySelectorAll<HTMLButtonElement>('[data-key]'))) {
+			button.addEventListener('click', () => {
+				const key = button.dataset.key!;
+				if (key === 'shift') {
+					// On a touch screen there is nothing to hold: tap shift to keep it down.
+					shiftLatched = !shiftLatched;
+					button.setAttribute('aria-pressed', String(shiftLatched));
+				} else if (key !== 'alt') {
+					command(key, shiftLatched);
+				}
+			});
+		}
+		openButton.addEventListener('click', () => command('open', false));
+		closeButton.addEventListener('click', () => command('close', false));
+
+		for (const input of Array.from(story.querySelectorAll<HTMLInputElement>('[data-gap]'))) {
+			const name = input.dataset.gap as 'inner' | 'outer';
+			input.addEventListener('input', () => {
+				gaps[name] = Number(input.value);
+				const shown = story.querySelector<HTMLElement>(`[data-value="${name}"]`);
+				if (shown) shown.textContent = input.value;
+				render();
+			});
+		}
+	}
+</script>

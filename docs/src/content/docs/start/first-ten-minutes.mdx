@@ -1,0 +1,193 @@
+---
+title: First ten minutes
+description: A guided tour of Iguana. Open a few windows, then focus, move, resize, zoom and send one to another desktop.
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+After this tour you will be able to drive Iguana from the keyboard: move between windows,
+rearrange them, resize them, and send one to another desktop.
+
+The [welcome tour](/start/install/#the-welcome-tour) that Iguana shows on its first start covers
+focusing, moving, resizing and desktops on a practice desktop. This page does the same with
+your real windows, and goes further.
+
+You need Iguana [installed and running](/start/install/). The tour uses the built-in
+shortcuts. In a shortcut, <kbd>alt</kbd> is the Option (⌥) key.
+
+<Aside>
+The diagrams assume a display that is wider than it is tall and the default settings. On a
+portrait display the first split is top and bottom instead of left and right.
+</Aside>
+
+## Open some windows
+
+<Steps>
+
+1. **Start with one window.** Close or minimise everything on the current desktop except one
+   window. Call it A. It fills the desktop, with a small gap around it.
+
+   ```text
+   +---------------------+
+   |                     |
+   |          A          |
+   |                     |
+   +---------------------+
+   ```
+
+2. **Open a second window**, B. Any app will do. The two windows sit side by side.
+
+   ```text
+   +----------+----------+
+   |          |          |
+   |    A     |    B     |
+   |          |          |
+   +----------+----------+
+   ```
+
+3. **Open a third window**, C, while B is focused. Iguana splits the focused window along
+   its longer side. B is now taller than it is wide, so C goes underneath it.
+
+   ```text
+   +----------+----------+
+   |          |    B     |
+   |    A     +----------+
+   |          |    C     |
+   +----------+----------+
+   ```
+
+</Steps>
+
+## Move the focus
+
+Focus is which window receives your typing.
+
+- <kbd>alt</kbd>+<kbd>h</kbd> focuses the window to the left.
+- <kbd>alt</kbd>+<kbd>j</kbd> focuses the window below.
+- <kbd>alt</kbd>+<kbd>k</kbd> focuses the window above.
+- <kbd>alt</kbd>+<kbd>l</kbd> focuses the window to the right.
+
+Try it: from C, press <kbd>alt</kbd>+<kbd>k</kbd> to reach B, then <kbd>alt</kbd>+<kbd>h</kbd>
+to reach A.
+
+## Move a window
+
+Add <kbd>shift</kbd> to move the focused window instead of the focus.
+
+<Steps>
+
+1. Focus C and press <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>h</kbd>. C leaves the column it
+   shared with B and becomes a column of its own, between A and B.
+
+   ```text
+   +------+------+------+
+   |      |      |      |
+   |  A   |  C   |  B   |
+   |      |      |      |
+   +------+------+------+
+   ```
+
+2. Press <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>h</kbd> again. C and A trade places.
+
+   ```text
+   +------+------+------+
+   |      |      |      |
+   |  C   |  A   |  B   |
+   |      |      |      |
+   +------+------+------+
+   ```
+
+</Steps>
+
+You can also use the mouse: drag a tiled window and drop it on another to swap the two.
+
+## Stack two windows
+
+<kbd>alt</kbd>+<kbd>ctrl</kbd> with a direction joins the focused window with its neighbour
+on that side, so the two share one slot.
+
+With C still focused, press <kbd>alt</kbd>+<kbd>ctrl</kbd>+<kbd>l</kbd>. C joins A, the
+window to its right, and sits underneath it.
+
+```text
++----------+----------+
+|    A     |          |
++----------+    B     |
+|    C     |          |
++----------+----------+
+```
+
+<kbd>alt</kbd>+<kbd>slash</kbd> flips the group the focused window is in between stacked and
+side by side. Press it now and A and C stand next to each other again, with B on the right.
+
+```text
++-----+-----+----------+
+|     |     |          |
+|  A  |  C  |    B     |
+|     |     |          |
++-----+-----+----------+
+```
+
+## Resize
+
+- <kbd>alt</kbd>+<kbd>equal</kbd> grows the focused window.
+- <kbd>alt</kbd>+<kbd>minus</kbd> shrinks it.
+- <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>b</kbd> gives every window on the desktop an equal
+  share again.
+
+Each press moves the edge by 5% of the space the window shares with its neighbours. You can
+also drag a window's edge with the mouse. When you let go, the layout keeps the new
+proportions.
+
+## Zoom
+
+Press <kbd>alt</kbd>+<kbd>f</kbd> to make the focused window fill the desktop. The other
+windows stay where they are, behind it. Press <kbd>alt</kbd>+<kbd>f</kbd> again to put it
+back in its slot.
+
+## Float a window
+
+Press <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>space</kbd> to take the focused window out of the
+layout. It floats: it stays where it is, and you can place it freely. The other windows close
+the gap. Press the same keys to tile it again.
+
+## Send a window to another desktop
+
+You need at least two desktops for this part. To add one, open Mission Control and click the
+plus button at the top right of the screen.
+
+<Steps>
+
+1. Focus a window and press <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>2</kbd>. The window moves
+   to desktop 2 and you go with it.
+
+2. Press <kbd>alt</kbd>+<kbd>1</kbd> to go back to desktop 1. The windows you left there
+   have already taken up the free space.
+
+3. Press <kbd>alt</kbd>+<kbd>2</kbd> to visit desktop 2 again. Each desktop keeps its own
+   layout.
+
+</Steps>
+
+<Aside type="tip">
+To send a window away and stay where you are, bind a key to `move-to-space 2 --stay`. See
+[Customising shortcuts](/guides/shortcuts/).
+</Aside>
+
+## See that there is nothing to undo
+
+Choose **Quit Iguana** from the menu bar item. No window moves. Open Iguana again and the
+layout you built is still in place.
+
+## If a shortcut seems to do nothing
+
+With one window on the desktop, most commands have nothing to act on: there is no window to
+focus, swap with or resize against. Run `iguana status` in a terminal. Its last line shows
+the last shortcut Iguana received and how it answered. [Troubleshooting](/help/troubleshooting/)
+covers the rest.
+
+## Next
+
+- [Default shortcuts](/reference/default-shortcuts/): the full table.
+- [How tiling works](/guides/how-tiling-works/): what `move`, `join` and `flip` do to the layout.
+- [Desktops and displays](/guides/desktops-and-displays/): more than one desktop, more than one display.

@@ -1,0 +1,207 @@
+---
+title: Troubleshooting
+description: What to check when Iguana is not tiling, a shortcut does nothing, or a window will not tile or shrink.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+This page helps you find out why Iguana is not doing what you expect, starting with the
+command that answers most questions.
+
+## Start with `iguana status`
+
+```sh
+iguana status
+```
+
+It tells you whether Iguana has its permission, whether it is tiling or paused, which config
+file it loaded and what was wrong with it, how many shortcuts are active, and the last
+shortcut it received with its answer.
+
+Three more commands show what Iguana sees:
+
+| Command | Shows |
+| --- | --- |
+| `iguana list-windows` | Every window Iguana knows about, and whether it is tiled, floating, unmanaged or not on screen. |
+| `iguana tree` | The layout of the desktops that are showing. |
+| `iguana list-spaces` | Which desktop each display is showing. |
+
+The log is at `~/Library/Logs/Iguana.log`. The menu bar item's menu can open it.
+
+If `iguana` itself is not found, the command line tool is not on your `PATH`. See
+[Install](/start/install/). If it prints `the window manager is not running`, open
+`Iguana.app`.
+
+## The permission is not granted
+
+**Signs:** the menu bar item reads "needs permission", nothing is tiled, and `iguana status`
+says `waiting for Accessibility permission`.
+
+<Steps>
+
+1. Open System Settings, then Privacy & Security, then Accessibility. **Open Accessibility
+   Settings…** in the menu bar item's menu takes you there.
+2. Switch Iguana on.
+
+</Steps>
+
+Tiling starts within a second or two. You do not need to restart Iguana. If the welcome tour
+is on screen, tiling starts when the tour ends.
+
+**If you had granted it and it stopped working after a rebuild:** macOS ties the permission
+to the app's signature. `scripts/bundle.sh` only signs with a certificate you name, as
+`TEAM_ID` or `SIGN_IDENTITY`. Without one the app is signed ad hoc, and its permission has to
+be granted again after every build. The script says which kind of signature it used. See the note about signing on the [Install](/start/install/#build-from-source)
+page.
+
+## Shortcuts appear to do nothing
+
+Work through these in order.
+
+### Is there anything for the command to act on?
+
+With one window on the desktop, most commands have nothing to do. There is no window to
+focus, no neighbour to swap with or join, and nothing to resize against. Iguana received the
+key and answered, but nothing visible happened.
+
+Check the last line of `iguana status`:
+
+```text
+last shortcut: alt-l, 2 s ago, answered "ok: nothing in that direction"
+```
+
+Replies that mean "nothing to do":
+
+| Reply | Command |
+| --- | --- |
+| `ok: nothing in that direction` | `focus` |
+| `ok: already at the edge` | `move` |
+| `ok: no neighbour in that direction` | `join` |
+| `ok: nothing to resize against` | `resize` |
+| `ok: already on desktop N` | `space`, `move-to-space` |
+
+Open a second window and try again.
+
+### Did the key reach Iguana?
+
+If the last line of `iguana status` does not change when you press the shortcut, or reads
+`last shortcut: none received since Iguana started`, the key press never arrived.
+
+- Look at the `shortcuts:` line. It says how many shortcuts are active. Under it are warnings
+  for any that could not be set up.
+- `the system refused it (another app may own this shortcut)` means another app registered
+  the same combination first. Pick other keys, or free the combination in the other app.
+- `unknown key` means the key name is not one Iguana knows. See [Key names](/reference/key-names/).
+- If your config file switched the shortcut off, or has a mistake in that line, it will not
+  be active. Run `iguana config check`.
+
+Remember that `alt` is the Option (⌥) key.
+
+### Did the command answer with an error?
+
+| Reply | Meaning |
+| --- | --- |
+| `error: the focused window is not tiled` | The focused window floats, or is one Iguana does not manage. `move`, `join`, `resize`, `flip`, `balance` and `zoom` need a tiled window. |
+| `error: no focused window` | Click a window first. |
+| `error: there are only N desktops` | You asked for a desktop that does not exist. Add one in Mission Control. |
+| `error: Iguana needs Accessibility permission` | See [above](#the-permission-is-not-granted). |
+
+### Is tiling paused?
+
+If the menu bar icon is a pause mark instead of a drawing of your windows, tiling is paused.
+The first line of `iguana status` says `paused` too. Choose **Resume Tiling** from the menu
+bar item's menu or run `iguana pause`.
+
+### Is the welcome tour on screen?
+
+While the [welcome tour](/start/install/#the-welcome-tour) is showing, shortcuts and commands
+act on its practice desktop, not on your windows, and answer `ok: in the welcome tour`.
+`iguana status` has a `welcome tour:` line for as long as it is on screen. Finish the tour, or
+press <kbd>esc</kbd> twice to leave it.
+
+## A window will not tile
+
+Run `iguana list-windows` and find the window. Its state tells you why.
+
+| State | Why | What to do |
+| --- | --- | --- |
+| `floating` | A rule matches it, or you floated it. | Focus it and press <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>space</kbd>, or change the [rule](/guides/floating-windows/#rules). |
+| `unmanaged` | It is not a standard window, or it cannot be both moved and resized. Dialogs, sheets and fixed-size windows are like this. | Nothing. Iguana leaves these alone on purpose. |
+| `not on screen` | It is minimised, hidden, on another desktop, in another Stage Manager stage or a background tab. | Nothing. It keeps its slot and returns to it. |
+| not listed | Iguana does not watch its app. | See [below](#the-windows-of-an-app-are-ignored). |
+
+Other causes:
+
+- **The window is in native fullscreen**, or the display is showing a fullscreen Space.
+  Iguana leaves those alone.
+- **Tiling is paused.**
+- **A rule matches more than you meant.** `app` matches any app whose name contains the text,
+  so `app = "term"` floats every app with "term" in its name. Use the bundle identifier to be
+  exact.
+
+## A window will not shrink
+
+Some windows have a minimum size and refuse to go below it. This is the app's decision, and
+Iguana respects it: it gives the window the room it insists on and fits the other windows of
+the same row or column into what is left.
+
+What you can do:
+
+- Give the window a bigger share with `resize grow`, or move it to a slot that is large enough.
+- Put fewer windows on that desktop, or send some to another one.
+- Float the window with <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>space</kbd>.
+
+If the minimum sizes of the windows in a row or column add up to more than the display,
+they cannot all fit. One or more of them will then be larger than its slot.
+
+## The windows of an app are ignored
+
+`iguana list-windows` does not list them at all, or lists them as `unmanaged`.
+
+- **The app is not a regular app.** Iguana watches apps that appear in the Dock. Menu bar
+  extras and background helpers are not watched, and their windows are never tiled.
+- **The windows are not standard windows.** A window that is not a standard window, or that
+  cannot be both moved and resized, shows as `unmanaged`.
+- **The app has only just started.** A newly launched app is often not ready to be observed.
+  Iguana retries for a few seconds. Switching to the app also makes Iguana look again.
+- **The app is not responding.** Iguana does not wait long for a busy app, so that one stuck
+  app cannot stall every other window. Its windows are picked up when it answers again.
+- **A float rule matches the app.** Then the windows are listed as `floating`.
+
+## A config change is not applied
+
+```sh
+iguana config check
+```
+
+- A **syntax error** stops the whole file from loading. Iguana keeps the settings it had
+  before and reports the line. Fix that line and save.
+- A **warning** affects one setting, which keeps its default. Everything else is applied.
+- `iguana config path` shows which file Iguana reads. If `XDG_CONFIG_HOME` is set, it is not
+  the one in `~/.config`.
+- If your float rules for System Settings, Calculator or Activity Monitor disappeared, your
+  file has a `[[rule]]` of its own. Once it does, it must list all the rules, including the
+  built-in ones. See [Rules](/guides/floating-windows/#the-built-in-rules).
+
+## Sending a window to another desktop is slow
+
+On recent macOS the move takes a few milliseconds. If instead the pointer jumps to the
+window's title bar and the desktop slides across with the window attached, Iguana is using
+its fallback: holding the window by its title bar while switching desktop. That happens on
+systems without the quick route, or for a window the quick route refuses. The log has a line
+when it does:
+
+```text
+move-to-space: the quick route did not move window 1187, falling back to dragging it
+```
+
+The fallback always ends on the destination desktop, so `--stay` does not apply.
+
+If the window stays behind, the log says either that Iguana could not take hold of the window
+by its title bar, or that the window did not come along to the new desktop.
+
+## Animation looks choppy
+
+Heavy apps redraw slowly while they are being resized. Shorten
+[`animation.duration`](/reference/configuration/#duration) or turn animation off. The
+[Animation guide](/guides/animation/#why-some-apps-look-choppy) explains why.

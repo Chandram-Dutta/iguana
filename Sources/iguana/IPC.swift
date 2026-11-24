@@ -1,0 +1,101 @@
+import Foundation
+
+/// The command line talks to the running app over a socket in the user's own Library folder:
+/// one line in, one reply out.
+enum IPC {
+    static var socketPath: String { WindowManager.supportDirectory.appendingPathComponent("iguana.sock").path }
+
+    private static func address() -> sockaddr_un? {
+        var addr = sockaddr_un()
+        addr.sun_family = sa_family_t(AF_UNIX)
+        let path = socketPath
+        let capacity = MemoryLayout.size(ofValue: addr.sun_path)
+        guard path.utf8.count < capacity else { return nil }
+        withUnsafeMutablePointer(to: &addr.sun_path) { p in
+            p.withMemoryRebound(to: CChar.self, capacity: capacity) { _ = strlcpy($0, path, capacity) }
+        }
+        return addr
+    }
+
+    private static func withSockaddr<T>(_ addr: sockaddr_un, _ body: (UnsafePointer<sockaddr>, socklen_t) -> T) -> T {
+        var addr = addr
+        return withUnsafePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { body($0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+        }
+    }
+
+    private static func writeAll(_ fd: Int32, _ text: String) {
+        var bytes = Array(text.utf8)
+        var offset = 0
+        while offset < bytes.count {
+            let n = bytes.withUnsafeMutableBytes { write(fd, $0.baseAddress! + offset, $0.count - offset) }
+            if n <= 0 { return }
+            offset += n
+        }
+    }
+
+    private static func readAll(_ fd: Int32, untilNewline: Bool) -> String {
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 4096)
+        while data.count < 1 << 20 {
+            let n = read(fd, &buffer, buffer.count)
+            if n <= 0 { break }
+            data.append(buffer, count: n)
+            if untilNewline, data.contains(0x0a) { break }
+        }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    // MARK: Client
+
+    /// Send one command to the running app. Returns nil when nothing is listening.
+    static func send(_ command: String) -> String? {
+        guard let addr = address() else { return nil }
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { return nil }
+        defer { close(fd) }
+        guard withSockaddr(addr, { connect(fd, $0, $1) }) == 0 else { return nil }
+        writeAll(fd, command + "\n")
+        return readAll(fd, untilNewline: false)
+    }
+
+    // MARK: Server
+
+    private static var source: DispatchSourceRead?
+
+    /// `handler` runs on the main queue.
+    static func listen(_ handler: @escaping (String) -> String) -> Bool {
+        guard let addr = address() else { return false }
+        try? FileManager.default.createDirectory(at: WindowManager.supportDirectory, withIntermediateDirectories: true)
+        unlink(socketPath)
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { return false }
+        guard withSockaddr(addr, { bind(fd, $0, $1) }) == 0, Darwin.listen(fd, 8) == 0 else {
+            close(fd)
+            return false
+        }
+        chmod(socketPath, 0o600)
+        let src = DispatchSource.makeReadSource(fileDescriptor: fd, queue: .main)
+        src.setEventHandler {
+            let client = accept(fd, nil, nil)
+            guard client >= 0 else { return }
+            var timeout = timeval(tv_sec: 2, tv_usec: 0)
+            setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+            DispatchQueue.global(qos: .userInitiated).async {
+                let line = readAll(client, untilNewline: true).trimmingCharacters(in: .whitespacesAndNewlines)
+                let reply = DispatchQueue.main.sync { handler(line) }
+                writeAll(client, reply + "\n")
+                close(client)
+            }
+        }
+        src.resume()
+        source = src
+        return true
+    }
+
+    static func stop() {
+        source?.cancel()
+        source = nil
+        unlink(socketPath)
+    }
+}

@@ -1,0 +1,166 @@
+---
+title: Install
+description: Download Iguana or build it from source, grant the Accessibility permission and put the command line tool on your PATH.
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+After this page Iguana will be running, tiling your windows, and you will be able to send it
+commands from a terminal.
+
+Iguana needs macOS 14 or later, on Apple silicon or Intel.
+
+## Download and run
+
+<Steps>
+
+1. **Download the disk image.**
+   [Iguana.dmg](https://github.com/Chandram-Dutta/iguana/releases/latest/download/Iguana.dmg)
+   is always the latest release. Every release, with its checksums, is on the
+   [releases page](https://github.com/Chandram-Dutta/iguana/releases).
+
+2. **Install it.** Open the disk image and drag Iguana into Applications.
+
+   The app is signed and notarized, so macOS opens it without a warning.
+
+3. **Open it.** Iguana has no Dock icon. It lives in the menu bar. The first time it starts
+   it shows the [welcome tour](#the-welcome-tour), and the menu bar item reads "needs
+   permission".
+
+4. **Grant the permission.** The tour asks for it at its end and opens the right place for
+   you. To do it by hand, open System Settings, go to Privacy & Security, then Accessibility,
+   and switch Iguana on.
+
+   You do not need to restart Iguana. Tiling starts when the tour ends, or as soon as the
+   switch is on if the tour is no longer showing, and the menu bar item then shows the number
+   of the desktop you are on.
+
+5. **Put the command line tool on your PATH.** The same binary that runs the app also sends
+   commands to it. Link it somewhere on your `PATH`:
+
+   ```sh
+   ln -s /Applications/Iguana.app/Contents/MacOS/iguana /usr/local/bin/iguana
+   ```
+
+   Any folder on your `PATH` will do in place of `/usr/local/bin`.
+
+6. **Check that it is working.**
+
+   ```sh
+   iguana status
+   ```
+
+   The first line reads `Iguana 0.1.0: tiling` (your version number may differ). If it says
+   it is waiting for the Accessibility permission, go back to step 4.
+
+</Steps>
+
+## Build from source
+
+You need a Swift toolchain that comes with the macOS 26 SDK or later: Xcode 26 or its
+Command Line Tools.
+
+<Steps>
+
+1. **Get the source.**
+
+   ```sh
+   git clone https://github.com/Chandram-Dutta/iguana.git
+   cd iguana
+   ```
+
+2. **Build the app.**
+
+   ```sh
+   scripts/bundle.sh
+   ```
+
+   This builds a release binary, wraps it as `build/Iguana.app` and signs it. The last lines
+   it prints tell you how the app was signed.
+
+3. **Open it**, then carry on from step 3 above. The command line tool is at
+   `build/Iguana.app/Contents/MacOS/iguana`.
+
+   ```sh
+   open build/Iguana.app
+   ```
+
+</Steps>
+
+<Aside type="caution" title="Signing decides whether the permission survives a rebuild">
+macOS ties the Accessibility permission to the app's signature. An app signed the same way
+every time keeps its permission across rebuilds.
+
+`scripts/bundle.sh` signs with a certificate of the project's own developer team. You will
+not have one, so name yours: your team, or one certificate from your keychain.
+
+```sh
+TEAM_ID=ABCDE12345 scripts/bundle.sh
+SIGN_IDENTITY="Apple Development: Your Name (ABCDE12345)" scripts/bundle.sh
+```
+
+With neither, the app is signed ad hoc, the script says so, and you have to grant the
+permission again after every build.
+</Aside>
+
+## The welcome tour
+
+The first time Iguana starts, it fills the screen with a short tour. You open a few windows
+on a practice desktop and try the main shortcuts on them: move the focus, move a window,
+resize it, and take it to another desktop. Your real windows are not touched while it runs.
+The keys it shows are the ones in your config, so if you have changed a shortcut, the tour
+teaches the changed one, and a lesson whose shortcuts you have removed is left out.
+
+At the end it asks for the Accessibility permission, unless Iguana already has it, and offers
+to open Iguana at login. When it closes, your windows are tiled.
+
+- <kbd>return</kbd> or <kbd>space</kbd> does what the button on screen says.
+- <kbd>esc</kbd>, pressed twice, leaves the tour. It still stops at the permission on the way
+  out, because nothing works without it.
+- **Skip this step** in the corner moves on from a lesson.
+- The speaker button in the corner turns the sound off.
+
+To see the tour again, choose **Welcome Tour…** from the menu bar item or run `iguana tour`.
+
+## The menu bar item
+
+The icon in the menu bar is a small drawing of the desktop you are on: one block for each
+tiled window, in the place the window has on screen, with the focused window drawn solid. It
+changes as your windows do. The number beside it is the number of the desktop. While tiling
+is paused the icon shows a pause mark, and an empty outline means no window is tiled here.
+
+Click the item to open its menu. The top of the menu is a drawing:
+
+- **The desktop you are on**, large. Click a window in it to bring that window forward.
+- **Every desktop**, each with its own layout. Click one to go there.
+
+Under the drawing are the commands: Pause Tiling, Balance Windows, Settings…, Edit Config
+File, Welcome Tour…, Show Log and Quit Iguana. When the config file has problems, the menu
+says how many.
+
+The icon can also draw every desktop side by side, each with its own layout, so that you
+see what is on the others. That is off until you ask for it: choose **Those in use** or
+**All** under Menu bar in the General pane of the settings window, or set
+[`desktops`](/reference/configuration/#desktops) in the config file. A second switch there,
+also off to begin with, makes a click on one of those desktops go to it
+([`click-to-switch`](/reference/configuration/#click-to-switch)).
+
+## Open at login
+
+Open the settings window from the menu bar item, or run `iguana settings`, and switch on
+**Open at login** in the General pane.
+
+## Stop Iguana
+
+Choose **Quit Iguana** from the menu bar item, or run:
+
+```sh
+iguana quit
+```
+
+Your windows stay exactly where they are. Nothing needs to be restored.
+
+## Next
+
+- [First ten minutes](/start/first-ten-minutes/): a guided tour of the main shortcuts.
+- [Configuration](/reference/configuration/): create a config file with `iguana config init`.

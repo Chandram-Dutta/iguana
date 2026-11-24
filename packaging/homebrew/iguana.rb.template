@@ -1,0 +1,26 @@
+# The Homebrew cask for Iguana. scripts/release.sh fills in the version, the checksum and the
+# address, and writes the result to dist/iguana.rb; that file goes into the tap as Casks/iguana.rb.
+cask "iguana" do
+  version "{{VERSION}}"
+  sha256 "{{SHA256}}"
+
+  url "{{URL_BASE}}/v#{version}/Iguana-#{version}.zip"
+  name "Iguana"
+  desc "Tiling window manager that works inside native desktops"
+  homepage "{{HOMEPAGE}}"
+
+  depends_on macos: ">= :sonoma"
+
+  app "Iguana.app"
+  # The app's binary is also the command line tool.
+  binary "#{appdir}/Iguana.app/Contents/MacOS/iguana"
+
+  uninstall quit: "xyz.onlychan.iguana"
+
+  zap trash: [
+    "~/.config/iguana",
+    "~/Library/Application Support/Iguana",
+    "~/Library/Logs/Iguana.log",
+    "~/Library/Preferences/xyz.onlychan.iguana.plist",
+  ]
+end

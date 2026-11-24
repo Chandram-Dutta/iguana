@@ -1,0 +1,194 @@
+---
+title: The settings window
+description: Change Iguana's gaps, animation, shortcuts and floating-window rules in a window that edits the same config file you can edit by hand.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+After this page you will be able to change every Iguana setting without opening a text
+editor, and you will know how the window and the config file relate.
+
+## Open it
+
+Choose **Settings…** from Iguana's menu bar item, or run:
+
+```sh
+iguana settings
+```
+
+## It edits your config file
+
+The settings window has no store of its own. It reads and writes the same file you can edit
+by hand, `~/.config/iguana/iguana.toml`.
+
+- **Each change is written straight away.** There is no Save button.
+- **Only the value you changed is touched.** Your comments, the order of your settings and
+  your formatting are kept.
+- **Edits made by hand show up live.** Save the file in a text editor and the window updates.
+- **Changes apply to your real windows as you make them.** Dragging the gap slider moves your
+  actual windows.
+- **If there is no file yet, your first change creates it,** with every setting explained in
+  comments.
+
+You can use the window, the file or both. Neither gets out of step with the other.
+
+<Aside title="Sliders and the file">
+The sliders cover the commonly useful part of each range. The file accepts the full range
+given in the [configuration reference](/reference/configuration/). A value you set by hand
+outside a slider's range is still applied.
+</Aside>
+
+## How the window is laid out
+
+The window has a sidebar on the left and one pane of settings on the right, like System
+Settings.
+
+- **The bar across the top** shows the name of the pane you are on and one line on what it is
+  for.
+- **Each pane is a form of grouped rows.** A row has the name of a setting on the left and its
+  control on the right: a switch, a slider with its value beside it, or, for a choice between
+  a few options, a row of buttons side by side.
+- **A message appears at the bottom of the pane** when something needs saying, for example
+  that a shortcut was taken from another command. It goes away after a few seconds.
+
+## The sidebar
+
+The sidebar has three parts:
+
+- **The app name with a status line under it.** The status reads "Tiling 3 windows" (with the
+  real count), "Paused" or "Needs permission".
+- **The five panes:** General, Layout, Animation, Shortcuts and Floating Windows.
+- **A button at the bottom that pauses or resumes tiling.** It reads "Tiling is on" or
+  "Tiling is paused". Click it to switch. This is the same as the
+  [`pause`](/reference/commands/#pause) command: while tiling is paused, Iguana leaves every
+  window where it is.
+
+## General
+
+- **Open at login.** Starts Iguana when you log in to this Mac.
+- **Menu bar.** What the icon in the menu bar draws. See the table below.
+- **Settings file.** Shows where the config file is, with **Show in Finder** and **Open**.
+  Both create the file first if there is none yet.
+- **Problems.** Every problem in the settings file is listed at the bottom of the pane. When
+  the file has none, a note says so. See
+  [what happens when the file has a mistake](/reference/configuration/#when-the-file-has-a-mistake).
+
+The Menu bar section:
+
+| Control | What it sets | Config key |
+| --- | --- | --- |
+| Desktops drawn in the menu bar | "This one", "Those in use" or "All". With "This one" the icon is a drawing of the desktop you are on. "Those in use" draws every desktop that has tiled windows, and "All" every desktop, side by side, each with its own layout. | [`menu-bar.desktops`](/reference/configuration/#desktops): `"current"`, `"occupied"` or `"all"` |
+| Click a desktop to go to it | Whether a click on one of the desktops drawn in the menu bar goes to it. A click on the desktop you are on still opens the menu. The switch is only shown while more than one desktop is drawn. | [`menu-bar.click-to-switch`](/reference/configuration/#click-to-switch) |
+
+If Iguana does not have the Accessibility permission, a notice at the top of this pane says
+so, with an **Open Privacy Settings** button.
+
+## The miniature desktop
+
+The Layout and Animation panes have a miniature of your desktop at the top. It stays in view
+while the settings scroll underneath.
+
+- It shows the windows that are on the current desktop, each with its app's icon. The focused
+  one is outlined.
+- It is laid out by the same engine as the real windows, with the gaps drawn to scale.
+- With fewer than two tiled windows on the desktop, it shows an example with three windows
+  instead.
+
+## Layout
+
+The miniature follows each change as you make it, and so do your real windows. The settings
+are in three groups: Gaps, New windows and Stage Manager.
+
+| Control | What it sets | Config key |
+| --- | --- | --- |
+| Between windows | The gap between neighbouring windows. | [`gaps.inner`](/reference/configuration/#inner) |
+| Around the screen edge | The gap at the edges, one value for all four. | [`gaps.outer`](/reference/configuration/#outer) |
+| Set each edge separately | Replaces the single edge slider with four: Top edge, Left edge, Bottom edge and Right edge. Switching it off again gives all four edges the value of the top one. | [`gaps.outer`](/reference/configuration/#outer) as a table |
+| A new window | "Splits the focused one" or "Joins its row". | [`layout.auto-split`](/reference/configuration/#auto-split) |
+| Resize step | How far one press of grow or shrink moves the divider. | [`layout.resize-step`](/reference/configuration/#resize-step) |
+| Pointer follows focus | Moves the pointer to a window when a shortcut focuses it. | [`layout.mouse-follows-focus`](/reference/configuration/#mouse-follows-focus) |
+| Leave room for the strip of recent apps | "While it shows", "Always" or "Never". Only matters while Stage Manager is on. | [`stage-manager.reserve-strip`](/reference/configuration/#reserve-strip) |
+| Room to leave | How wide a space to leave for the strip. Not shown when the choice is "Never". | [`stage-manager.strip-width`](/reference/configuration/#strip-width), or the number in `reserve-strip` when the choice is "Always" |
+
+## Animation
+
+| Control | What it sets | Config key |
+| --- | --- | --- |
+| Animate window changes | Whether windows glide to their new place or jump. | [`animation.enabled`](/reference/configuration/#enabled) |
+| Duration | How long a window takes to get there. | [`animation.duration`](/reference/configuration/#duration) |
+| Pacing | "Ease out", "Ease in and out" or "Linear". The curve of the one you chose is drawn beside the choice. | [`animation.easing`](/reference/configuration/#easing) |
+
+Duration and Pacing are dimmed while animation is switched off.
+
+**Play a move**, beside the miniature, plays a move in the miniature with the current
+duration and pacing, so you can try a setting before your real windows use it.
+
+While Reduce Motion is on in System Settings, a note says that windows are placed at once
+whatever is chosen here. See [Animation](/guides/animation/).
+
+## Shortcuts
+
+Shortcuts are shown as key caps, using the symbols printed on a Mac keyboard: ⌥ is Option,
+which the config file calls `alt`.
+
+They are laid out as tables:
+
+| Table | Rows | Columns |
+| --- | --- | --- |
+| Directions | Left, Down, Up, Right | Focus, Move, Stack with |
+| Focused window | Grow, Shrink, Even out all sizes, Fill the desktop, Switch between side by side and stacked, Float or tile, Close, Pause tiling | one shortcut each |
+| Desktops | Desktop 1 to Desktop 9, Next desktop, Previous desktop | Go to, Take the window to |
+| Other commands | any command you have given a shortcut that is not in the tables above | one shortcut each |
+
+To change them:
+
+| To | Do this |
+| --- | --- |
+| Change a shortcut | Click it and type the new one. While it waits for the keys it reads "Type shortcut". |
+| Give a command its first shortcut | Click the empty slot, a dashed box with a plus sign, and type it. |
+| Switch a shortcut off | Click it and press <kbd>delete</kbd>. |
+| Cancel | Press <kbd>esc</kbd>. |
+| Give a command a second shortcut | Right-click its shortcut and choose **Add Another Shortcut**. |
+| Remove one of several | Right-click it and choose the **Remove** item, which names its keys. |
+| Bind a command that is not in the tables | Under **Other commands**, type the command, for example `move-to-space 3 --stay`, then choose **Record shortcut** and type the keys. A command Iguana does not understand is reported as you type. |
+| Go back to the built-in set | Choose **Restore built-in shortcuts** at the bottom of the pane. This removes the shortcut entries from the file. The button is dimmed while your shortcuts are the built-in ones. |
+
+Things to know:
+
+- **A shortcut needs at least one modifier.** A key on its own is refused.
+- **Iguana's own shortcuts are suspended while you record one,** so the keys you type reach
+  the window instead of running a command. Recording stops if you switch to another window.
+- **If the keys were already used by another command, they move to the new one.** A notice
+  says which command lost them.
+
+These edit the [`[bindings]`](/reference/configuration/#bindings) section. Switching off a
+built-in shortcut writes it as `""`.
+
+## Floating Windows
+
+One row for each rule, with the app's icon and name and an optional title pattern. A window
+that matches a rule stays where you put it instead of being tiled. With no rules, the pane
+says that nothing floats by rule.
+
+- **Add an App** lists the apps that are running. Choose one to float all of its windows.
+  **Another App…** lets you type an app name or bundle identifier instead.
+- **The title pattern** under the app's name narrows the rule to windows whose title matches.
+  Leave it empty for all of the app's windows.
+- **The minus button** at the end of a row removes that rule.
+
+These edit the [`[[rule]]`](/reference/configuration/#rule) sections. Unlike the other
+panes, a change here writes all the `[[rule]]` sections again, so a comment inside one of
+them is not kept.
+[Floating windows and rules](/guides/floating-windows/) explains how rules match.
+
+- **An exception** (a rule with `float = false`, written in the file) is shown with a
+  "Tiled, as an exception" label and keeps that meaning when you change other rules here.
+  Exceptions are created in the file, because their order matters.
+- **Removing the last rule** leaves no rules at all: every standard window is tiled. The pane
+  writes `rule = []` to say so. Without that line, a file with no rules would fall back to the
+  three built-in ones.
+
+## Related
+
+- [Configuration reference](/reference/configuration/): every key the window can set.
+- [Customising shortcuts](/guides/shortcuts/): the same changes made by hand.

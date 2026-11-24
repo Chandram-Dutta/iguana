@@ -1,0 +1,122 @@
+---
+title: Why Iguana
+description: The design bet behind Iguana, how it differs from other macOS tiling window managers, and what it does not do.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+After this page you will know what Iguana does differently from other tiling window managers
+for macOS, what that buys you, and what you give up.
+
+## What a tiling window manager does
+
+A tiling window manager arranges your windows so that they fill the screen without
+overlapping. When you open a window, the others make room. When you close one, the others
+take the space back. You move between windows and rearrange them from the keyboard.
+
+## The usual approach on macOS
+
+macOS has its own desktops, which Apple calls Spaces. These docs say "desktop" from here on;
+it means the same thing as a Space.
+
+Most macOS tilers, AeroSpace and rift among them, do not use those desktops. They keep all
+windows on one desktop and build their own "virtual workspaces" on top. To show one workspace
+they hide the windows of the others by moving them to a corner of the screen.
+
+That choice has consequences:
+
+- Mission Control is cluttered, because every window is on the one desktop.
+- Slivers of parked windows are left at the edges of the screen.
+- The arrangement is fragile with Stage Manager, native fullscreen and multiple displays.
+
+## The bet Iguana makes
+
+Iguana makes the opposite choice: it works inside macOS and leaves the system in charge of
+which windows are showing.
+
+### Your native desktops are the workspaces
+
+Each desktop on each display keeps its own layout. Iguana switches desktops by pressing
+Mission Control's own shortcuts for you, so trackpad gestures, Mission Control and the
+system's <kbd>ctrl</kbd>+arrow keys keep working and stay in step.
+
+### It only sets the frame of windows that are showing
+
+A window's frame is its position and size. Iguana only ever sets the frame of windows that
+macOS is showing right now. Nothing is hidden and nothing is parked.
+
+Windows that are not showing keep their slot in the layout and take no room until they come
+back. That covers:
+
+- minimised windows,
+- windows of an app you have hidden,
+- windows in another Stage Manager stage,
+- background tabs of a window that uses native tabs. Two native tabs share one tile.
+
+### Nothing to undo
+
+Because Iguana never hides anything, there is nothing to restore when it stops. Quit Iguana,
+or let it crash, and every window is exactly where you see it. Layouts are saved, so they are
+still there when Iguana starts again.
+
+### System Integrity Protection stays on
+
+Iguana needs one permission: Accessibility, which is what lets one app move and resize the
+windows of another. It does not need System Integrity Protection (SIP) switched off for
+anything, including sending a window to another desktop.
+
+### Windows with a minimum size are respected
+
+Some windows refuse to get as small as the slot the layout gives them. Iguana notices,
+remembers the size the window insisted on, and lays out the other windows around it.
+
+## How it compares
+
+| Question | Iguana |
+| --- | --- |
+| What is a workspace? | A native macOS desktop. |
+| How are other workspaces hidden? | macOS switches desktops. Iguana hides nothing. |
+| What happens when the tiler quits? | Nothing moves. |
+| Does SIP have to be changed? | No. |
+| Which permissions does it need? | Accessibility only. |
+| How do layouts work? | One model: a tree of splits that you rearrange. See [How tiling works](/guides/how-tiling-works/). |
+| How is it configured? | One TOML file, by hand or through a settings window. |
+
+**AeroSpace and rift** take the virtual workspace approach described above. Iguana differs
+from them on the first three rows of the table.
+
+**yabai** also works with native desktops. Several of its desktop operations (focusing,
+creating, destroying and reordering desktops, and historically sending windows between them)
+rely on a scripting addition that needs System Integrity Protection partially disabled.
+Iguana needs no SIP changes for anything it does.
+
+**Amethyst** also uses native desktops and needs no SIP changes. It arranges windows with
+automatic layouts that you cycle between. Iguana has a single tree that you shape by hand.
+
+This page says nothing more about either. Their own documentation is the place to check how
+they behave today.
+
+## What Iguana does not do
+
+Working inside macOS has a cost. Be clear about these before you switch:
+
+- **Desktop switches are animated by macOS.** Iguana asks the system to switch, so you get
+  the system's slide. Turning on Reduce Motion in System Settings shortens it to a fade.
+  There is no instant switch.
+- **No stacking or accordion layouts.** Every visible tiled window has its own tile. The one
+  exception is native tabs, which macOS itself puts in one window.
+- **No scratchpad.** There is no hidden holding area for windows, because Iguana does not
+  hide windows at all.
+- **One layout model.** There are no preset layouts to cycle through. You shape the layout
+  with `move`, `join`, `flip` and `resize`.
+- **Rules can only float windows.** A rule cannot send an app to a particular desktop.
+
+<Aside>
+The full list, including the limits that come from macOS itself, is on the
+[Limitations](/help/limitations/) page.
+</Aside>
+
+## Next
+
+- [Install Iguana](/start/install/)
+- [Take the ten minute tour](/start/first-ten-minutes/)

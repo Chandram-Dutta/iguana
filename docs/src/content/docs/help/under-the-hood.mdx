@@ -1,0 +1,121 @@
+---
+title: How it works under the hood
+description: Which macOS interfaces Iguana uses, which of them are undocumented, and why it does not need System Integrity Protection turned off.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+After this page you will know which macOS interfaces Iguana uses, which of them are
+undocumented, and why none of it needs System Integrity Protection (SIP) switched off.
+
+## The one rule
+
+Iguana only ever sets the frame of windows that macOS is showing right now. It never hides a
+window, parks it off screen or moves it to build a workspace. Desktops, Mission Control,
+Stage Manager, fullscreen and minimising stay the system's business.
+
+Everything below follows from that rule.
+
+## What happens when something changes
+
+1. **Something changes.** An app launches or quits, a window opens, closes, moves, is
+   minimised or restored, an app is hidden or shown, the desktop changes or a display is
+   connected. macOS notifies Iguana.
+2. **Iguana looks at what is on screen.** It asks the window server which windows are showing
+   and where, and reads which desktop each display is on.
+3. **It updates the layout trees.** New windows are added next to the last focused window.
+   Windows that no longer exist are removed. Windows that exist but are not showing stay in
+   the tree.
+4. **It computes a frame for every visible tiled window** from the tree of the desktop each
+   display is showing.
+5. **It sets only the frames that differ** from where the windows already are.
+6. **If a window refused its size,** Iguana records the size the window kept and repeats
+   steps 4 and 5 once, around it.
+
+Changes that arrive close together are handled in one pass. While you hold the mouse button
+on a window, Iguana leaves that window alone until you let go.
+
+## Documented interfaces
+
+Most of Iguana is built on interfaces Apple documents.
+
+| Interface | Used for |
+| --- | --- |
+| Accessibility | Reading and setting a window's position and size, being told when windows open, close, move or change, raising a window, pressing its close button. This is what the Accessibility permission allows. |
+| Window list | Asking the window server which windows are on screen right now, and where. Needs no permission. |
+| Hot-key service | Global shortcuts. Needs no extra permission, and only takes the exact combinations that are registered. |
+| Workspace notifications | Being told when apps launch, quit, activate, hide and show, and when the desktop or the displays change. |
+| Synthetic key events | Pressing Mission Control's shortcut to switch desktop. |
+| Synthetic mouse events | Only in the fallback for sending a window to another desktop: holding the window by its title bar. |
+
+Iguana also reads three system preferences: whether Stage Manager is on, whether its strip of
+recent apps hides itself, and which side the Dock is on. It uses them to decide where to
+leave room for the strip.
+
+## Undocumented interfaces
+
+These are the only undocumented system interfaces Iguana uses. Each one either reads information or asks
+the system to do something it already offers you.
+
+| Name | What it does | Kind |
+| --- | --- | --- |
+| `_AXUIElementGetWindow` | Gives the window server's number for a window that Accessibility describes, so the two views of a window can be matched. | Read |
+| `SLSMainConnectionID` | Gives Iguana's own connection to the window server, which the next two calls need. | Read |
+| `SLSCopyManagedDisplaySpaces` | Lists each display, the desktop it is showing and all of its desktops in Mission Control order. | Read |
+| `SLSCopySpacesForWindows` | Says which desktop a window is on. | Read |
+| `CGSGetSymbolicHotKeyValue`, `CGSIsSymbolicHotKeyEnabled` | Look up which keys a Mission Control shortcut is set to, and whether it is switched on. | Read |
+| `CGSSetSymbolicHotKeyEnabled` | Switches a Mission Control shortcut on for half a second when it was off, so that pressing it works, then switches it off again. | Request |
+| `GetProcessForPID`, `_SLPSSetFrontProcessWithOptions`, `SLPSPostEventRecordTo` | Bring one specific window to the front without raising the app's other windows. | Request |
+| `SLSBridgedMoveWindowsToManagedSpaceOperation` | Asks the system's window-management bridge to put a window on another desktop. | Request |
+
+<Aside type="caution">
+Undocumented means Apple can change these without notice. The read-only calls have been
+stable for many macOS releases. The window-management bridge is newer: Iguana checks that it
+is present before using it and falls back to the title bar method when it is not, or when a
+window does not arrive.
+</Aside>
+
+## Why SIP is not needed
+
+System Integrity Protection stops software from modifying protected parts of macOS,
+including the system's own running processes.
+
+Iguana does not need to get past it, because it never changes how the system works:
+
+- **It does not inject code into any system process.** Everything runs inside Iguana's own
+  process.
+- **It hides nothing.** macOS already decides which windows show on each desktop. Iguana
+  reads that decision instead of overriding it.
+- **It switches desktops the way you do,** by pressing Mission Control's shortcut.
+- **It moves a window to another desktop the way the system does,** through the system's own
+  bridge on recent macOS, or the way you would by hand on older systems.
+
+The only permission Iguana asks for is Accessibility.
+
+## What is stored on disk
+
+| Path | Contents |
+| --- | --- |
+| `~/.config/iguana/iguana.toml` | Your settings. Optional. |
+| `~/Library/Application Support/Iguana/state.json` | The layout tree of each desktop, the windows you floated by hand and the minimum sizes Iguana has learned. Written about a second after the layout changes and again when Iguana quits. |
+| `~/Library/Application Support/Iguana/iguana.sock` | The socket for the command line tool. Readable and writable only by you. |
+| `~/Library/Logs/Iguana.log` | The log. |
+| `~/Library/Preferences/xyz.onlychan.iguana.plist` | Whether the welcome tour has been shown. |
+
+The saved state is used again when Iguana restarts, but only if the Mac has not restarted
+since it was saved, because the numbers that identify windows start over at each restart.
+
+## Staying responsive
+
+- **A busy app cannot stall Iguana.** Each request to an app has a short time limit. An app
+  that does not answer in time is skipped for that pass.
+- **Focus requests are checked.** macOS sometimes reports that a window was focused and
+  leaves the focus where it was. Iguana checks shortly afterwards and tries again.
+- **Animation runs per app.** Each app's windows are driven on a separate background queue,
+  frames are paced by the display's refresh, and frames an app cannot keep up with are
+  dropped. See [Animation](/guides/animation/#how-it-stays-smooth).
+
+## Related
+
+- [Limitations](/help/limitations/)
+- [Command line](/reference/command-line/): the socket and the files in more detail.

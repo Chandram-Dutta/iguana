@@ -1,0 +1,133 @@
+---
+title: Desktops and displays
+description: How Iguana uses native macOS desktops as workspaces, how to switch between them and move windows across desktops and displays.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+After this page you will be able to switch desktops, send windows between desktops and
+displays, and know how desktops are numbered when you have more than one display.
+
+## Desktops are the workspaces
+
+macOS lets you keep several desktops and switch between them. Apple's name for a desktop is a
+Space. These docs say "desktop"; in command names you will see `space`, which means the same
+thing.
+
+Iguana does not add a workspace system of its own. Each desktop on each display has its own
+layout, and Iguana tiles whichever desktops are showing. The layouts of desktops that are not
+showing are remembered and are waiting when you come back.
+
+The menu bar item shows the number of the desktop you are on, and its menu shows every
+desktop with its layout. Click one there to go to it.
+
+## How desktops are numbered
+
+Desktops are numbered the way Mission Control names them: "Desktop 1", "Desktop 2" and so on.
+With more than one display the count runs across all displays. If the first display has
+three desktops, the first desktop of the second display is desktop 4.
+
+`iguana list-spaces` shows what each display is showing:
+
+```sh
+iguana list-spaces
+```
+
+```text
+Built-in Retina Display: showing desktop 2 of 5; this display has 3 desktop(s)
+Studio Display: showing desktop 4 of 5; this display has 2 desktop(s)
+```
+
+The display names and numbers above are an example. Yours will differ.
+
+## Switch desktop
+
+In a shortcut, <kbd>alt</kbd> is the Option (⌥) key.
+
+| Keys | Command | What it does |
+| --- | --- | --- |
+| <kbd>alt</kbd>+<kbd>1</kbd> to <kbd>alt</kbd>+<kbd>9</kbd> | `space 1` to `space 9` | Go to that desktop. |
+| not bound | `space next` | Go to the next desktop. |
+| not bound | `space prev` | Go to the previous desktop. |
+
+`space` accepts numbers from 1 to 16.
+
+Iguana switches by pressing Mission Control's own shortcut for you: "Switch to Desktop N", or
+"Move left a space" and "Move right a space" for `prev` and `next`. That has three effects:
+
+- It works whatever keys you gave those shortcuts in System Settings, and also when they are
+  switched off there. Iguana switches a disabled shortcut on just long enough to fire it.
+- macOS plays its slide animation. Turn on Reduce Motion (System Settings, Accessibility,
+  Display) to shorten it to a fade.
+- Gestures, Mission Control and the system's own shortcuts keep working. Whichever way you
+  switch, Iguana sees the same result.
+
+If you ask for a desktop that does not exist, Iguana answers, for example,
+`error: there are only 3 desktops`. Create desktops in Mission Control.
+
+## Send a window to another desktop
+
+| Keys | Command | What it does |
+| --- | --- | --- |
+| <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>1</kbd> to <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>9</kbd> | `move-to-space 1` to `move-to-space 9` | Take the focused window to that desktop and go with it. |
+| not bound | `move-to-space N --stay` | Send the window there and stay where you are. |
+| not bound | `move-to-space next`, `move-to-space prev` | Take it to the next or previous desktop on the same display. `--stay` works here too. |
+
+With `--stay`, the focus goes to the window nearest to where the sent window was.
+
+A window that arrives on a desktop joins the layout there like a newly opened window: it
+splits the window that was last focused on that desktop.
+
+If the desktop you name is on another display, the window is moved to that display.
+
+### Two routes, depending on your macOS
+
+On recent macOS (tested on 27.2), Iguana asks the system's own window-management bridge to
+move the window. That takes a few milliseconds.
+
+On systems without the bridge, or for a window the bridge refuses, Iguana falls back to doing
+what you would do by hand: it holds the window by its title bar and switches desktop. The
+fallback is slower, briefly takes over the mouse pointer, and always follows the window, so
+`--stay` has no effect.
+
+<Aside>
+When the fallback is used, the log says so. See
+[Troubleshooting](/help/troubleshooting/#sending-a-window-to-another-desktop-is-slow).
+</Aside>
+
+A window in a native fullscreen Space cannot be sent to another desktop.
+
+## More than one display
+
+Each display has its own layout for each of its desktops.
+
+- **Move a window to another display** with `move` in that direction. When the window is
+  already at the edge of its layout, the next `move` carries it onto the display on that
+  side. <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>l</kbd> on the rightmost window sends it to the
+  display on the right.
+- **Drag a window** to another display with the mouse. It joins the layout of the display
+  that holds its centre.
+- **Focus across displays** with the `focus` commands. Focus goes by where windows are on
+  screen, so <kbd>alt</kbd>+<kbd>l</kbd> on the rightmost window of one display reaches the
+  nearest window on the display to its right.
+
+`move-to-space next` and `move-to-space prev` count along the desktops of the current
+display. That is the display holding the focused tiled window, or the display under the
+pointer when the focused window is not tiled.
+
+### Displays that share desktops
+
+macOS has a setting called "Displays have separate Spaces". When it is off, all displays
+switch desktops together. Iguana still keeps a separate layout for each display on each
+desktop.
+
+## Fullscreen Spaces are left alone
+
+When an app is in native fullscreen it gets a Space of its own. Iguana does not manage those:
+it does not tile a display while that display is showing a fullscreen Space. See
+[Stage Manager, fullscreen and tabs](/guides/stage-manager-fullscreen-tabs/).
+
+## Related
+
+- [Commands](/reference/commands/#space): exact syntax and replies for `space` and `move-to-space`.
+- [Customising shortcuts](/guides/shortcuts/): bind `--stay`, `next` and `prev`.

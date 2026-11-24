@@ -1,0 +1,103 @@
+---
+title: Stage Manager, fullscreen and native tabs
+description: How Iguana behaves with Stage Manager, native fullscreen, native window tabs, minimised windows and hidden apps.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+After this page you will know what to expect when you use Iguana together with Stage Manager,
+native fullscreen, native tabs, minimising and hiding apps.
+
+One rule covers all of them: Iguana only places windows that macOS is showing right now. A
+window that stops being shown keeps its slot in the layout and takes no room. When it comes
+back, its slot opens again in the same place.
+
+## Minimised windows and hidden apps
+
+Minimise a window, or hide an app with <kbd>cmd</kbd>+<kbd>h</kbd>, and the remaining windows
+on the desktop share the room. Bring it back and it returns to the slot it had, at the share
+it had.
+
+Nothing is closed and nothing is forgotten. `iguana tree` shows such windows marked
+`(not on screen)`.
+
+## Stage Manager
+
+Stage Manager groups windows into stages and shows one stage at a time. To Iguana, the windows
+of the other stages are simply not showing:
+
+- The windows of the current stage are tiled.
+- Windows in other stages keep their slots and take no room.
+- When you switch stage, the windows of the new stage fill the desktop.
+
+All stages on a desktop share one layout tree. Each window still has one slot in it.
+
+### Room for the strip of recent apps
+
+Stage Manager can show a strip of recent apps at the side of the screen. By default Iguana
+leaves room for it, so tiled windows do not sit underneath.
+
+The [`reserve-strip`](/reference/configuration/#reserve-strip) setting controls this:
+
+| Value | Behaviour |
+| --- | --- |
+| `"auto"` (default) | Leave [`strip-width`](/reference/configuration/#strip-width) points free while Stage Manager is on and its strip is set to stay visible. |
+| `true` | Leave `strip-width` points free whenever Stage Manager is on. |
+| `false` | Never leave room. Windows are tiled underneath the strip. |
+| a number | Leave that many points free whenever Stage Manager is on. |
+
+"Set to stay visible" refers to the "Show recent apps in Stage Manager" switch in System
+Settings. With that switch off, the strip only appears when you move the pointer to the edge
+of the screen, and `"auto"` leaves no room for it.
+
+The room is left on the left side of the display, or on the right when the Dock is on the
+left. The default width is 150 points. On a display so narrow that the tiling area would
+shrink to 400 points or less, no room is left.
+
+```toml title="iguana.toml"
+[stage-manager]
+reserve-strip = "auto"
+strip-width = 150
+```
+
+`iguana status` shows what is in effect, for example
+`stage manager: on, leaving 150 pt for the strip`.
+
+## Native fullscreen
+
+A window in native fullscreen (the green button, or <kbd>ctrl</kbd>+<kbd>cmd</kbd>+<kbd>f</kbd>
+in most apps) moves to a Space of its own. Iguana leaves fullscreen windows and fullscreen
+Spaces alone:
+
+- A display showing a fullscreen Space is not tiled.
+- A window that Iguana was already tiling keeps its slot on its original desktop while it is
+  in fullscreen. The slot takes no room. When the window leaves fullscreen it returns to it.
+- A fullscreen window cannot be sent to another desktop with `move-to-space`.
+
+<Aside type="tip" title="Zoom is the lightweight alternative">
+`zoom` (<kbd>alt</kbd>+<kbd>f</kbd>, where <kbd>alt</kbd> is the Option key) makes the
+focused window fill its desktop without leaving it. There is no extra Space and no change to
+the layout underneath.
+</Aside>
+
+## Native tabs
+
+Some apps can merge several windows into one tabbed window, using the tab bar that macOS
+provides. Only the front tab is showing. The other tabs are windows that exist but are not on
+screen.
+
+Iguana treats a tabbed window as one tile:
+
+- A background tab takes no room.
+- When you bring another tab to the front, it takes over the slot of the tab it replaced. The
+  layout does not change.
+
+<Aside>
+This applies to the tab bar macOS provides. Apps that draw their own tabs inside a single
+window, as most browsers do, already are one window, so there is nothing for Iguana to do.
+</Aside>
+
+## Related
+
+- [How tiling works](/guides/how-tiling-works/#windows-that-are-not-showing-keep-their-slot)
+- [Configuration reference: `[stage-manager]`](/reference/configuration/#stage-manager)

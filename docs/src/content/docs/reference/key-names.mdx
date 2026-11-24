@@ -1,0 +1,85 @@
+---
+title: Key names
+description: The modifier names and key names that can be used in an Iguana shortcut.
+---
+
+This page lists every name you can use when writing a shortcut in
+[`[bindings]`](/reference/configuration/#bindings).
+
+## Syntax
+
+A shortcut is one or more modifiers and exactly one key, joined by dashes:
+
+```text
+alt-shift-h
+cmd-ctrl-left
+ctrl-alt-f5
+```
+
+- Names are not case sensitive. `Alt-H` is read as `alt-h`.
+- The order of the modifiers does not matter.
+- At least one modifier is required.
+- A doubled dash at the end means the minus key: `alt--` is `alt-minus`.
+
+## Modifiers
+
+| Name | Key | Also accepted |
+| --- | --- | --- |
+| `alt` | Option (⌥) | `opt`, `option` |
+| `cmd` | Command (⌘) | `command`, `super` |
+| `ctrl` | Control (⌃) | `control` |
+| `shift` | Shift (⇧) | |
+
+## Keys
+
+### Letters and digits
+
+`a` to `z` and `0` to `9`. The digits are the ones in the row above the letters.
+
+### Punctuation
+
+| Name | Key |
+| --- | --- |
+| `minus` | <kbd>-</kbd> |
+| `equal` | <kbd>=</kbd> |
+| `comma` | <kbd>,</kbd> |
+| `period` | <kbd>.</kbd> |
+| `slash` | <kbd>/</kbd> |
+| `backslash` | <kbd>&#92;</kbd> |
+| `semicolon` | <kbd>;</kbd> |
+| `quote` | <kbd>'</kbd> |
+| `backtick` | <kbd>&#96;</kbd> |
+| `leftbracket` | <kbd>[</kbd> |
+| `rightbracket` | <kbd>]</kbd> |
+
+### Editing and navigation
+
+| Name | Key |
+| --- | --- |
+| `space` | Space bar |
+| `tab` | Tab |
+| `return` | Return. `enter` is accepted as another name for the same key. |
+| `delete` | Delete, the key that erases backwards |
+| `esc` | Escape. `escape` is also accepted. |
+| `left` | Left arrow |
+| `right` | Right arrow |
+| `up` | Up arrow |
+| `down` | Down arrow |
+
+### Function keys
+
+`f1` to `f12`.
+
+## Names are positions on a US keyboard
+
+A key name stands for a physical key: the one that carries that character on a US keyboard.
+On another layout, `slash` is still the key in that position, whatever is printed on it.
+
+## When a name is wrong
+
+- An unknown modifier is reported as, for example,
+  `'hyper-h': unknown modifier 'hyper' (use cmd, ctrl, alt, shift)`.
+- A shortcut without a modifier is reported as `a binding needs at least one modifier`.
+- An unknown key is reported as, for example, `binding 'alt-foo': unknown key 'foo'`.
+
+Each is a warning for that one shortcut. `iguana status` lists them.

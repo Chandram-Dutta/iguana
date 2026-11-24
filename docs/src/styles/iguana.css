@@ -1,0 +1,269 @@
+/*
+ * Iguana theme for Starlight.
+ * Everything is set through Starlight's custom properties, plus a few small rules for
+ * headings, key caps, cards and the landing page drawing.
+ */
+
+/* Dark mode (Starlight's default scope). Greys lean towards moss rather than blue. */
+:root,
+::backdrop {
+	--sl-color-accent-low: #12301b;
+	--sl-color-accent: #2f8f47;
+	--sl-color-accent-high: #b9e3b4;
+
+	--sl-color-white: #f4f7f2;
+	--sl-color-gray-1: #e6ebe4;
+	--sl-color-gray-2: #bcc5bc;
+	--sl-color-gray-3: #869288;
+	--sl-color-gray-4: #525d55;
+	--sl-color-gray-5: #333c36;
+	--sl-color-gray-6: #222a25;
+	--sl-color-black: #151b17;
+
+	--sl-color-backdrop-overlay: hsla(140, 13%, 9%, 0.7);
+
+	/* Iguana is a Mac app, so the faces that ship with macOS come first. */
+	--sl-font: -apple-system, BlinkMacSystemFont, 'Helvetica Neue';
+	--sl-font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo;
+	--ig-font-display: 'Avenir Next', Avenir, 'Segoe UI', var(--__sl-font);
+
+	--ig-tile: var(--sl-color-gray-5);
+	--ig-tile-edge: var(--sl-color-gray-4);
+	--ig-radius: 0.375rem;
+}
+
+:root[data-theme='light'],
+[data-theme='light'] ::backdrop {
+	--sl-color-accent-low: #d5ecd3;
+	--sl-color-accent: #23763a;
+	--sl-color-accent-high: #123d1e;
+
+	--sl-color-white: #151b17;
+	--sl-color-gray-1: #222a25;
+	--sl-color-gray-2: #333c36;
+	--sl-color-gray-3: #525d55;
+	--sl-color-gray-4: #7d897f;
+	--sl-color-gray-5: #bcc5bc;
+	--sl-color-gray-6: #e6ebe4;
+	--sl-color-gray-7: #f2f5f0;
+	--sl-color-black: #fcfdfb;
+
+	--sl-color-backdrop-overlay: hsla(140, 15%, 85%, 0.7);
+
+	--ig-tile: var(--sl-color-gray-6);
+	--ig-tile-edge: var(--sl-color-gray-5);
+}
+
+/* Headings and the site title share one display face. */
+h1,
+h2,
+h3,
+h4,
+h5,
+.site-title {
+	font-family: var(--ig-font-display);
+	letter-spacing: -0.01em;
+}
+
+.sl-markdown-content :is(h2, h3, h4) {
+	font-weight: 600;
+}
+
+/* Key caps. Shortcuts are the main thing people look up here, so they get a real shape. */
+.sl-markdown-content kbd {
+	display: inline-block;
+	min-width: 1.6em;
+	/* Starlight spaces out neighbouring blocks; a key cap after another key cap is not one. */
+	margin: 0;
+	padding: 0 0.45em;
+	border: 1px solid var(--ig-tile-edge);
+	border-bottom-width: 2px;
+	border-radius: var(--ig-radius);
+	background: var(--ig-tile);
+	color: var(--sl-color-white);
+	font-family: var(--__sl-font-mono);
+	font-size: 0.8125em;
+	line-height: 1.45;
+	text-align: center;
+	white-space: nowrap;
+}
+
+/* Layout diagrams are drawn with box characters: keep the lines touching. */
+.sl-markdown-content pre.diagram,
+.sl-markdown-content .expressive-code pre[data-language='text'] {
+	line-height: 1.25;
+}
+
+/* Cards sit like tiles: one accent, and the same 8 point gap Iguana uses by default. */
+.card-grid {
+	gap: 0.5rem;
+}
+
+.card {
+	--sl-card-border: var(--sl-color-accent);
+	--sl-card-bg: var(--sl-color-accent-low);
+	border-radius: var(--ig-radius);
+}
+
+.card:nth-child(n) {
+	--sl-card-border: var(--sl-color-accent);
+	--sl-card-bg: var(--sl-color-accent-low);
+}
+
+.card .icon {
+	color: var(--sl-color-text-accent);
+}
+
+/* Tables in the reference pages hold long values; let the first column stay on one line. */
+.sl-markdown-content table td:first-child code {
+	white-space: nowrap;
+}
+
+/* Landing page drawing: a display filling up the way Iguana splits it. */
+.hero .hero-html {
+	width: min(100%, 30rem);
+}
+
+.ig-hero {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+.ig-hero .screen {
+	fill: var(--sl-color-gray-6);
+	stroke: var(--ig-tile-edge);
+	stroke-width: 1.5;
+}
+
+.ig-hero .bar {
+	fill: var(--ig-tile-edge);
+}
+
+.ig-hero .tile {
+	fill: var(--sl-color-black);
+	stroke: var(--sl-color-gray-4);
+	stroke-width: 1.5;
+}
+
+.ig-hero .tile-d {
+	fill: var(--sl-color-accent-low);
+	stroke: var(--sl-color-accent);
+	stroke-width: 2;
+}
+
+.ig-hero .label {
+	fill: var(--sl-color-gray-3);
+	font-family: var(--__sl-font-mono);
+	font-size: 13px;
+}
+
+.ig-hero .label-d {
+	fill: var(--sl-color-text-accent);
+}
+
+/*
+ * One sequence on page load: each new window splits the one before it.
+ * The attributes in the SVG are the final layout, so without animation the drawing is complete.
+ */
+@media (prefers-reduced-motion: no-preference) {
+	.ig-hero .tile-a {
+		animation: ig-a 3.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+	}
+	.ig-hero .tile-b {
+		animation: ig-b 3.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+	}
+	.ig-hero .tile-c {
+		animation: ig-c 3.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+	}
+	.ig-hero .tile-d,
+	.ig-hero .label-d {
+		animation: ig-d 3.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+	}
+	.ig-hero .label-b {
+		animation: ig-fade-b 3.2s linear both;
+	}
+	.ig-hero .label-c {
+		animation: ig-fade-c 3.2s linear both;
+	}
+}
+
+@keyframes ig-a {
+	0%,
+	18% {
+		width: 440px;
+	}
+	36%,
+	100% {
+		width: 216px;
+	}
+}
+
+@keyframes ig-b {
+	0%,
+	18% {
+		opacity: 0;
+		height: 260px;
+	}
+	36%,
+	46% {
+		opacity: 1;
+		height: 260px;
+	}
+	64%,
+	100% {
+		opacity: 1;
+		height: 126px;
+	}
+}
+
+@keyframes ig-c {
+	0%,
+	46% {
+		opacity: 0;
+		width: 216px;
+	}
+	64%,
+	74% {
+		opacity: 1;
+		width: 216px;
+	}
+	92%,
+	100% {
+		opacity: 1;
+		width: 104px;
+	}
+}
+
+@keyframes ig-d {
+	0%,
+	74% {
+		opacity: 0;
+	}
+	92%,
+	100% {
+		opacity: 1;
+	}
+}
+
+@keyframes ig-fade-b {
+	0%,
+	24% {
+		opacity: 0;
+	}
+	36%,
+	100% {
+		opacity: 1;
+	}
+}
+
+@keyframes ig-fade-c {
+	0%,
+	52% {
+		opacity: 0;
+	}
+	64%,
+	100% {
+		opacity: 1;
+	}
+}

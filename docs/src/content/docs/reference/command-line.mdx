@@ -1,0 +1,135 @@
+---
+title: Command line
+description: The iguana command line tool, its subcommands, exit codes and how commands reach the running app.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This page describes the `iguana` command line tool: what each subcommand does, how commands
+reach the running app, and what the exit codes mean.
+
+The tool is the same binary that runs the app. It is inside the app bundle at
+`Iguana.app/Contents/MacOS/iguana`. [Install](/start/install/) shows how to put it on your
+`PATH`.
+
+## Synopsis
+
+```text
+iguana daemon
+iguana config init
+iguana config path
+iguana config check [file]
+iguana settings
+iguana tour
+iguana help
+iguana version
+iguana <command>
+```
+
+## Subcommands
+
+### `iguana daemon`
+
+Runs the window manager. This is what `Iguana.app` does when you open it, so you rarely need
+to type it. If Iguana is already running, it prints `Iguana is already running.` and exits.
+
+### `iguana config`
+
+| Form | What it does |
+| --- | --- |
+| `iguana config init` | Writes the default config file, and `iguana.schema.json` beside it. An existing config file is left untouched. |
+| `iguana config path` | Prints where the config file lives. |
+| `iguana config check [file]` | Checks the config file, or the file you name, the way Iguana would load it, and prints every problem. |
+
+These work whether or not Iguana is running. See
+[Configuration](/reference/configuration/#the-file).
+
+`config check` exits with status 0 when the file loads, with or without warnings, and also
+when there is no file, in which case it says that the built-in settings apply. It exits with
+status 1 when the file cannot be loaded because of a syntax error, or cannot be read.
+
+### `iguana settings`
+
+Opens the [settings window](/guides/settings-window/). This is the
+[`settings`](/reference/commands/#settings) command, sent to the running app like any other,
+so Iguana has to be running.
+
+### `iguana tour`
+
+Shows the [welcome tour](/start/install/#the-welcome-tour) again. This is the
+[`tour`](/reference/commands/#tour) command, so Iguana has to be running.
+
+### `iguana help`
+
+Prints the usage text and the list of commands. `-h` and `--help` do the same.
+
+### `iguana version`
+
+Prints the version number. `--version` does the same.
+
+### `iguana` with no arguments
+
+In a terminal, prints the usage text. When the binary is launched as an app, with no terminal
+attached, it runs the window manager.
+
+## Sending commands
+
+Anything else on the command line is sent to the running app as a
+[command](/reference/commands/):
+
+```sh
+iguana focus left
+iguana resize grow width
+iguana move-to-space 3 --stay
+iguana status
+```
+
+What happens:
+
+1. The tool checks that the command is well formed. If it is not, it prints the reason and
+   stops, without contacting the app.
+2. It sends the command to the running app over a socket in your own Library folder,
+   `~/Library/Application Support/Iguana/iguana.sock`. Only your user account can use it.
+3. The app runs the command and sends back its reply, which the tool prints.
+
+Because every command works this way, anything a shortcut can do can also be scripted.
+
+### Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | The reply did not start with `error`. This includes replies such as `ok: nothing in that direction`. |
+| `1` | The reply started with `error`, or Iguana is not running. |
+| `2` | The command was not well formed, so it was not sent. |
+
+When Iguana is not running the tool prints:
+
+```text
+iguana: the window manager is not running (open Iguana.app or run `iguana daemon`)
+```
+
+## Diagnostics
+
+| Command | Shows |
+| --- | --- |
+| [`iguana status`](/reference/commands/#status) | Whether Iguana is tiling, config problems, how many shortcuts are active, and the last shortcut received with its answer. |
+| [`iguana list-windows`](/reference/commands/#list-windows) | Every window Iguana knows about and how it treats it. |
+| [`iguana tree`](/reference/commands/#tree) | The layout tree of the desktops that are showing. |
+| [`iguana list-spaces`](/reference/commands/#list-spaces) | Which desktop each display is showing. |
+
+The log is at `~/Library/Logs/Iguana.log`. To watch it:
+
+```sh
+tail -f ~/Library/Logs/Iguana.log
+```
+
+## Files Iguana uses
+
+| Path | What it is |
+| --- | --- |
+| `~/.config/iguana/iguana.toml` | The config file. Optional. |
+| `~/.config/iguana/iguana.schema.json` | The schema for editors. Iguana writes it beside the config file whenever it creates or changes that file: `iguana config init`, **Edit Config File** in the menu, or a change in the settings window. |
+| `~/Library/Application Support/Iguana/state.json` | Saved layouts, so they survive a restart of Iguana. |
+| `~/Library/Application Support/Iguana/iguana.sock` | The socket the command line tool talks to. It exists while Iguana runs. |
+| `~/Library/Logs/Iguana.log` | The log. |
+| `~/Library/Preferences/xyz.onlychan.iguana.plist` | Whether the welcome tour has been shown. |

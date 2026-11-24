@@ -1,0 +1,97 @@
+---
+title: Animation
+description: How Iguana animates windows to their new place, how to tune or turn off the animation, and why some apps look choppier than others.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+After this page you will be able to tune how windows move when the layout changes, and you
+will know when turning animation off is the better choice.
+
+## What is animated
+
+When the layout changes, windows glide to their new place instead of jumping. That happens
+when a window opens or closes, when you move, join or flip, when you resize with a shortcut,
+when you zoom, and so on.
+
+Some things are never animated:
+
+- **Arriving on another desktop.** Layout changes that happen as you arrive are applied
+  instantly, so you do not watch windows shuffle after the system's own slide.
+- **Anything while Reduce Motion is on.** If macOS's Reduce Motion setting is on, Iguana's
+  animation is off, whatever the config says.
+- **A window that has only just joined the layout.** A newly opened window is put in its
+  slot at once. The windows that make room for it glide.
+- **Very small changes.** A change of 12 points or less is applied at once.
+
+<Aside>
+The slide between desktops is a different animation. It belongs to macOS, and these settings
+do not affect it. See [Desktops and displays](/guides/desktops-and-displays/#switch-desktop).
+</Aside>
+
+## Settings
+
+```toml title="iguana.toml"
+[animation]
+enabled = true       # windows glide to their new place instead of jumping
+duration = 0.16      # seconds, 0.05 to 1
+easing = "ease-out"  # "linear", "ease-out" or "ease-in-out"
+```
+
+| Key | Default | Allowed | Meaning |
+| --- | --- | --- | --- |
+| `enabled` | `true` | `true`, `false` | Whether windows glide or jump. |
+| `duration` | `0.16` | 0.05 to 1 | Seconds a window takes to reach its new place. |
+| `easing` | `"ease-out"` | `"linear"`, `"ease-out"`, `"ease-in-out"` | How the motion is paced. |
+
+The easings:
+
+- `linear`: constant speed from start to finish.
+- `ease-out`: starts fast and slows into place.
+- `ease-in-out`: starts slowly, speeds up, and slows into place.
+
+The same settings are in the **Animation** pane of the
+[settings window](/guides/settings-window/#animation), where `enabled` is
+**Animate window changes**, `duration` is **Duration** and `easing` is **Pacing**. The pane
+also has a **Play a move** button that plays a move in a miniature of your desktop, so you
+can try a duration and pacing before your real windows use them.
+
+## How it stays smooth
+
+- **Frames are paced by the display's refresh.** Iguana produces one step of the motion per
+  refresh of the display.
+- **Each app is driven on its own background queue.** A slow app cannot hold up the windows
+  of the others.
+- **Frames are dropped, not queued.** When an app cannot keep up, Iguana skips intermediate
+  frames instead of letting them pile up.
+- **Every window ends exactly on its final frame**, however many steps were skipped on the way.
+
+## Why some apps look choppy
+
+macOS gives one app no way to transform another app's window. Iguana cannot slide a picture
+of the window across the screen. For every step of the animation it has to ask the app to
+actually move and resize its window, and the app has to redraw its contents at the new size.
+
+Light apps redraw quickly and look smooth. Heavy apps, such as browsers and Electron apps,
+redraw more slowly and may look choppier.
+
+If that bothers you:
+
+- **Shorten the duration.** A short animation has fewer steps for a slow app to miss.
+
+  ```toml title="iguana.toml"
+  [animation]
+  duration = 0.08
+  ```
+
+- **Turn animation off.** Windows then jump straight to their new place, which is always
+  crisp.
+
+  ```toml title="iguana.toml"
+  [animation]
+  enabled = false
+  ```
+
+## Related
+
+- [Configuration reference: `[animation]`](/reference/configuration/#animation)

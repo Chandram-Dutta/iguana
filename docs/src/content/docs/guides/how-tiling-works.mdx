@@ -1,0 +1,274 @@
+---
+title: How tiling works
+description: The layout tree behind Iguana, how new windows split existing ones, and what move, join, flip and resize do to it.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+After this page you will be able to predict where a new window opens and what `move`, `join`,
+`flip` and `resize` will do to any layout.
+
+## The layout is a tree
+
+Iguana keeps one layout for each desktop on each display. A layout is a tree:
+
+- A **window** is a leaf of the tree. On screen it is a tile.
+- A **container** holds two or more children and divides its area among them. A container is
+  either **horizontal** (its children sit side by side) or **vertical** (its children are
+  stacked top to bottom).
+- Each child has a **share** of its container. Equal shares mean equal sizes.
+
+A child of a container can be a window or another container. This layout:
+
+```text
++----------+----------+
+|          |    B     |
+|    A     +----------+
+|          |    C     |
++----------+----------+
+```
+
+is this tree:
+
+```text
+horizontal
+├─ A
+└─ vertical
+   ├─ B
+   └─ C
+```
+
+`iguana tree` prints the tree of the desktop you are looking at, with each share.
+
+The outermost container starts out horizontal on a display that is wider than it is tall, and
+vertical on a portrait display.
+
+Iguana keeps the tree tidy after every change. A container left with one child is removed and
+the child takes its place. A container never sits directly inside another container that
+splits the same way: its children are moved up into the parent instead. This matters for
+`flip`, below.
+
+## Where a new window opens
+
+A new window opens next to the window that was last focused on that desktop.
+
+With `auto-split` on, which is the default, the new window **splits the focused window along
+its longer side**. A tile that is wider than it is tall is split left and right. A tile that
+is taller than it is wide is split top and bottom. The new window takes the second half: the
+right or the bottom. Each new window therefore takes half of the one before it, and the tiles
+get smaller in a spiral. This is often called a dwindle layout.
+
+```text
+ one window       two              three            four
+
++-----------+    +-----+-----+    +-----+-----+    +-----+-----+
+|           |    |     |     |    |     |  B  |    |     |  B  |
+|     A     |    |  A  |  B  |    |  A  +-----+    |  A  +--+--+
+|           |    |     |     |    |     |  C  |    |     |C |D |
++-----------+    +-----+-----+    +-----+-----+    +-----+--+--+
+```
+
+One detail: if the focused window is already in a row and would be split left and right, the
+new window simply joins that row, to the right of the focused window, with an average share
+of the row. The same goes for a column. No nested container is created for a split that runs
+the same way as the one around it.
+
+With `auto-split` off, a new window always joins the row or column of the focused window, and
+never splits it the other way. See [`layout.auto-split`](/reference/configuration/#auto-split).
+
+When a window closes, its neighbours take its space.
+
+## Move
+
+`move` takes a direction: `left`, `right`, `up` or `down`. It moves the focused window one
+step. What a step means depends on what is in the way.
+
+**Next to another window: the two trade places.** `move down` on B:
+
+```text
++----------+----------+        +----------+----------+
+|          |    B     |        |          |    C     |
+|    A     +----------+   →    |    A     +----------+
+|          |    C     |        |          |    B     |
++----------+----------+        +----------+----------+
+```
+
+**At the edge of its container: it leaves the container on that side.** B has nothing to its
+left inside its column, so `move left` on B takes it out of the column and puts it between A
+and what is left of the column:
+
+```text
++----------+----------+        +------+------+------+
+|          |    B     |        |      |      |      |
+|    A     +----------+   →    |  A   |  B   |  C   |
+|          |    C     |        |      |      |      |
++----------+----------+        +------+------+------+
+```
+
+**Next to a container: it enters the container.** `move right` on A puts A into the column
+on its right, at the end:
+
+```text
++----------+----------+        +---------------------+
+|          |    B     |        |          B          |
+|    A     +----------+   →    +---------------------+
+|          |    C     |        |          C          |
++----------+----------+        +---------------------+
+                               |          A          |
+                               +---------------------+
+```
+
+**Across the whole layout: it takes a full side of the desktop.** In a row of three, nothing
+is above B, so `move up` on B gives it a row of its own across the top:
+
+```text
++------+------+------+        +--------------------+
+|      |      |      |        |         B          |
+|  A   |  B   |  C   |   →    +---------+----------+
+|      |      |      |        |    A    |    C     |
++------+------+------+        +---------+----------+
+```
+
+**At the edge of the display: it goes to the next display.** If there is a display in that
+direction, the window moves onto it and joins the layout there like a newly opened window. If
+there is none, nothing happens and Iguana answers `ok: already at the edge`.
+
+## Join
+
+`join` takes a direction. It puts the focused window and its neighbour on that side into one
+slot, split the other way. Joining sideways stacks the two; joining up or down puts them side
+by side.
+
+`join left` on B:
+
+```text
++------+------+------+        +---------+----------+
+|      |      |      |        |    A    |          |
+|  A   |  B   |  C   |   →    +---------+    C     |
+|      |      |      |        |    B    |          |
++------+------+------+        +---------+----------+
+```
+
+The focused window goes second: below when stacked, on the right when side by side. If the
+neighbour is already a group of windows, the focused window is added to the end of that group.
+
+If there is no neighbour in that direction, Iguana answers `ok: no neighbour in that direction`.
+
+## Flip
+
+`flip` takes the container that holds the focused window and switches it between horizontal
+and vertical.
+
+`flip` with B or C focused:
+
+```text
++----------+----------+        +----------+-----+----+
+|          |    B     |        |          |     |    |
+|    A     +----------+   →    |    A     |  B  | C  |
+|          |    C     |        |          |     |    |
++----------+----------+        +----------+-----+----+
+```
+
+`flip` with A focused flips the outer container, because that is the one that holds A:
+
+```text
++----------+----------+        +---------------------+
+|          |    B     |        |          A          |
+|    A     +----------+   →    |                     |
+|          |    C     |        +---------------------+
++----------+----------+        |          B          |
+                               +---------------------+
+                               |          C          |
+                               +---------------------+
+```
+
+<Aside title="Flipping twice does not always undo">
+In both examples, B and C end up splitting the same way as their parent, so Iguana merges
+them into it. Together they keep the share of the desktop they had, but they are no longer a
+group of their own. Pressing `flip` again with B focused now flips the outer container. To
+get the grouping back, use `join`, then `balance` if you want equal sizes again.
+</Aside>
+
+## Resize
+
+`resize grow` and `resize shrink` change the focused window's share of its container. One
+step is the `resize-step` setting, 5% of the container by default. The neighbours in the same
+container give up or take the difference between them.
+
+By default the command works on the nearest container in which the window has a visible
+neighbour. To pick a direction, add `width` or `height`:
+
+```sh
+iguana resize grow width
+iguana resize shrink height
+```
+
+In the layout below, `resize grow` with B focused makes B taller, because B's nearest
+neighbour is C. `resize grow width` makes the whole right column wider.
+
+```text
++----------+----------+
+|          |    B     |
+|    A     +----------+
+|          |    C     |
++----------+----------+
+```
+
+A window cannot be shrunk below about 8% of its container, and it cannot grow so far that a
+neighbour falls below that.
+
+`balance` sets every share on the desktop back to equal.
+
+### Resizing and swapping with the mouse
+
+- Drag the edge of a tiled window. When you let go, the layout keeps the new proportions.
+- Drag a tiled window and drop it on another tile. The two trade places.
+
+While the mouse button is down, Iguana leaves the window alone.
+
+## Windows that are not showing keep their slot
+
+A window stays in the tree when it stops being shown: when you minimise it, hide its app,
+switch to another Stage Manager stage, or bring another native tab in front of it. Its slot
+closes up and the visible windows share the room. When the window comes back, its slot opens
+again in the same place with the same share.
+
+```text
+ B minimised                    B restored
+
++----------+----------+        +------+------+------+
+|          |          |        |      |      |      |
+|    A     |    C     |   →    |  A   |  B   |  C   |
+|          |          |        |      |      |      |
++----------+----------+        +------+------+------+
+```
+
+Every command skips windows that are not showing. `move left` on C above swaps it with A,
+not with the minimised B.
+
+## Windows that will not shrink
+
+Many windows have a minimum size. When Iguana asks a window to fit its slot and the window
+stays larger, Iguana records the size the window held on to and lays out the desktop again:
+
+- The window gets the room it insists on.
+- The other windows in the same container divide what is left, in proportion to their shares.
+- A container is treated as needing at least the room its children need.
+
+Learned minimum sizes are remembered when Iguana restarts, along with the layouts, so they
+do not have to be found out again. Like the layouts, they are forgotten when the Mac restarts.
+
+If the minimum sizes together are larger than the container, the slots are scaled down
+together so the layout still ends at the edge of the display. A window that still refuses to
+shrink is then larger than its slot.
+
+## Zoom
+
+`zoom` makes the focused window fill the desktop, inside the outer gaps. The layout
+underneath does not change, and the other windows stay in their slots behind the zoomed one.
+`zoom` again puts it back. One window per desktop can be zoomed.
+
+## Related
+
+- [Commands](/reference/commands/): exact syntax and replies.
+- [Floating windows and rules](/guides/floating-windows/): windows that stay out of the tree.

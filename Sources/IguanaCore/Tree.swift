@@ -1,0 +1,427 @@
+import CoreGraphics
+import Foundation
+
+public typealias WindowID = UInt32
+
+public enum Orientation: String, Codable, Equatable {
+    case horizontal, vertical
+    public var flipped: Orientation { self == .horizontal ? .vertical : .horizontal }
+}
+
+public enum Direction: String, CaseIterable, Equatable {
+    case left, right, up, down
+    public var orientation: Orientation { self == .left || self == .right ? .horizontal : .vertical }
+    public var isForward: Bool { self == .right || self == .down }
+}
+
+/// A node is either a window leaf or a container that splits its area among its children.
+public final class Node {
+    public enum Kind: Equatable {
+        case window(WindowID)
+        case container(Orientation)
+    }
+
+    public fileprivate(set) var kind: Kind
+    /// Share of the parent's area, relative to the sibling weights.
+    public fileprivate(set) var weight: Double
+    public fileprivate(set) var children: [Node] = []
+    public fileprivate(set) weak var parent: Node?
+
+    fileprivate init(window: WindowID, weight: Double = 1) {
+        kind = .window(window)
+        self.weight = weight
+    }
+
+    fileprivate init(container: Orientation, weight: Double = 1) {
+        kind = .container(container)
+        self.weight = weight
+    }
+
+    public var windowID: WindowID? {
+        if case .window(let id) = kind { return id }
+        return nil
+    }
+
+    public var orientation: Orientation? {
+        if case .container(let o) = kind { return o }
+        return nil
+    }
+
+    fileprivate var index: Int? { parent?.children.firstIndex { $0 === self } }
+
+    fileprivate var meanChildWeight: Double {
+        children.isEmpty ? 1 : children.reduce(0) { $0 + $1.weight } / Double(children.count)
+    }
+
+    fileprivate func insert(_ child: Node, at i: Int) {
+        child.parent = self
+        children.insert(child, at: min(max(i, 0), children.count))
+    }
+
+    fileprivate func append(_ child: Node) { insert(child, at: children.count) }
+
+    fileprivate func detach() {
+        parent?.children.removeAll { $0 === self }
+        parent = nil
+    }
+
+    public func leaves() -> [WindowID] {
+        if let id = windowID { return [id] }
+        return children.flatMap { $0.leaves() }
+    }
+
+    fileprivate func find(_ id: WindowID) -> Node? {
+        if windowID == id { return self }
+        for c in children { if let n = c.find(id) { return n } }
+        return nil
+    }
+}
+
+public struct NodeSnapshot: Codable, Equatable {
+    public var window: WindowID?
+    public var orientation: Orientation?
+    public var weight: Double
+    public var children: [NodeSnapshot]?
+}
+
+public enum ShareChange {
+    /// Add this fraction of the container to the window's share (0.05 = five percent).
+    case delta(Double)
+    /// Multiply the window's share by this factor.
+    case ratio(Double)
+}
+
+/// The tiling tree of one Space on one display.
+///
+/// Windows that are currently not on screen (minimised, hidden app, another Stage Manager stage,
+/// a background native tab) stay in the tree and keep their slot. Every operation that depends on
+/// what the user can see takes a `visible` set and skips the rest.
+public final class Tree {
+    public private(set) var root: Node
+    /// Last focused window of this tree. New windows open next to it.
+    public var focused: WindowID?
+
+    public init(orientation: Orientation = .horizontal) {
+        root = Node(container: orientation)
+    }
+
+    public var windows: [WindowID] { root.leaves() }
+    public var isEmpty: Bool { root.children.isEmpty }
+
+    public func contains(_ id: WindowID) -> Bool { root.find(id) != nil }
+
+    func node(_ id: WindowID) -> Node? { root.find(id) }
+
+    public func hasVisible(_ node: Node, _ visible: Set<WindowID>?) -> Bool {
+        guard let visible else { return node.windowID != nil || node.children.contains { hasVisible($0, nil) } }
+        if let id = node.windowID { return visible.contains(id) }
+        return node.children.contains { hasVisible($0, visible) }
+    }
+
+    // MARK: Insert / remove
+
+    /// Insert a window next to `anchor` (or at the end of the root).
+    /// - `split`: when it differs from the orientation of the anchor's container, the anchor's slot
+    ///   is split in that orientation instead of widening the container (dwindle behaviour).
+    /// - `sameSlot`: the new window shares the anchor's slot, used when one window replaces
+    ///   another on screen (native tabs).
+    @discardableResult
+    public func insert(_ id: WindowID, after anchor: WindowID? = nil, split: Orientation? = nil, sameSlot: Bool = false) -> Bool {
+        guard !contains(id) else { return false }
+        guard let anchor, let an = node(anchor), let p = an.parent, let i = an.index else {
+            root.append(Node(window: id, weight: root.meanChildWeight))
+            return true
+        }
+        if sameSlot {
+            p.insert(Node(window: id, weight: an.weight), at: i + 1)
+            return true
+        }
+        if let split, split != p.orientation {
+            if p.children.count == 1 {
+                p.kind = .container(split)
+                p.insert(Node(window: id, weight: an.weight), at: i + 1)
+            } else {
+                let c = Node(container: split, weight: an.weight)
+                an.detach()
+                p.insert(c, at: i)
+                an.weight = 1
+                c.append(an)
+                c.append(Node(window: id))
+            }
+            normalize()
+            return true
+        }
+        p.insert(Node(window: id, weight: p.meanChildWeight), at: i + 1)
+        return true
+    }
+
+    @discardableResult
+    public func remove(_ id: WindowID) -> Bool {
+        guard let n = node(id) else { return false }
+        n.detach()
+        normalize()
+        if focused == id { focused = nil }
+        return true
+    }
+
+    /// Drop every window for which `keep` returns false.
+    public func prune(keeping keep: (WindowID) -> Bool) {
+        for id in windows where !keep(id) { remove(id) }
+    }
+
+    // MARK: Structure changes
+
+    /// Exchange the slots of two windows.
+    @discardableResult
+    public func swap(_ a: WindowID, _ b: WindowID) -> Bool {
+        guard a != b, let na = node(a), let nb = node(b) else { return false }
+        let k = na.kind
+        na.kind = nb.kind
+        nb.kind = k
+        return true
+    }
+
+    /// Move a window one step in a direction, i3 style: swap with a neighbouring window, enter a
+    /// neighbouring container, or leave the current container towards that side.
+    @discardableResult
+    public func move(_ id: WindowID, _ dir: Direction, visible: Set<WindowID>? = nil) -> Bool {
+        guard let w = node(id) else { return false }
+        let axis = dir.orientation
+        let step = dir.isForward ? 1 : -1
+
+        var branch = w
+        while let p = branch.parent {
+            if p.orientation == axis, let i = branch.index,
+               let j = nextVisibleIndex(in: p, from: i, step: step, visible: visible) {
+                if branch === w {
+                    let neighbor = p.children[j]
+                    if let no = neighbor.orientation {
+                        w.detach()
+                        w.weight = neighbor.meanChildWeight
+                        if no == axis && dir.isForward { neighbor.insert(w, at: 0) } else { neighbor.append(w) }
+                    } else {
+                        let k = w.kind
+                        w.kind = neighbor.kind
+                        neighbor.kind = k
+                    }
+                } else {
+                    w.detach()
+                    w.weight = p.meanChildWeight
+                    let bi = branch.index ?? i
+                    p.insert(w, at: dir.isForward ? bi + 1 : bi)
+                }
+                normalize()
+                return true
+            }
+            branch = p
+        }
+
+        // Already at the outer edge of every container along this axis.
+        if w.parent === root && root.orientation == axis { return false }
+        if w.parent === root && root.children.filter({ hasVisible($0, visible) }).count <= 1 { return false }
+        w.detach()
+        if root.orientation == axis {
+            w.weight = root.meanChildWeight
+            if dir.isForward { root.append(w) } else { root.insert(w, at: 0) }
+        } else {
+            let old = root
+            let newRoot = Node(container: axis)
+            root = newRoot
+            old.weight = 1
+            w.weight = 1
+            if dir.isForward {
+                newRoot.append(old)
+                newRoot.append(w)
+            } else {
+                newRoot.append(w)
+                newRoot.append(old)
+            }
+        }
+        normalize()
+        return true
+    }
+
+    /// Put the window and its neighbour in `dir` into a shared container that splits the other way.
+    @discardableResult
+    public func join(_ id: WindowID, with dir: Direction, visible: Set<WindowID>? = nil) -> Bool {
+        guard let w = node(id) else { return false }
+        let axis = dir.orientation
+        let step = dir.isForward ? 1 : -1
+        var branch = w
+        while let p = branch.parent {
+            if p.orientation == axis, let i = branch.index,
+               let j = nextVisibleIndex(in: p, from: i, step: step, visible: visible) {
+                let neighbor = p.children[j]
+                w.detach()
+                if neighbor.orientation != nil {
+                    w.weight = neighbor.meanChildWeight
+                    neighbor.append(w)
+                } else {
+                    guard let ni = neighbor.index else { return false }
+                    let c = Node(container: axis.flipped, weight: neighbor.weight)
+                    neighbor.detach()
+                    p.insert(c, at: ni)
+                    neighbor.weight = 1
+                    w.weight = 1
+                    c.append(neighbor)
+                    c.append(w)
+                }
+                normalize()
+                return true
+            }
+            branch = p
+        }
+        return false
+    }
+
+    /// Flip the split direction of the container that holds the window.
+    @discardableResult
+    public func flip(_ id: WindowID) -> Bool {
+        guard let p = node(id)?.parent, let o = p.orientation else { return false }
+        p.kind = .container(o.flipped)
+        normalize()
+        return true
+    }
+
+    /// Change how much of its container a window takes. With `axis == nil` the nearest container
+    /// that has more than one visible child is used.
+    @discardableResult
+    public func changeShare(of id: WindowID, along axis: Orientation? = nil, _ change: ShareChange, visible: Set<WindowID>? = nil) -> Bool {
+        guard var branch = node(id) else { return false }
+        while let p = branch.parent {
+            let vis = p.children.filter { hasVisible($0, visible) }
+            if axis == nil || p.orientation == axis, vis.count > 1, vis.contains(where: { $0 === branch }) {
+                let total = vis.reduce(0) { $0 + $1.weight }
+                let share = branch.weight / total
+                var target: Double
+                switch change {
+                case .delta(let d): target = share + d
+                case .ratio(let r): target = share * r
+                }
+                let floor = min(0.08, 1 / Double(vis.count * 2))
+                target = min(max(target, floor), 1 - floor * Double(vis.count - 1))
+                branch.weight = target / (1 - target) * (total - branch.weight)
+                let sum = p.children.reduce(0) { $0 + $1.weight }
+                let scale = Double(p.children.count) / sum
+                for c in p.children { c.weight *= scale }
+                return true
+            }
+            branch = p
+        }
+        return false
+    }
+
+    /// Give every window an equal share again.
+    public func balance() {
+        func walk(_ n: Node) {
+            n.weight = 1
+            n.children.forEach(walk)
+        }
+        walk(root)
+    }
+
+    // MARK: Internals
+
+    private func nextVisibleIndex(in p: Node, from i: Int, step: Int, visible: Set<WindowID>?) -> Int? {
+        var j = i + step
+        while p.children.indices.contains(j) {
+            if hasVisible(p.children[j], visible) { return j }
+            j += step
+        }
+        return nil
+    }
+
+    /// Keep the tree canonical: no empty containers, no single-child containers, and no container
+    /// nested in a parent that splits the same way.
+    func normalize() {
+        normalize(root)
+        while root.children.count == 1, let only = root.children.first, only.orientation != nil {
+            only.detach()
+            only.weight = 1
+            root = only
+        }
+    }
+
+    private func normalize(_ node: Node) {
+        guard let orientation = node.orientation else { return }
+        for c in node.children { normalize(c) }
+        var i = 0
+        while i < node.children.count {
+            let c = node.children[i]
+            guard let co = c.orientation else {
+                i += 1
+                continue
+            }
+            if c.children.isEmpty {
+                c.detach()
+                continue
+            }
+            if c.children.count == 1 {
+                let only = c.children[0]
+                only.detach()
+                only.weight = c.weight
+                c.detach()
+                node.insert(only, at: i)
+                continue
+            }
+            if co == orientation {
+                let kids = c.children
+                let total = kids.reduce(0) { $0 + $1.weight }
+                c.detach()
+                for (k, kid) in kids.enumerated() {
+                    kid.detach()
+                    kid.weight = c.weight * kid.weight / total
+                    node.insert(kid, at: i + k)
+                }
+                continue
+            }
+            i += 1
+        }
+    }
+
+    // MARK: Persistence and debugging
+
+    public var snapshot: NodeSnapshot {
+        func snap(_ n: Node) -> NodeSnapshot {
+            NodeSnapshot(window: n.windowID, orientation: n.orientation, weight: n.weight,
+                         children: n.orientation == nil ? nil : n.children.map(snap))
+        }
+        return snap(root)
+    }
+
+    public convenience init(snapshot: NodeSnapshot) {
+        self.init(orientation: snapshot.orientation ?? .horizontal)
+        func build(_ s: NodeSnapshot) -> Node? {
+            if let id = s.window { return Node(window: id, weight: s.weight > 0 ? s.weight : 1) }
+            guard let o = s.orientation else { return nil }
+            let n = Node(container: o, weight: s.weight > 0 ? s.weight : 1)
+            for c in s.children ?? [] { if let child = build(c) { n.append(child) } }
+            return n
+        }
+        var seen = Set<WindowID>()
+        for c in snapshot.children ?? [] {
+            if let child = build(c) { root.append(child) }
+        }
+        // A snapshot from disk is untrusted: drop duplicate window ids.
+        for id in windows {
+            if !seen.insert(id).inserted, let n = node(id) { n.detach() }
+        }
+        normalize()
+    }
+
+    public func describe(label: (WindowID) -> String = { "window \($0)" }) -> String {
+        var lines: [String] = []
+        func walk(_ n: Node, _ depth: Int) {
+            let pad = String(repeating: "  ", count: depth)
+            let share = String(format: "%.2f", n.weight)
+            if let id = n.windowID {
+                lines.append("\(pad)- \(label(id))  [weight \(share)]")
+            } else if let o = n.orientation {
+                lines.append("\(pad)\(o.rawValue)  [weight \(share)]")
+                n.children.forEach { walk($0, depth + 1) }
+            }
+        }
+        walk(root, 0)
+        return lines.joined(separator: "\n")
+    }
+}

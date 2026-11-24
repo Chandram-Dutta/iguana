@@ -1,0 +1,211 @@
+// Checks that the reference pages cover everything in the Swift source, with matching values.
+// Run with `npm run check`. It only reads ../Sources; it never writes outside docs/.
+//
+//   commands      Command.usage and Command.parse   -> reference/commands.mdx
+//   config keys   Config.defaultText and Config.load -> reference/configuration.mdx
+//   shortcuts     the [bindings] of defaultText      -> reference/default-shortcuts.mdx
+//   key names     Hotkeys.keyCodes, KeyCombo.parse   -> reference/key-names.mdx
+//   schema        Config.jsonSchema                  -> public/schema/iguana.schema.json
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const source = (path) => readFileSync(resolve(here, '../../Sources', path), 'utf8');
+const page = (path) => readFileSync(resolve(here, '../src/content/docs', path), 'utf8');
+
+const commandSwift = source('IguanaCore/Command.swift');
+const configSwift = source('IguanaCore/Config.swift');
+const schemaSwift = source('IguanaCore/Schema.swift');
+const hotkeysSwift = source('iguana/Hotkeys.swift');
+
+const commandsPage = page('reference/commands.mdx');
+const configPage = page('reference/configuration.mdx');
+const shortcutsPage = page('reference/default-shortcuts.mdx');
+const keysPage = page('reference/key-names.mdx');
+
+const failures = [];
+let checks = 0;
+function expect(ok, message) {
+	checks += 1;
+	if (!ok) failures.push(message);
+}
+
+/** The text of a Swift multi-line string literal, with its indentation removed. */
+function literal(swift, name) {
+	const match = swift.match(new RegExp(`static let ${name} = """\\n([\\s\\S]*?)\\n\\s*"""`));
+	if (!match) throw new Error(`no literal named ${name}`);
+	const lines = match[1].split('\n');
+	const indent = Math.min(...lines.filter((l) => l.trim()).map((l) => l.match(/^ */)[0].length));
+	return lines.map((l) => l.slice(indent)).join('\n');
+}
+
+/** The part of a page from a heading up to the next heading of the same or a higher level. */
+function section(text, heading) {
+	const lines = text.split('\n');
+	const start = lines.indexOf(heading);
+	if (start < 0) return null;
+	const level = heading.match(/^#+/)[0].length;
+	const body = [];
+	let fenced = false;
+	for (const line of lines.slice(start + 1)) {
+		if (line.trimStart().startsWith('```')) fenced = !fenced;
+		// A line starting with # inside a code block is a comment, not a heading.
+		const hashes = fenced ? null : line.match(/^(#+) /);
+		if (hashes && hashes[1].length <= level) break;
+		body.push(line);
+	}
+	return body.join('\n');
+}
+
+// ---- Commands -----------------------------------------------------------------------------
+
+const usage = literal(commandSwift, 'usage');
+const usageCommands = new Set();
+const usageWords = new Set();
+for (const line of usage.split('\n')) {
+	const grammar = line.split(/\s{2,}/)[0];
+	if (grammar.includes(' | ')) {
+		for (const name of grammar.split(' | ')) usageCommands.add(name.trim());
+		continue;
+	}
+	const [name, ...args] = grammar.split(' ');
+	usageCommands.add(name);
+	for (const arg of args) for (const word of arg.replace(/[\[\]]/g, '').split('|')) usageWords.add(word);
+}
+usageWords.delete('N');
+
+const parseBody = commandSwift.slice(commandSwift.indexOf('switch name {'), commandSwift.indexOf('public enum Modifier'));
+const parsedCommands = new Set([...parseBody.matchAll(/case "([a-z-]+)": return/g)].map((m) => m[1]));
+parsedCommands.add('resize'); // its case spans several lines
+
+for (const name of parsedCommands) expect(usageCommands.has(name), `Command.parse accepts '${name}' but Command.usage does not list it`);
+for (const name of new Set([...usageCommands, ...parsedCommands])) {
+	const body = section(commandsPage, `### \`${name}\``);
+	expect(body !== null, `commands.mdx has no "### \`${name}\`" section`);
+	expect(commandsPage.includes(`[\`${name}\`](#${name})`), `commands.mdx: '${name}' is missing from the At a glance table`);
+}
+for (const word of usageWords) expect(commandsPage.includes(word), `commands.mdx never mentions the argument '${word}'`);
+// Every usage line is quoted as a grammar line under its command.
+for (const line of usage.split('\n')) {
+	const grammar = line.split(/\s{2,}/)[0];
+	if (grammar.includes(' | ')) continue;
+	expect(commandsPage.includes(`\n${grammar}\n`), `commands.mdx does not show the grammar line "${grammar}"`);
+}
+// The range of desktop numbers.
+const range = commandSwift.match(/n >= (\d+), n <= (\d+)/);
+expect(range && commandsPage.includes(`from ${range[1]} to ${range[2]}`), 'commands.mdx: the Space number range does not match Command.parse');
+
+// ---- Config keys --------------------------------------------------------------------------
+
+const defaults = literal(configSwift, 'defaultText');
+expect(configPage.includes('```toml title="~/.config/iguana/iguana.toml"\n' + defaults + '\n```'),
+	'configuration.mdx: the default file block is not identical to Config.defaultText');
+
+let current = null;
+const bindings = [];
+const settings = [];
+for (const raw of defaults.split('\n')) {
+	const line = raw.trim();
+	const table = line.match(/^\[\[?([a-z-]+)\]?\]$/);
+	if (table) {
+		current = table[1];
+		const heading = current === 'rule' ? '## `[[rule]]`' : `## \`[${current}]\``;
+		expect(section(configPage, heading) !== null, `configuration.mdx has no "${heading}" section`);
+		continue;
+	}
+	const pair = line.match(/^([a-z0-9-]+) = ("[^"]*"|[^\s#]+)/);
+	if (!pair || !current) continue;
+	if (current === 'bindings') bindings.push([pair[1], JSON.parse(pair[2])]);
+	else settings.push([current, pair[1], pair[2]]);
+}
+
+for (const [table, key, value] of settings) {
+	const heading = table === 'rule' ? '## `[[rule]]`' : `## \`[${table}]\``;
+	const body = section(section(configPage, heading) ?? '', `### \`${key}\``);
+	expect(body !== null, `configuration.mdx: no "### \`${key}\`" under ${heading}`);
+	if (body === null || table === 'rule') continue;
+	expect(body.includes(`| Default | \`${value}\` |`), `configuration.mdx: ${table}.${key} should show the default ${value}`);
+}
+expect(settings.length >= 10, 'expected at least ten settings in Config.defaultText');
+
+// Every key Config.load accepts is documented.
+for (const [, list] of configSwift.matchAll(/checkKeys\(\w+, \[([^\]]+)\]/g)) {
+	for (const [, key] of list.matchAll(/"([a-z-]+)"/g)) {
+		expect(configPage.includes(`\`${key}\``) || configPage.includes(`\`[${key}]\``) || configPage.includes(`\`[[${key}]]\``),
+			`configuration.mdx never mentions the key '${key}'`);
+	}
+}
+
+// Ranges checked by the `number` helper.
+for (const [, name, min, max] of configSwift.matchAll(/number\([^,]+, "([a-z.-]+)", min: ([\d.]+), max: ([\d.]+)\)/g)) {
+	const [table, key] = name.split('.');
+	const body = section(section(configPage, `## \`[${table}]\``) ?? '', `### \`${key}\``) ?? '';
+	expect(body.includes(`${min} to ${max}`), `configuration.mdx: ${name} should give the range ${min} to ${max}`);
+}
+// Ranges written out by hand in Config.load.
+const manual = [
+	['layout', 'resize-step', /d > 0, d <= 0\.5/, 'greater than 0, up to 0.5'],
+	['animation', 'duration', /d >= 0\.05, d <= 1/, '0.05 to 1'],
+	['stage-manager', 'reserve-strip', /d >= 0, d <= 600/, '0 to 600'],
+];
+for (const [table, key, pattern, text] of manual) {
+	expect(pattern.test(configSwift), `Config.load no longer checks ${table}.${key} the way this script expects`);
+	const body = section(section(configPage, `## \`[${table}]\``) ?? '', `### \`${key}\``) ?? '';
+	expect(body.includes(text), `configuration.mdx: ${table}.${key} should say "${text}"`);
+}
+for (const value of ['linear', 'ease-out', 'ease-in-out']) {
+	expect(configSwift.includes(value) && (section(configPage, '### `easing`') ?? '').includes(`"${value}"`),
+		`configuration.mdx: easing should list "${value}"`);
+}
+
+// ---- Default shortcuts --------------------------------------------------------------------
+
+for (const [keys, command] of bindings) {
+	expect(new RegExp(`\\| \`${keys}\` \\| \`${command}\` \\|`).test(shortcutsPage),
+		`default-shortcuts.mdx: missing or wrong row for ${keys} = "${command}"`);
+}
+const documentedRows = [...shortcutsPage.matchAll(/\| `((?:alt|cmd|ctrl|shift)-[a-z0-9-]+)` \| `([^`]+)` \|/g)];
+expect(documentedRows.length === bindings.length,
+	`default-shortcuts.mdx lists ${documentedRows.length} shortcuts, Config.defaultText has ${bindings.length}`);
+expect(configPage.includes(`The ${bindings.length} [default shortcuts]`), `configuration.mdx should say there are ${bindings.length} default shortcuts`);
+
+// ---- Key names ----------------------------------------------------------------------------
+
+const keyTable = hotkeysSwift.slice(hotkeysSwift.indexOf('keyCodes: [String: Int] = ['), hotkeysSwift.indexOf('init()'));
+const keyNames = [...keyTable.matchAll(/"([a-z0-9]+)": \d+/g)].map((m) => m[1]);
+expect(keyNames.length > 60, 'could not read Hotkeys.keyCodes');
+const letters = keyNames.filter((k) => /^[a-z]$/.test(k));
+const digits = keyNames.filter((k) => /^[0-9]$/.test(k));
+const functionKeys = keyNames.filter((k) => /^f\d+$/.test(k)).map((k) => Number(k.slice(1)));
+expect(letters.length === 26 && keysPage.includes('`a` to `z`'), 'key-names.mdx: letters a to z');
+expect(digits.length === 10 && keysPage.includes('`0` to `9`'), 'key-names.mdx: digits 0 to 9');
+expect(keysPage.includes(`\`f1\` to \`f${Math.max(...functionKeys)}\``) && functionKeys.length === Math.max(...functionKeys),
+	'key-names.mdx: the function key range does not match Hotkeys.keyCodes');
+for (const name of keyNames.filter((k) => k.length > 1 && !/^f\d+$/.test(k))) {
+	expect(keysPage.includes(`\`${name}\``), `key-names.mdx never mentions the key '${name}'`);
+}
+const comboBody = commandSwift.slice(commandSwift.indexOf('for p in modParts'));
+for (const [, list] of comboBody.matchAll(/case ((?:"[a-z]+",? ?)+): mods\.insert/g)) {
+	for (const [, modifier] of list.matchAll(/"([a-z]+)"/g)) {
+		expect(keysPage.includes(`\`${modifier}\``), `key-names.mdx never mentions the modifier '${modifier}'`);
+	}
+}
+
+// ---- Schema -------------------------------------------------------------------------------
+
+const schema = literal(schemaSwift, 'jsonSchema').replaceAll('\\\\', '\\');
+const published = readFileSync(resolve(here, '../public/schema/iguana.schema.json'), 'utf8');
+expect(published.trim() === schema.trim(), 'public/schema/iguana.schema.json differs from Config.jsonSchema (run `npm run schema`)');
+
+// ---- Result -------------------------------------------------------------------------------
+
+if (failures.length > 0) {
+	console.error(`check-coverage: ${failures.length} of ${checks} checks failed`);
+	for (const f of failures) console.error('  ' + f);
+	process.exit(1);
+}
+console.log(
+	`check-coverage: ${checks} checks passed ` +
+		`(${usageCommands.size} commands, ${settings.length} settings, ${bindings.length} default shortcuts, ${keyNames.length} key names, schema)`
+);

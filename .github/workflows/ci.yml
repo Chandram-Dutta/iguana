@@ -1,0 +1,48 @@
+# Every push and pull request: the app builds and its tests pass, and the documentation
+# builds and still matches the code.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    name: Build and test
+    # Xcode 27: the settings window and the tour use system glass, which needs the macOS 26 SDK or later.
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v5
+      - name: Toolchain
+        run: swift --version
+      - name: Build
+        run: swift build
+      - name: Test
+        run: swift test
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - run: npm ci
+      # Commands, settings, shortcuts and key names in the docs must match the Swift source.
+      - run: npm run check
+      # The build also checks every internal link.
+      - run: npm run build

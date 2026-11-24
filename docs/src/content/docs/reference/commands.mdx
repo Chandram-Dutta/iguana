@@ -1,0 +1,437 @@
+---
+title: Commands
+description: Every Iguana command, its arguments and what it replies.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This page lists every command Iguana understands, with its arguments and its replies.
+
+## Running a command
+
+A command can be run in two ways:
+
+- **From a shortcut.** The right-hand side of an entry in
+  [`[bindings]`](/reference/configuration/#bindings) is a command.
+- **From a terminal.** Put `iguana` in front of it: `iguana focus left`. See
+  [Command line](/reference/command-line/).
+
+Commands are written in lower case, with single words separated by spaces. Upper case is
+accepted and treated as lower case.
+
+### Replies
+
+Every command answers with one line, or with a report.
+
+- `ok` means the command did what it says.
+- `ok: …` means there was nothing to do, and says why. For example `ok: nothing in that direction`.
+- `error: …` means the command could not run, and says why.
+
+In a terminal the reply is printed. For a shortcut, the last reply is shown by
+[`status`](#status), and replies that start with `error` are written to the log.
+
+### Before the permission is granted
+
+Until Iguana has the Accessibility permission, only `status`, `reload`, `settings`, `tour` and
+`quit` work. Every other command replies:
+
+```text
+error: Iguana needs Accessibility permission (System Settings > Privacy & Security > Accessibility)
+```
+
+## At a glance
+
+| Command | What it does |
+| --- | --- |
+| [`focus`](#focus) | Focus the window in a direction. |
+| [`move`](#move) | Move the focused window within the layout, or to the next display. |
+| [`join`](#join) | Stack the focused window with its neighbour. |
+| [`resize`](#resize) | Grow or shrink the focused window. |
+| [`flip`](#flip) | Switch the focused container between side-by-side and stacked. |
+| [`balance`](#balance) | Give every window an equal share again. |
+| [`float`](#float) | Toggle tiling for the focused window. |
+| [`zoom`](#zoom) | Toggle the focused window filling the desktop. |
+| [`close`](#close) | Close the focused window. |
+| [`space`](#space) | Switch to a desktop. |
+| [`move-to-space`](#move-to-space) | Take or send the focused window to a desktop. |
+| [`pause`](#pause) | Toggle tiling on or off. |
+| [`reload`](#reload) | Reload the config file. |
+| [`settings`](#settings) | Open the settings window. |
+| [`tour`](#tour) | Show the welcome tour again. |
+| [`list-windows`](#list-windows) | List the windows Iguana knows about. |
+| [`list-spaces`](#list-spaces) | Show which desktop each display is showing. |
+| [`tree`](#tree) | Print the layout tree. |
+| [`status`](#status) | Show whether Iguana is tiling, and any problems. |
+| [`quit`](#quit) | Quit Iguana. |
+
+## Windows
+
+Most of these act on the focused window and need it to be tiled. When it is not, they reply
+`error: the focused window is not tiled`.
+
+### `focus`
+
+```text
+focus left|right|up|down
+```
+
+Focuses the nearest window in that direction.
+
+"Nearest" is judged by where windows are on screen, not by the layout tree. Floating windows
+count. Windows that line up with the focused one are preferred over windows that are only
+diagonally in that direction. Across displays, focus moves to the nearest window on the next
+display.
+
+If no window is focused, the frontmost window on the desktop is focused instead.
+
+| Reply | When |
+| --- | --- |
+| `ok` | A window was focused. |
+| `ok: nothing in that direction` | There is no window that way. |
+| `ok: no windows here` | There are no windows on screen. |
+
+With [`mouse-follows-focus`](/reference/configuration/#mouse-follows-focus) on, the pointer
+moves to the centre of the newly focused window.
+
+### `move`
+
+```text
+move left|right|up|down
+```
+
+Moves the focused window one step in the layout: it trades places with a neighbouring
+window, enters a neighbouring group, or leaves its own group on that side. At the edge of the
+layout it carries on to the display in that direction, if there is one.
+[How tiling works](/guides/how-tiling-works/#move) has diagrams of each case.
+
+| Reply | When |
+| --- | --- |
+| `ok` | The window moved. |
+| `ok: already at the edge` | Nothing further that way, and no display there. |
+| `error: the focused window is not tiled` | |
+
+### `join`
+
+```text
+join left|right|up|down
+```
+
+Puts the focused window and its neighbour in that direction into one slot, split the other
+way. Joining left or right stacks them. Joining up or down puts them side by side. If the
+neighbour is already a group, the window is added to the end of the group.
+[Diagram](/guides/how-tiling-works/#join).
+
+| Reply | When |
+| --- | --- |
+| `ok` | The windows were joined. |
+| `ok: no neighbour in that direction` | |
+| `error: the focused window is not tiled` | |
+
+### `resize`
+
+```text
+resize grow|shrink [width|height]
+```
+
+Changes the focused window's share of its container by one step. The step is
+[`resize-step`](/reference/configuration/#resize-step), 5% by default.
+
+- Without `width` or `height`, the nearest container in which the window has a visible
+  neighbour is used.
+- `width` uses the nearest side-by-side container, `height` the nearest stacked one.
+
+The words can come in either order: `resize width grow` is the same as `resize grow width`.
+
+| Reply | When |
+| --- | --- |
+| `ok` | The share changed. |
+| `ok: nothing to resize against` | There is no neighbour in that direction, for example with one window on the desktop. |
+| `error: the focused window is not tiled` | |
+
+### `flip`
+
+```text
+flip
+```
+
+Switches the container that holds the focused window between side-by-side and stacked.
+[Diagram](/guides/how-tiling-works/#flip).
+
+| Reply | When |
+| --- | --- |
+| `ok` | The container was flipped. |
+| `error: cannot flip` | |
+| `error: the focused window is not tiled` | |
+
+### `balance`
+
+```text
+balance
+```
+
+Gives every window on the focused window's desktop an equal share again.
+
+| Reply | When |
+| --- | --- |
+| `ok` | |
+| `error: the focused window is not tiled` | |
+
+### `float`
+
+```text
+float
+```
+
+Toggles tiling for the focused window. A floating window leaves the layout and stays where it
+is. Tiling it again adds it to the layout like a newly opened window. See
+[Floating windows and rules](/guides/floating-windows/).
+
+| Reply | When |
+| --- | --- |
+| `ok: floating` | The window now floats. |
+| `ok: tiled` | The window is tiled again. |
+| `error: no focused window` | |
+| `error: this window cannot be tiled` | It is a dialog, a sheet or a fixed-size window. |
+
+### `zoom`
+
+```text
+zoom
+```
+
+Toggles the focused window filling the desktop, inside the outer gaps. The layout underneath
+is unchanged. One window per desktop can be zoomed.
+
+| Reply | When |
+| --- | --- |
+| `ok` | |
+| `error: the focused window is not tiled` | |
+
+### `close`
+
+```text
+close
+```
+
+Closes the focused window by pressing its close button, as a click would. It works for
+floating windows too.
+
+| Reply | When |
+| --- | --- |
+| `ok` | |
+| `error: no focused window` | |
+| `error: this window has no close button` | |
+
+## Desktops
+
+"Space" is Apple's name for a desktop, and it is the word these two commands use.
+
+### `space`
+
+```text
+space N|next|prev
+```
+
+Switches to a desktop by pressing Mission Control's own shortcut. `N` is a number from 1 to
+16, counted across all displays the way Mission Control numbers desktops. `previous` is
+accepted for `prev`.
+
+| Reply | When |
+| --- | --- |
+| `ok` | The system shortcut was pressed. |
+| `ok: already on desktop N` | |
+| `error: there are only N desktops` | The number is higher than the number of desktops. |
+| `error: could not trigger the system shortcut` | |
+| `error: no display` | |
+
+### `move-to-space`
+
+```text
+move-to-space N|next|prev
+move-to-space N|next|prev --stay
+```
+
+Takes the focused window to a desktop and goes with it. With `--stay`, the window is sent
+and you stay where you are. `--follow` spells out the default. `--stay` and `--follow`
+cannot be combined.
+
+`N` is a number from 1 to 16, counted across all displays. `next` and `prev` mean the next
+and previous desktop on the current display. `previous` is accepted for `prev`. The window
+does not have to be tiled.
+
+The window joins the layout of its new desktop like a newly opened window. On systems where
+the quick route is not available the window is carried across by its title bar, which always
+follows the window. See
+[Desktops and displays](/guides/desktops-and-displays/#send-a-window-to-another-desktop).
+
+| Reply | When |
+| --- | --- |
+| `ok` | The window was moved, or the slower route was started. |
+| `ok: already on desktop N` | |
+| `ok: no desktop in that direction` | `next` or `prev` at the end of the display's desktops. |
+| `error: no focused window` | |
+| `error: there are only N desktops` | |
+| `error: a fullscreen window cannot be sent to another desktop` | |
+| `error: a move is already in progress` | The slower route is still carrying a window. |
+| `error: cannot tell which desktop is showing` | |
+| `error: cannot read the window's position` | |
+| `error: no display` | |
+
+## Iguana itself
+
+### `pause`
+
+```text
+pause
+```
+
+Toggles tiling. While paused, Iguana does not move or resize any window, and the menu bar
+icon is a pause mark instead of a drawing of the desktop.
+
+| Reply | When |
+| --- | --- |
+| `ok: paused` | |
+| `ok: tiling` | |
+
+### `reload`
+
+```text
+reload
+```
+
+Reads the config file again. The file is also reloaded by itself when it is saved.
+
+| Reply | When |
+| --- | --- |
+| `ok: loaded PATH` | The file loaded cleanly. |
+| `ok: loaded PATH with warnings:` | Followed by one line for each warning. |
+| `error: PATH: …` | The file has a syntax error. The message includes the line. The previous settings are kept. |
+| `ok: no config file at PATH, using the built-in defaults` | |
+
+### `settings`
+
+```text
+settings
+```
+
+Opens the [settings window](/guides/settings-window/), the same as choosing **Settings…**
+from the menu bar item.
+
+| Reply | When |
+| --- | --- |
+| `ok` | |
+
+### `tour`
+
+```text
+tour
+```
+
+Shows the [welcome tour](/start/install/#the-welcome-tour) again, the same as choosing
+**Welcome Tour…** from the menu bar item.
+
+While the tour is in front, commands go to its practice desktop instead of your real
+windows and reply `ok: in the welcome tour`. The tour acts on `focus`, `move`, `resize`,
+`space` and `move-to-space` once it has reached the lesson for them, and ignores every other
+command, `settings` and `pause` included. `status`, `reload`, `list-windows`, `list-spaces`,
+`tree` and `quit` work as usual.
+
+| Reply | When |
+| --- | --- |
+| `ok` | |
+
+### `quit`
+
+```text
+quit
+```
+
+Quits Iguana. Layouts are saved first. No window moves.
+
+| Reply | When |
+| --- | --- |
+| `ok` | |
+
+## Reports
+
+These print information and change nothing. The window titles, app names, numbers and
+display names in the examples are made up.
+
+### `list-windows`
+
+```text
+list-windows
+```
+
+Lists every window Iguana knows about, one per line: a `*` for the focused window, the
+window's number, its state, its app and its title, separated by tabs.
+
+```text
+* 1187	tiled	Terminal	zsh
+  1203	tiled	Safari	Start Page
+  1320	not on screen	Notes	Notes
+  1402	floating	Calculator	Calculator
+```
+
+The states are `tiled`, `floating`, `unmanaged` and `not on screen`. They are explained under
+[What gets tiled](/guides/floating-windows/#what-gets-tiled).
+
+### `list-spaces`
+
+```text
+list-spaces
+```
+
+Shows, for each display, which desktop it is showing and how many desktops it has.
+
+```text
+Built-in Retina Display: showing desktop 2 of 5; this display has 3 desktop(s)
+Studio Display: showing desktop 4 of 5; this display has 2 desktop(s)
+```
+
+A display showing a native fullscreen app reads `showing a fullscreen Space`.
+
+### `tree`
+
+```text
+tree
+```
+
+Prints the layout tree of the desktop each display is showing. Containers are `horizontal`
+(side by side) or `vertical` (stacked). The weight is each entry's share relative to its
+siblings.
+
+```text
+Built-in Retina Display, desktop 1
+  horizontal  [weight 1.00]
+    - Safari: Start Page #1203  [weight 1.00]
+    vertical  [weight 1.00]
+      - Terminal: zsh #1187  [weight 1.00]
+      - Notes: Notes #1320  (not on screen)  [weight 1.00]
+```
+
+If other desktops have a remembered layout, a last line says how many.
+
+### `status`
+
+```text
+status
+```
+
+Shows whether Iguana is tiling, which config file is in use and any problems with it, how
+many windows and apps it is watching, the state of Stage Manager, what each display is
+showing, how many shortcuts are active, and the last shortcut it received with its answer.
+
+```text
+Iguana 0.1.0: tiling
+config: /Users/you/.config/iguana/iguana.toml
+windows: 3 tiled on screen, 7 known, 5 apps watched
+stage manager: off
+Built-in Retina Display: showing desktop 1 of 3; this display has 3 desktop(s)
+shortcuts: 36 active
+last shortcut: alt-l, 4 s ago, answered "ok"
+```
+
+Config problems and shortcuts that could not be registered appear as indented `warning:`
+lines. While the welcome tour is on screen, a `welcome tour:` line above the last one says
+so. Before the permission is granted, `status` says that Iguana is waiting for it.

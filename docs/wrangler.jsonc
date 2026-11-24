@@ -1,0 +1,12 @@
+// The website on Cloudflare: the built site in ./dist, served as static files at iguana.onlychan.xyz.
+// Deploy with `npm run deploy` (it builds first), or let .github/workflows/site.yml do it.
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "iguana-site",
+	"compatibility_date": "2026-11-01",
+	"assets": {
+		"directory": "./dist",
+		"not_found_handling": "404-page"
+	},
+	"routes": [{ "pattern": "iguana.onlychan.xyz", "custom_domain": true }]
+}

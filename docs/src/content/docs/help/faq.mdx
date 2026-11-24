@@ -1,0 +1,152 @@
+---
+title: FAQ
+description: Short answers to common questions about Iguana.
+---
+
+Short answers, with links to the page that has the detail.
+
+## The basics
+
+### What is Iguana?
+
+A tiling window manager for macOS. It arranges the windows on each desktop so they fill the
+screen without overlapping, and lets you move between them and rearrange them from the
+keyboard. See [Why Iguana](/start/why-iguana/).
+
+### What is the difference between a desktop and a Space?
+
+None. "Space" is Apple's name for a desktop. These docs say "desktop". Two commands, `space`
+and `move-to-space`, use Apple's word.
+
+### Which key is `alt`?
+
+The Option (⌥) key.
+
+### Does Iguana need System Integrity Protection turned off?
+
+No. It needs the Accessibility permission and nothing else.
+[Under the hood](/help/under-the-hood/#why-sip-is-not-needed) explains why.
+
+### Which versions of macOS does it run on?
+
+macOS 14 or later. Sending a window to another desktop is quickest on recent macOS, where
+Iguana can use the system's own route. It has been tested on macOS 27.2.
+
+### How do I install it?
+
+Download the disk image and drag Iguana into Applications, or build it from source with
+`scripts/bundle.sh`. See [Install](/start/install/).
+
+## Everyday use
+
+### What happens to my windows when I quit Iguana?
+
+Nothing. Every window stays exactly where you see it. Iguana never hides or parks a window,
+so there is nothing to put back. The same is true if Iguana crashes.
+
+### Do my layouts survive a restart?
+
+A restart of Iguana, yes, together with the windows you floated by hand and the minimum
+window sizes Iguana has learned. A restart of the Mac, no: windows are tiled afresh.
+
+### Why did my shortcut do nothing?
+
+Most often because there was nothing for the command to act on. With one window on the
+desktop there is no neighbour to focus, move past or resize against. Run `iguana status` and
+read the last line. See
+[Troubleshooting](/help/troubleshooting/#shortcuts-appear-to-do-nothing).
+
+### Can I still use Mission Control, gestures and the system's desktop shortcuts?
+
+Yes. Iguana tiles whichever desktop macOS is showing, however you got there.
+
+### Can I switch desktops without the slide animation?
+
+Not with Iguana alone. The switch is done by macOS. Turning on Reduce Motion in System
+Settings shortens the slide to a fade.
+
+### Can I send a window to another desktop without going there?
+
+Yes. Use `move-to-space N --stay`. See
+[Customising shortcuts](/guides/shortcuts/#send-a-window-away-without-following-it).
+
+### How do I move a window to another display?
+
+Use `move` towards that display. When the window is at the edge of its layout, the next
+`move` carries it across. You can also drag it there.
+
+### How do I make one window fill the desktop for a while?
+
+Press <kbd>alt</kbd>+<kbd>f</kbd> to zoom it, and again to put it back.
+
+### How do I stop Iguana tiling one window?
+
+Focus it and press <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>space</kbd>. To always float an app,
+add a [rule](/guides/floating-windows/#rules).
+
+### How do I stop Iguana tiling everything for a moment?
+
+Choose **Pause Tiling** from the menu bar item, or run `iguana pause`.
+
+### Can I resize and rearrange with the mouse?
+
+Yes. Drag an edge to resize, and the layout keeps the new proportions. Drag a window onto
+another tile to swap the two.
+
+## Behaviour
+
+### Why is one window larger than its share?
+
+It has a minimum size and refused to get smaller. Iguana gives it the room it insists on and
+fits the others around it. See
+[Windows that will not shrink](/guides/how-tiling-works/#windows-that-will-not-shrink).
+
+### Does it work with Stage Manager?
+
+Yes. Windows in other stages keep their slot and take no room, and Iguana can leave room for
+the strip of recent apps. See
+[Stage Manager, fullscreen and tabs](/guides/stage-manager-fullscreen-tabs/).
+
+### What about native fullscreen?
+
+Iguana leaves fullscreen windows and fullscreen Spaces alone.
+
+### Does it have stacking, an accordion layout or a scratchpad?
+
+No. See [Limitations](/help/limitations/).
+
+### Why do some apps stutter when windows animate?
+
+Each frame of the animation asks the app to really resize its window. Heavy apps redraw
+slowly. Shorten the duration or turn animation off. See [Animation](/guides/animation/).
+
+## Configuration
+
+### Do I need a config file?
+
+No. Without one, the built-in defaults apply. `iguana config init` writes a file you can edit.
+
+### Where is the config file?
+
+`~/.config/iguana/iguana.toml`, or under `$XDG_CONFIG_HOME` if that is set.
+`iguana config path` prints it.
+
+### Do I have to restart Iguana after editing the config?
+
+No. The file is reloaded when you save it.
+
+### What if I make a mistake in the config file?
+
+Iguana keeps running. A syntax error is reported with its line and the previous settings
+stay. A smaller problem is a warning and only that setting falls back to its default. See
+[Configuration](/reference/configuration/#when-the-file-has-a-mistake).
+
+### Is the settings window a separate set of settings?
+
+No. It edits the same file, one value at a time, and keeps your comments and formatting. See
+[The settings window](/guides/settings-window/).
+
+### Can I script Iguana?
+
+Yes. Every command can be sent from a terminal: `iguana focus left`, `iguana tree`, and so on.
+See [Command line](/reference/command-line/).

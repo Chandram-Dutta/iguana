@@ -1,0 +1,180 @@
+---
+title: Floating windows and rules
+description: Which windows Iguana tiles, which it leaves alone, how to float a window by hand and how to write rules that float apps or window titles.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+After this page you will know which windows Iguana tiles, how to take a window out of the
+layout, and how to write a rule so that an app's windows always float.
+
+A **floating** window is one Iguana does not place. It stays where you put it, at the size
+you gave it, and the tiled windows ignore it.
+
+## What gets tiled
+
+Iguana tiles a window when all of these are true:
+
+- It belongs to a regular app, meaning one that appears in the Dock. Menu bar extras and
+  background helpers are not watched at all.
+- It is a standard window, not a dialog or a sheet.
+- It can be both moved and resized. Fixed-size windows are left alone.
+- It is not in native fullscreen.
+- No rule floats it and you have not floated it yourself.
+
+Everything else is left exactly as the app shows it. You do not need rules for open and save
+dialogs, preference sheets or alerts.
+
+`iguana list-windows` shows how Iguana sees each window it knows about:
+
+| State | Meaning |
+| --- | --- |
+| `tiled` | In the layout. |
+| `floating` | Could be tiled, but a rule or the `float` command keeps it out. |
+| `unmanaged` | Not a standard, resizable window. Iguana will never tile it. |
+| `not on screen` | Minimised, hidden, on another desktop, in another stage or a background tab. |
+
+The focused window is marked with `*`.
+
+## Float a window by hand
+
+In a shortcut, <kbd>alt</kbd> is the Option (⌥) key.
+
+Press <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>space</kbd>, or run `iguana float`, to take the
+focused window out of the layout. The other windows close the gap. The same command puts it
+back, and it rejoins the layout like a newly opened window.
+
+Your choice wins over the rules. If a rule floats an app and you press the shortcut on one of
+its windows, that window is tiled.
+
+Windows you floated by hand are remembered when Iguana restarts.
+
+## Rules
+
+A rule decides whether the windows that match it float. Rules live in the
+[config file](/reference/configuration/#rule) as `[[rule]]` sections, and in the
+**Floating Windows** pane of the [settings window](/guides/settings-window/#floating-windows).
+
+Each rule has up to three keys:
+
+| Key | Type | Meaning |
+| --- | --- | --- |
+| `app` | string | A bundle identifier, matched exactly, or part of the app's name. Case is ignored. |
+| `title` | string | A regular expression matched against the window title. Case is ignored. |
+| `float` | boolean | `true` floats matching windows. `false` makes the rule an exception: matching windows are tiled. Defaults to `true`. |
+
+A rule needs `app`, `title` or both. With both, a window must match both.
+
+**The first rule that matches a window decides.** Rules are tried from the top of the file
+down. A window that no rule matches is tiled.
+
+<Tabs>
+	<TabItem label="By bundle identifier">
+		```toml title="iguana.toml"
+		[[rule]]
+		app = "com.apple.calculator"
+		float = true
+		```
+
+		The most precise form. It matches only that app.
+	</TabItem>
+	<TabItem label="By app name">
+		```toml title="iguana.toml"
+		[[rule]]
+		app = "calc"
+		```
+
+		Matches every app whose name contains "calc". Convenient, but check that it does not
+		catch more than you meant.
+	</TabItem>
+	<TabItem label="By window title">
+		```toml title="iguana.toml"
+		[[rule]]
+		title = "^Preferences$"
+		```
+
+		Matches a window whose title is exactly "Preferences", in any app.
+	</TabItem>
+	<TabItem label="App and title">
+		```toml title="iguana.toml"
+		[[rule]]
+		app = "Finder"
+		title = "Info$"
+		```
+
+		Matches Finder windows whose title ends in "Info".
+	</TabItem>
+</Tabs>
+
+The app names and titles above are examples of the syntax. Use `iguana list-windows` to see
+the real app name and title of a window you want to match.
+
+To find an app's bundle identifier:
+
+```sh
+osascript -e 'id of app "Calculator"'
+```
+
+### The built-in rules
+
+With no rules of your own, Iguana floats three apps:
+
+| App | Bundle identifier |
+| --- | --- |
+| System Settings | `com.apple.systempreferences` |
+| Calculator | `com.apple.calculator` |
+| Activity Monitor | `com.apple.ActivityMonitor` |
+
+<Aside type="caution" title="Rules replace the built-in list">
+Rules are the one part of the config file that is not merged with the defaults. As soon as
+your file has any `[[rule]]`, it lists all the rules. If you want to keep the three built-in
+rules, keep them in the file. `iguana config init` writes them out for you.
+</Aside>
+
+### Exceptions
+
+Because the first matching rule decides, a rule with `float = false` can carve an exception
+out of a more general rule. Put the exception above the rule it is an exception to.
+
+```toml title="iguana.toml"
+# Safari's windows float, except those whose title contains "Downloads".
+[[rule]]
+app = "com.apple.Safari"
+title = "Downloads"
+float = false
+
+[[rule]]
+app = "com.apple.Safari"
+float = true
+```
+
+The app and the title here are an example. The other way round, with the general rule
+first, the exception would never be reached.
+
+Create exceptions in the config file, where you can see their order. The Floating Windows pane
+of the settings window shows an exception with a "Tiled, as an exception" label and keeps it
+as one when you change other rules there.
+
+### No rules at all
+
+Leaving every `[[rule]]` out of the file does not mean "no rules": the built-in ones apply.
+To float nothing by rule, say so with an empty list, above the first table in the file:
+
+```toml title="~/.config/iguana/iguana.toml"
+rule = []
+```
+
+Removing the last rule in the settings window writes this line for you.
+
+### When rules are checked
+
+A rule is checked when a window first appears, and for every window again when the config is
+reloaded. A window whose title changes later is not checked again until then.
+
+A rule that has neither `app` nor `title`, or whose `title` is not a valid regular
+expression, is skipped with a warning. The other rules still apply.
+
+## Related
+
+- [Configuration reference](/reference/configuration/#rule)
+- [Troubleshooting: a window will not tile](/help/troubleshooting/#a-window-will-not-tile)

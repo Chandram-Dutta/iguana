@@ -1,0 +1,105 @@
+---
+title: Default shortcuts
+description: The keyboard shortcuts Iguana uses when you have not changed any.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This page lists every built-in shortcut. They apply when there is no config file, and each
+one stays in force until your config file changes it or switches it off.
+
+**In a shortcut, <kbd>alt</kbd> is the Option (⌥) key.** <kbd>ctrl</kbd> is Control (⌃),
+<kbd>shift</kbd> is Shift (⇧) and <kbd>cmd</kbd> is Command (⌘).
+
+The direction keys follow the convention of the Vi editor: <kbd>h</kbd> is left,
+<kbd>j</kbd> is down, <kbd>k</kbd> is up and <kbd>l</kbd> is right.
+
+## Focus
+
+| Keys | Written as | Command |
+| --- | --- | --- |
+| <kbd>alt</kbd>+<kbd>h</kbd> | `alt-h` | `focus left` |
+| <kbd>alt</kbd>+<kbd>j</kbd> | `alt-j` | `focus down` |
+| <kbd>alt</kbd>+<kbd>k</kbd> | `alt-k` | `focus up` |
+| <kbd>alt</kbd>+<kbd>l</kbd> | `alt-l` | `focus right` |
+
+## Move the window
+
+At the edge of the layout, `move` continues onto the next display.
+
+| Keys | Written as | Command |
+| --- | --- | --- |
+| <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>h</kbd> | `alt-shift-h` | `move left` |
+| <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>j</kbd> | `alt-shift-j` | `move down` |
+| <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>k</kbd> | `alt-shift-k` | `move up` |
+| <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>l</kbd> | `alt-shift-l` | `move right` |
+
+## Stack the window with its neighbour
+
+| Keys | Written as | Command |
+| --- | --- | --- |
+| <kbd>alt</kbd>+<kbd>ctrl</kbd>+<kbd>h</kbd> | `alt-ctrl-h` | `join left` |
+| <kbd>alt</kbd>+<kbd>ctrl</kbd>+<kbd>j</kbd> | `alt-ctrl-j` | `join down` |
+| <kbd>alt</kbd>+<kbd>ctrl</kbd>+<kbd>k</kbd> | `alt-ctrl-k` | `join up` |
+| <kbd>alt</kbd>+<kbd>ctrl</kbd>+<kbd>l</kbd> | `alt-ctrl-l` | `join right` |
+
+## Size and shape
+
+| Keys | Written as | Command | What it does |
+| --- | --- | --- | --- |
+| <kbd>alt</kbd>+<kbd>minus</kbd> | `alt-minus` | `resize shrink` | Shrink the window. |
+| <kbd>alt</kbd>+<kbd>equal</kbd> | `alt-equal` | `resize grow` | Grow the window. |
+| <kbd>alt</kbd>+<kbd>slash</kbd> | `alt-slash` | `flip` | Flip the container between side-by-side and stacked. |
+| <kbd>alt</kbd>+<kbd>f</kbd> | `alt-f` | `zoom` | Make the window fill the desktop, or put it back. |
+| <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>space</kbd> | `alt-shift-space` | `float` | Float the window, or tile it again. |
+| <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>b</kbd> | `alt-shift-b` | `balance` | Give every window an equal share. |
+
+<kbd>minus</kbd> is the <kbd>-</kbd> key, <kbd>equal</kbd> is the <kbd>=</kbd> key and
+<kbd>slash</kbd> is the <kbd>/</kbd> key.
+
+## Go to a desktop
+
+| Keys | Written as | Command |
+| --- | --- | --- |
+| <kbd>alt</kbd>+<kbd>1</kbd> | `alt-1` | `space 1` |
+| <kbd>alt</kbd>+<kbd>2</kbd> | `alt-2` | `space 2` |
+| <kbd>alt</kbd>+<kbd>3</kbd> | `alt-3` | `space 3` |
+| <kbd>alt</kbd>+<kbd>4</kbd> | `alt-4` | `space 4` |
+| <kbd>alt</kbd>+<kbd>5</kbd> | `alt-5` | `space 5` |
+| <kbd>alt</kbd>+<kbd>6</kbd> | `alt-6` | `space 6` |
+| <kbd>alt</kbd>+<kbd>7</kbd> | `alt-7` | `space 7` |
+| <kbd>alt</kbd>+<kbd>8</kbd> | `alt-8` | `space 8` |
+| <kbd>alt</kbd>+<kbd>9</kbd> | `alt-9` | `space 9` |
+
+## Take the window to a desktop
+
+These take the focused window to the desktop and go with it. Add `--stay` to the command to
+send the window away and stay where you are.
+
+| Keys | Written as | Command |
+| --- | --- | --- |
+| <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>1</kbd> | `alt-shift-1` | `move-to-space 1` |
+| <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>2</kbd> | `alt-shift-2` | `move-to-space 2` |
+| <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>3</kbd> | `alt-shift-3` | `move-to-space 3` |
+| <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>4</kbd> | `alt-shift-4` | `move-to-space 4` |
+| <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>5</kbd> | `alt-shift-5` | `move-to-space 5` |
+| <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>6</kbd> | `alt-shift-6` | `move-to-space 6` |
+| <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>7</kbd> | `alt-shift-7` | `move-to-space 7` |
+| <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>8</kbd> | `alt-shift-8` | `move-to-space 8` |
+| <kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>9</kbd> | `alt-shift-9` | `move-to-space 9` |
+
+## Commands with no default shortcut
+
+These commands exist but are not bound to keys: `close`, `pause`, `reload`, `quit`,
+`space next`, `space prev`, `move-to-space next`, `move-to-space prev`, and `resize` with
+`width` or `height`. [Customising shortcuts](/guides/shortcuts/) shows how to bind them.
+
+## With the mouse
+
+- Drag a tiled window onto another to swap them.
+- Drag the edge of a tiled window to resize it. The layout keeps the new proportions.
+
+<Aside>
+While Iguana is running, the key combinations above are not passed to the app in front.
+[Customising shortcuts](/guides/shortcuts/#things-to-know) explains how to free one.
+</Aside>

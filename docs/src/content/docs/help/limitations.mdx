@@ -1,0 +1,80 @@
+---
+title: Limitations
+description: What Iguana does not do, and the limits that come from working inside macOS.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This page lists what Iguana does not do and where macOS sets the limits, so you can decide
+whether it fits before you rely on it.
+
+## Features Iguana does not have
+
+- **No stacking or accordion layouts.** Every visible tiled window has a tile of its own.
+  Native tabs are the one way two windows share a tile, and macOS provides those.
+- **No scratchpad.** Iguana never hides a window, so there is no hidden place to keep one.
+- **No preset layouts.** There is one layout model, a tree of splits. You shape it with
+  `move`, `join`, `flip` and `resize`.
+- **No virtual workspaces.** Workspaces are your native desktops. Iguana does not create,
+  remove or rename desktops. Use Mission Control for that.
+- **Rules can only float windows.** A rule cannot assign an app to a desktop or a display.
+- **One shortcut runs one command.** There are no key sequences and no modes.
+
+## Limits that come from macOS
+
+### Desktop switches are animated by the system
+
+`space` presses Mission Control's own shortcut, so macOS plays its slide. Iguana cannot skip
+it. Turning on Reduce Motion (System Settings, Accessibility, Display) shortens it to a fade.
+
+### Sending a window to another desktop depends on the macOS version
+
+On recent macOS (tested on 27.2), Iguana uses the system's own window-management bridge. It
+takes a few milliseconds.
+
+On systems without it, Iguana falls back to holding the window by its title bar while
+switching desktop. That is slower, it briefly takes over the pointer, and it always follows
+the window, so `--stay` has no effect there.
+
+### Desktops are addressed by number, up to 16
+
+`space` and `move-to-space` accept 1 to 16. The built-in shortcuts cover 1 to 9.
+
+### Fullscreen Spaces are not managed
+
+A window in native fullscreen is left alone, and it cannot be sent to another desktop. Use
+`zoom` when you want a window to fill the desktop and stay part of it.
+
+### Some of what Iguana reads is undocumented
+
+To know which desktop each display is showing and which desktop a window is on, Iguana uses
+system calls that Apple does not document. They are read-only and have been stable for many
+macOS releases, but Apple makes no promise about them. A macOS update could break desktop
+handling until Iguana is updated. [Under the hood](/help/under-the-hood/) lists every such call.
+
+### Animation asks each app to redraw
+
+macOS gives no way to transform another app's window. Each frame of Iguana's animation asks
+the app to really resize, so heavy apps such as browsers and Electron apps may look choppier
+than light ones. See [Animation](/guides/animation/#why-some-apps-look-choppy).
+
+### Windows decide their own minimum size
+
+Iguana cannot make a window smaller than the app allows. It lays out around such windows.
+When the minimum sizes in a row or column add up to more than the display, they cannot all
+fit.
+
+### Bound keys are taken from apps
+
+A key combination bound to an Iguana command is not passed to the app in front while Iguana
+runs. Unbound combinations are untouched.
+
+## Limits of the current design
+
+- **Layouts last until the Mac restarts.** Layouts, hand-floated windows and the minimum
+  window sizes Iguana has learned survive quitting and restarting Iguana. They do not survive a restart of the Mac, because macOS gives
+  every window a new identity then. After a restart of the Mac, windows are tiled afresh.
+- **Only regular apps are watched.** Apps without a Dock icon are ignored.
+- **Minimum sizes are learned, not known in advance.** Iguana finds out that a window will
+  not shrink by asking it to, and then lays out the desktop a second time around it.
+- **Requires macOS 14 or later.**
