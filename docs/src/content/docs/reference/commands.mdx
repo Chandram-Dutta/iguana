@@ -384,8 +384,8 @@ has answered. That usually takes a moment, and never more than about ten seconds
 
 | Reply | When |
 | --- | --- |
-| `ok: Iguana 0.1.2 is the latest version` | Nothing newer has been released. The number is the version you are running. |
-| `ok: Iguana 0.1.3 is available at https://github.com/Chandram-Dutta/iguana/releases/tag/v0.1.3` | The newer version, and the address of its page. |
+| `ok: Iguana 0.2.0 is the latest version` | Nothing newer has been released. The number is the version you are running. |
+| `ok: Iguana 0.2.1 is available at https://github.com/Chandram-Dutta/iguana/releases/tag/v0.2.1` | The newer version, and the address of its page. |
 | `error: could not check for a newer version: …` | The check could not be made, and why: the Mac is offline, or GitHub did not answer as expected. |
 
 Nothing is downloaded or installed. To update, see
@@ -692,7 +692,7 @@ many windows and apps it is watching, the state of Stage Manager, what each disp
 showing, how many shortcuts are active, and the last shortcut it received with its answer.
 
 ```text
-Iguana 0.1.2: tiling
+Iguana 0.2.0: tiling
 config: /Users/you/.config/iguana/iguana.toml
 windows: 3 tiled on screen, 7 known, 5 apps watched
 stage manager: off
@@ -708,7 +708,7 @@ line says so. Before the permission is granted, `status` says that Iguana is wai
 When Iguana knows of a newer version of itself, one more line at the end says so:
 
 ```text
-update: Iguana 0.1.3 is available (https://github.com/Chandram-Dutta/iguana/releases/tag/v0.1.3)
+update: Iguana 0.2.1 is available (https://github.com/Chandram-Dutta/iguana/releases/tag/v0.2.1)
 ```
 
 The line is there after the [daily check](/reference/configuration/#check) or
@@ -750,7 +750,7 @@ With `--json`:
   },
   "tourShowing" : false,
   "update" : null,
-  "version" : "0.1.2",
+  "version" : "0.2.0",
   "windows" : {
     "apps" : 5,
     "known" : 7,
@@ -773,4 +773,4 @@ With `--json`:
 | `shortcuts` | `active` is how many shortcuts are registered. `warnings` lists the ones that could not be. |
 | `tourShowing` | `true` while the welcome tour is on screen. |
 | `lastShortcut` | The last shortcut received: its `keys`, how many `secondsAgo`, and the `reply` it got. `null` when none has been received since Iguana started. |
-| `update` | A newer version of Iguana: its `version`, for example `"0.1.3"`, and the `url` of its page. `null` when none is known: there is none, Iguana has not looked yet, or [`updates.check`](/reference/configuration/#check) is `false`. |
+| `update` | A newer version of Iguana: its `version`, for example `"0.2.1"`, and the `url` of its page. `null` when none is known: there is none, Iguana has not looked yet, or [`updates.check`](/reference/configuration/#check) is `false`. |

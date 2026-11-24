@@ -38,7 +38,7 @@ This also puts the `iguana` command on your PATH. Update later with `brew upgrad
 
 Iguana tells you when there is something to update to. About once a day it asks GitHub for the
 latest release, and when that is newer than yours the menu gains one item, "Update to Iguana
-0.1.3…", which opens the release's page. No alert, no notification, and nothing is downloaded
+0.2.1…", which opens the release's page. No alert, no notification, and nothing is downloaded
 or installed. The request carries nothing about you or your Mac: no identifier, no cookie, no
 stored credentials, only a `User-Agent` of `Iguana/<version>`. `iguana update` asks right now;
 `check = false` under `[updates]`, or the switch in the settings window, turns the daily check off.
