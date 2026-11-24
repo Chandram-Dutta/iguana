@@ -5,7 +5,7 @@
 A tiling window manager for macOS. Open a window and the others make room; move, resize and
 switch between them from the keyboard.
 
-![Three loose windows snap into tiles, a window opens and closes while the rest make room, and the focus moves from one to the next.](assets/demo.gif)
+![Loose windows snap into tiles and make room as one opens and closes. A cramped column becomes a stack and the focus steps through it. A window is dragged, and an outline shows where it will land.](assets/demo.gif)
 
 **[iguana.onlychan.xyz](https://iguana.onlychan.xyz)** has a desktop you can try in the browser
 and the full documentation.

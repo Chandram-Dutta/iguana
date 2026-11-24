@@ -27,6 +27,8 @@ const chapters = [
 	{ id: 'focus', line: 'Move the focus.', mods: ['option'], keys: 'hjkl' },
 	{ id: 'move', line: 'Move the window.', mods: ['option', 'shift'], keys: 'hjkl' },
 	{ id: 'resize', line: 'Give it room.', mods: ['option'], keys: 'size' },
+	{ id: 'stack', line: 'Stack them.', mods: ['option'], keys: 'stack' },
+	{ id: 'drag', line: 'Drag one. See where it lands.' },
 	{ id: 'desktops', line: 'Jump between desktops.', mods: ['option', 'shift'], keys: '123' },
 	{ id: 'menu', line: 'Watch the menu bar.' },
 	{ id: 'quit', line: 'Quit it. Nothing moves.' },
@@ -157,6 +159,13 @@ const facts = {
 													<span class="cap" data-cap="equal">=</span>
 												</>
 											)}
+											{chapter.keys === 'stack' && (
+												<>
+													<span class="cap" data-cap="s">S</span>
+													<span class="cap" data-cap="j"><i>↓</i>J</span>
+													<span class="cap" data-cap="k"><i>↑</i>K</span>
+												</>
+											)}
 											{chapter.keys === '123' && [1, 2, 3].map((n) => <span class="cap" data-cap={`d${n}`}>{n}</span>)}
 										</div>
 									)}
@@ -200,6 +209,7 @@ const facts = {
 									}
 									<button type="button" class="key" data-key="minus" aria-label="Shrink">−</button>
 									<button type="button" class="key" data-key="equal" aria-label="Grow">=</button>
+									<button type="button" class="key" data-key="s" aria-label="Stack or unstack">S</button>
 								</div>
 								<div class="deck-actions">
 									<button type="button" class="chip" data-action="open">New window</button>
@@ -223,7 +233,7 @@ const facts = {
 					</div>
 
 					<div class="stage" data-stage>
-						<div class="display" tabindex="0" data-display aria-label="A small desktop. In the last chapter, press H, J, K or L to move the focus, with Shift to move the window.">
+						<div class="display" tabindex="0" data-display aria-label="A small desktop. In the last chapter, press H, J, K or L to move the focus, with Shift to move the window, S to stack, or drag a window with the mouse.">
 							<div class="menubar" aria-hidden="true">
 								<span class="menubar-app">Finder</span>
 								<span class="menubar-item">File</span>
@@ -1010,7 +1020,7 @@ brew install --cask chandram-dutta/tap/iguana</code></pre>
 		overflow: hidden;
 	}
 	.is-playing .tile {
-		cursor: pointer;
+		cursor: grab;
 	}
 	.tile::before {
 		content: '';
@@ -1048,6 +1058,69 @@ brew install --cask chandram-dutta/tap/iguana</code></pre>
 		box-shadow:
 			0 0 0 1px rgba(6, 26, 20, 0.5),
 			0 22px 40px -10px rgba(0, 0, 0, 0.8);
+	}
+	/* A window in the hand: lifted off the desktop, above everything on it. */
+	.tile.is-dragged {
+		z-index: 40;
+		opacity: 0.96;
+		transition-duration: 0.7s;
+		box-shadow: 0 30px 50px -14px rgba(0, 0, 0, 0.8);
+	}
+	.tile.is-dragged.is-focused {
+		box-shadow:
+			0 0 0 3px var(--text),
+			0 30px 50px -14px rgba(0, 0, 0, 0.8);
+	}
+	/* In the visitor's own hand it keeps up with the pointer exactly. */
+	.tile.is-live {
+		transition: none;
+		cursor: grabbing;
+	}
+	/* Where the window in the hand will land. */
+	.landing {
+		position: absolute;
+		top: 0;
+		left: 0;
+		z-index: 30;
+		border-radius: 13px;
+		border: 2px solid var(--text);
+		background: rgba(238, 247, 224, 0.16);
+		opacity: 0;
+		pointer-events: none;
+		transition:
+			transform 0.28s var(--ease),
+			width 0.28s var(--ease),
+			height 0.28s var(--ease),
+			opacity 0.18s;
+	}
+	.landing.is-on {
+		opacity: 1;
+	}
+	/* The pointer that acts a drag out. */
+	.cursor {
+		position: absolute;
+		top: 0;
+		left: 0;
+		z-index: 60;
+		width: 22px;
+		height: 22px;
+		opacity: 0;
+		pointer-events: none;
+		filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
+		transition:
+			transform 0.7s var(--ease),
+			opacity 0.3s;
+	}
+	.cursor.is-on {
+		opacity: 1;
+	}
+	.cursor svg {
+		display: block;
+		transform-origin: 3px 2px;
+		transition: transform 0.15s var(--ease);
+	}
+	.cursor.is-down svg {
+		transform: scale(0.84);
 	}
 	.tile.is-small {
 		border-radius: 7px;
@@ -1483,7 +1556,9 @@ brew install --cask chandram-dutta/tap/iguana</code></pre>
 
 	type Rect = { x: number; y: number; w: number; h: number };
 	type Leaf = { id: number; color: string };
-	type Split = { dir: 'h' | 'v'; ratio: number; a: Node; b: Node };
+	// A split marked `stacked` shows its windows over one another, each with a strip showing;
+	// `front` is the one of them last in front.
+	type Split = { dir: 'h' | 'v'; ratio: number; a: Node; b: Node; stacked?: boolean; front?: number };
 	type Node = Leaf | Split;
 	type Direction = 'left' | 'right' | 'up' | 'down';
 	type Step = { split: Split; side: 'a' | 'b' };
@@ -1536,6 +1611,17 @@ brew install --cask chandram-dutta/tap/iguana</code></pre>
 		let gaps = { inner: 11, outer: 0 };
 		let shiftLatched = false;
 		const tiles = new Map<number, HTMLElement>();
+		// A window in the hand, held at `x`, `y`: carried by the pointer that acts a chapter out,
+		// or (`live`) by the visitor's own. `landing` is where it would go if let go of now.
+		let dragged: { id: number; x: number; y: number; live: boolean } | null = null;
+		let landing: Rect | null = null;
+		let pointer: { x: number; y: number; down: boolean } | null = null;
+		const landingEl = document.createElement('div');
+		landingEl.className = 'landing';
+		const cursorEl = document.createElement('div');
+		cursorEl.className = 'cursor';
+		cursorEl.innerHTML =
+			'<svg viewBox="0 0 22 22" width="22" height="22"><path d="M3 2v15.5l4.3-3.9 2.8 6.2 2.6-1.2-2.8-6.1h5.9z" fill="#111" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>';
 
 		const panels = desks.map((_, i) => {
 			const panel = document.createElement('div');
@@ -1544,6 +1630,7 @@ brew install --cask chandram-dutta/tap/iguana</code></pre>
 			desk.append(panel);
 			return panel;
 		});
+		desk.append(landingEl, cursorEl);
 
 		function leaves(node: Node | null, out: Leaf[] = []): Leaf[] {
 			if (!node) return out;
@@ -1559,6 +1646,15 @@ brew install --cask chandram-dutta/tap/iguana</code></pre>
 			if (!node) return out;
 			if (isLeaf(node)) {
 				out.set(node.id, r);
+			} else if (node.stacked) {
+				// Every window of the stack takes the whole of it but a strip for each of the others.
+				const all = leaves(node);
+				const along = node.dir === 'h' ? r.w : r.h;
+				const peek = Math.min(along * 0.09, along / (all.length * 2.5));
+				const rest = peek * (all.length - 1);
+				all.forEach((leaf, i) =>
+					out.set(leaf.id, node.dir === 'h' ? { x: r.x + i * peek, y: r.y, w: r.w - rest, h: r.h } : { x: r.x, y: r.y + i * peek, w: r.w, h: r.h - rest })
+				);
 			} else if (node.dir === 'h') {
 				const w = (r.w - gap) * node.ratio;
 				place(node.a, { x: r.x, y: r.y, w, h: r.h }, gap, out);
@@ -1603,9 +1699,13 @@ brew install --cask chandram-dutta/tap/iguana</code></pre>
 			const all = frames(active);
 			const origin = all.get(from);
 			if (!origin) return null;
+			// Of a stack only the window in front can be gone to from outside, and from inside a
+			// stack its other windows are not "beside" it: `target` steps through those.
+			const hidden = covered(active);
+			const mates = new Set(leaves(stackOf(from)).map((l) => l.id));
 			let best: { id: number; score: number } | null = null;
 			for (const [id, r] of all) {
-				if (id === from) continue;
+				if (id === from || hidden.has(id) || mates.has(id)) continue;
 				const horizontal = direction === 'left' || direction === 'right';
 				const ahead =
 					direction === 'left' ? origin.x - (r.x + r.w)
@@ -1682,29 +1782,208 @@ brew install --cask chandram-dutta/tap/iguana</code></pre>
 			return true;
 		}
 
+		/** The stack a window is in: the outermost split marked as one on the way down to it. */
+		function stackOf(id: number | null, index = active): Split | null {
+			if (id === null) return null;
+			return path(id, desks[index])?.find((s) => s.split.stacked)?.split ?? null;
+		}
+
+		/** Every stack of a desktop, outermost only. */
+		function stacks(node: Node | null, out: Split[] = []): Split[] {
+			if (!node || isLeaf(node)) return out;
+			if (node.stacked) out.push(node);
+			else {
+				stacks(node.a, out);
+				stacks(node.b, out);
+			}
+			return out;
+		}
+
+		/** The window of a stack that is in front: the focused one, or the last that was. */
+		function frontOf(stack: Split, index: number): number {
+			const all = leaves(stack);
+			if (all.some((l) => l.id === focus[index])) stack.front = focus[index]!;
+			if (!all.some((l) => l.id === stack.front)) stack.front = all[0].id;
+			return stack.front!;
+		}
+
+		/** The windows that lie behind the front of their stack. */
+		function covered(index: number): Set<number> {
+			const out = new Set<number>();
+			for (const stack of stacks(desks[index])) {
+				const front = frontOf(stack, index);
+				for (const leaf of leaves(stack)) if (leaf.id !== front) out.add(leaf.id);
+			}
+			return out;
+		}
+
+		/** How far forward each stacked window is: the front one highest, then by nearness to it,
+		    so that the strip of every window behind stays in sight. */
+		function depths(index: number): Map<number, number> {
+			const out = new Map<number, number>();
+			for (const stack of stacks(desks[index])) {
+				const all = leaves(stack);
+				const front = all.findIndex((l) => l.id === frontOf(stack, index));
+				all.forEach((leaf, i) => out.set(leaf.id, 20 - Math.abs(i - front)));
+			}
+			return out;
+		}
+
+		/** The window a direction leads to: the next one of the stack along it, or the nearest tile. */
+		function target(direction: Direction): number | null {
+			const from = focus[active];
+			const stack = stackOf(from);
+			if (stack && (stack.dir === 'h') === (direction === 'left' || direction === 'right')) {
+				const all = leaves(stack);
+				const next = all[all.findIndex((l) => l.id === from) + (direction === 'right' || direction === 'down' ? 1 : -1)];
+				if (next) return next.id;
+			}
+			return neighbour(direction);
+		}
+
 		function moveFocus(direction: Direction): boolean {
-			const target = neighbour(direction);
-			if (target === null) return false;
-			focus[active] = target;
+			const to = target(direction);
+			if (to === null) return false;
+			focus[active] = to;
 			return true;
 		}
 
-		function moveWindow(direction: Direction): boolean {
-			const target = neighbour(direction);
-			const id = focus[active];
-			if (target === null || id === null) return false;
+		/** Two windows trade places: each takes the other's place in the layout. */
+		function trade(id: number, other: number) {
 			const all = leaves(desks[active]);
 			const a = all.find((l) => l.id === id)!;
-			const b = all.find((l) => l.id === target)!;
+			const b = all.find((l) => l.id === other)!;
 			[a.id, b.id] = [b.id, a.id];
 			[a.color, b.color] = [b.color, a.color];
+		}
+
+		function moveWindow(direction: Direction): boolean {
+			const to = target(direction);
+			const id = focus[active];
+			if (to === null || id === null) return false;
+			trade(id, to);
 			return true;
+		}
+
+		/** Turn the row or column the focused window is in into a stack, or a stack back into tiles. */
+		function toggleStack(): boolean {
+			const id = focus[active];
+			const trail = id === null ? null : path(id, desks[active]);
+			if (id === null || !trail || trail.length === 0) return false;
+			const existing = trail.find((s) => s.split.stacked);
+			if (existing) {
+				existing.split.stacked = false;
+				return true;
+			}
+			// Splits one inside another in the same direction are one row or one column, and it is
+			// the whole of it that is stacked.
+			let i = trail.length - 1;
+			while (i > 0 && trail[i - 1].split.dir === trail[i].split.dir) i--;
+			trail[i].split.stacked = true;
+			trail[i].split.front = id;
+			return true;
+		}
+
+		// ---- Dragging a window ------------------------------------------------------------------
+
+		type Drop = { kind: 'trade'; onto: number } | { kind: 'split'; onto: number; side: Direction };
+
+		/** Do a drop: trade places, or take the half of a tile on one side of it. */
+		function carryOut(id: number, drop: Drop) {
+			if (drop.kind === 'trade') {
+				trade(id, drop.onto);
+			} else {
+				const leaf = { ...leaves(desks[active]).find((l) => l.id === id)! };
+				detach(id, active);
+				const onto = leaves(desks[active]).find((l) => l.id === drop.onto)!;
+				const parent = path(drop.onto, desks[active])!.at(-1);
+				const first = drop.side === 'left' || drop.side === 'up';
+				const split: Split = { dir: drop.side === 'left' || drop.side === 'right' ? 'h' : 'v', ratio: 0.5, a: first ? leaf : onto, b: first ? onto : leaf };
+				if (parent) parent.split[parent.side] = split;
+				else desks[active] = split;
+			}
+			focus[active] = id;
+		}
+
+		/** What letting go of a dragged window at a point would do, and where the window would
+		    land. The drop is tried on a copy, so the place shown is the place it really gets. */
+		function dropAt(id: number, x: number, y: number): { drop: Drop; rect: Rect } | null {
+			const all = frames(active);
+			const own = all.get(id);
+			const inside = (r: Rect) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+			if (!own || inside(own)) return null;
+			// Of the windows of a stack it is the one in front that is under the pointer.
+			const depth = depths(active);
+			let onto: number | null = null;
+			for (const [other, r] of all) {
+				if (other === id || !inside(r)) continue;
+				if (onto === null || (depth.get(other) ?? 0) > (depth.get(onto) ?? 0)) onto = other;
+			}
+			if (onto === null) return null;
+			const r = all.get(onto)!;
+			const across = Math.min(Math.max(r.w / 4, 24), r.w / 3);
+			const down = Math.min(Math.max(r.h / 4, 24), r.h / 3);
+			const sides: [Direction, number][] = [
+				['left', (x - r.x) / across], ['right', (r.x + r.w - x) / across],
+				['up', (y - r.y) / down], ['down', (r.y + r.h - y) / down],
+			];
+			const edge = sides.filter(([, d]) => d < 1).sort((a, b) => a[1] - b[1])[0];
+			const drop: Drop = edge ? { kind: 'split', onto, side: edge[0] } : { kind: 'trade', onto };
+
+			const before = { desk: structuredClone(desks[active]), focus: focus[active] };
+			carryOut(id, drop);
+			const rect = frames(active).get(id)!;
+			desks[active] = before.desk;
+			focus[active] = before.focus;
+			const same = Math.abs(rect.x - own.x) < 1 && Math.abs(rect.y - own.y) < 1 && Math.abs(rect.w - own.w) < 1 && Math.abs(rect.h - own.h) < 1;
+			return same ? null : { drop, rect };
+		}
+
+		/** The visitor picks a window up with the mouse. A finger scrolls the page instead. */
+		function pickUp(id: number, event: PointerEvent) {
+			if (step !== last || event.pointerType === 'touch' || event.button !== 0 || overview) return;
+			const start = frames(active).get(id);
+			if (!start || !leaves(desks[active]).some((l) => l.id === id)) return;
+			const corner = () => desk.getBoundingClientRect();
+			const grab = { x: event.clientX - corner().left - start.x, y: event.clientY - corner().top - start.y };
+			let moved = false;
+			const at = (e: PointerEvent) => ({ x: e.clientX - corner().left, y: e.clientY - corner().top });
+			const move = (e: PointerEvent) => {
+				if (!moved && Math.hypot(e.clientX - event.clientX, e.clientY - event.clientY) < 5) return;
+				moved = true;
+				const p = at(e);
+				focus[active] = id;
+				dragged = { id, x: p.x - grab.x, y: p.y - grab.y, live: true };
+				landing = dropAt(id, p.x, p.y)?.rect ?? null;
+				render();
+			};
+			const up = (e: PointerEvent) => {
+				window.removeEventListener('pointermove', move);
+				window.removeEventListener('pointerup', up);
+				window.removeEventListener('pointercancel', up);
+				if (!moved) return;
+				const p = at(e);
+				const plan = e.type === 'pointerup' ? dropAt(id, p.x, p.y) : null;
+				dragged = null;
+				landing = null;
+				if (plan) carryOut(id, plan.drop);
+				pin.classList.remove('is-yours');
+				render();
+			};
+			window.addEventListener('pointermove', move);
+			window.addEventListener('pointerup', up);
+			window.addEventListener('pointercancel', up);
+			// Keeps the drag from selecting the page's text.
+			event.preventDefault();
 		}
 
 		function resize(grow: boolean): boolean {
 			const id = focus[active];
 			if (id === null) return false;
-			const step = path(id, desks[active])?.at(-1);
+			// A stack is resized as one thing, against what is beside it.
+			const trail = path(id, desks[active]) ?? [];
+			const stacked = trail.findIndex((s) => s.split.stacked);
+			const step = stacked === -1 ? trail.at(-1) : trail[stacked - 1];
 			if (!step) return false;
 			const delta = (grow ? 0.07 : -0.07) * (step.side === 'a' ? 1 : -1);
 			const next = Math.min(0.78, Math.max(0.22, step.split.ratio + delta));
@@ -1746,17 +2025,22 @@ brew install --cask chandram-dutta/tap/iguana</code></pre>
 
 			desks.forEach((root, index) => {
 				const all = frames(index);
+				const depth = depths(index);
 				for (const leaf of leaves(root)) {
 					const heap = loose ? pile[leaf.id] : undefined;
+					const held = dragged?.id === leaf.id && index === active ? dragged : null;
+					const tiled = all.get(leaf.id)!;
 					const r = heap
 						? { x: heap[0] * desk.clientWidth, y: heap[1] * desk.clientHeight, w: heap[2] * desk.clientWidth, h: heap[3] * desk.clientHeight }
-						: all.get(leaf.id)!;
+						: held ? { x: held.x, y: held.y, w: tiled.w, h: tiled.h }
+						: tiled;
 					shown.add(leaf.id);
 					let tile = tiles.get(leaf.id);
 					if (!tile) {
 						tile = document.createElement('div');
 						tile.className = 'tile is-entering';
 						tile.dataset.id = String(leaf.id);
+						tile.addEventListener('pointerdown', (event) => pickUp(leaf.id, event));
 						tile.addEventListener('click', () => {
 							if (step !== last) return;
 							const owner = desks.findIndex((d) => leaves(d).some((l) => l.id === leaf.id));
@@ -1779,8 +2063,22 @@ brew install --cask chandram-dutta/tap/iguana</code></pre>
 					tile.classList.toggle('is-focused', index === active && leaf.id === focus[index]);
 					tile.classList.toggle('is-small', r.w < 120 || r.h < 90);
 					tile.classList.toggle('is-away', !overview && index !== active);
+					tile.classList.toggle('is-dragged', held !== null);
+					tile.classList.toggle('is-live', held?.live === true);
+					tile.style.zIndex = held ? '' : String(depth.get(leaf.id) ?? '');
 				}
 			});
+
+			landingEl.classList.toggle('is-on', landing !== null);
+			if (landing) {
+				landingEl.style.width = `${landing.w}px`;
+				landingEl.style.height = `${landing.h}px`;
+				landingEl.style.transform = `translate(${landing.x}px, ${landing.y}px)`;
+			}
+			cursorEl.classList.toggle('is-on', pointer !== null);
+			cursorEl.classList.toggle('is-down', pointer?.down === true);
+			// The arrow's tip is a little in from the corner of its picture.
+			if (pointer) cursorEl.style.transform = `translate(${pointer.x - 3}px, ${pointer.y - 2}px)`;
 
 			for (const [id, tile] of tiles) {
 				if (shown.has(id)) continue;
@@ -1882,6 +2180,8 @@ brew install --cask chandram-dutta/tap/iguana</code></pre>
 						attrs['stroke-opacity'] = here && strong ? 1 : 0;
 					}
 					for (const [key, value] of Object.entries(attrs)) rect.setAttribute(key, String(value));
+					// In a stack the window in front is drawn over the others.
+					if (id === focus[index] && stackOf(id, index)) m.svg.append(rect);
 				}
 				if (m.look === 'bar') slot.setAttribute('opacity', String(placed.size > 0 ? 0 : m.kind === 'one' ? 0.7 : here ? 0.85 : 0.3));
 				else slot.setAttribute('stroke-opacity', m.kind === 'all' && here ? '1' : '0');
@@ -1921,6 +2221,9 @@ brew install --cask chandram-dutta/tap/iguana</code></pre>
 			menuOpen = false;
 			active = 0;
 			beat = 0;
+			dragged = null;
+			landing = null;
+			pointer = null;
 			pin.classList.toggle('is-playing', chapter === last);
 			pin.classList.toggle('is-yours', chapter === last);
 			const name = captions[chapter].dataset.chapter;
@@ -1935,6 +2238,17 @@ brew install --cask chandram-dutta/tap/iguana</code></pre>
 				focus[2] = null;
 				focus[0] = 3;
 				menuOpen = reduced;
+			} else if (name === 'stack') {
+				// More windows than room: one tile, and a column of three beside it.
+				const leaf = (id: number): Leaf => ({ id, color: colors[(id - 1) % colors.length] });
+				desks[0] = { dir: 'h', ratio: 0.5, a: leaf(1), b: { dir: 'v', ratio: 1 / 3, a: leaf(2), b: { dir: 'v', ratio: 0.5, a: leaf(3), b: leaf(4) } } };
+				focus[0] = 3;
+				desks[1] = desks[2] = null;
+				// With motion reduced nothing acts, so the column is shown as the stack it becomes.
+				if (reduced) toggleStack();
+			} else if (name === 'drag') {
+				arrange(0, [1, 2, 3]);
+				desks[1] = desks[2] = null;
 			} else if (name === 'desktops') {
 				overview = true;
 				arrange(0, [1, 2, 3]);
@@ -2002,6 +2316,57 @@ brew install --cask chandram-dutta/tap/iguana</code></pre>
 					},
 				];
 				moves[beat % moves.length]();
+			} else if (name === 'stack') {
+				// The column becomes a stack; the focus steps through it, each window coming to the
+				// front with a strip of the others still showing; then it is a column again.
+				const moves: [string, () => void][] = [
+					['s', () => toggleStack()],
+					['j', () => moveFocus('down')],
+					['k', () => moveFocus('up')],
+					['k', () => moveFocus('up')],
+					['j', () => moveFocus('down')],
+					['s', () => toggleStack()],
+				];
+				const [key, move] = moves[beat % moves.length];
+				move();
+				press(['option', key]);
+			} else if (name === 'drag') {
+				// A pointer picks a window up by its title bar and carries it: onto the middle of a
+				// tile, where the two trade places, then onto the edge of one, where it takes that half.
+				const frame = (id: number) => frames(active).get(id)!;
+				const hold = (id: number) => ({ x: frame(id).x + Math.min(frame(id).w * 0.4, 70), y: frame(id).y + 14 });
+				const reach = (id: number) => (pointer = { ...hold(id), down: false });
+				const grip = (id: number) => {
+					focus[active] = id;
+					pointer = { ...hold(id), down: true };
+					dragged = { id, x: frame(id).x - 3, y: frame(id).y - 6, live: false };
+				};
+				const carryTo = (id: number, x: number, y: number) => {
+					const from = hold(id);
+					pointer = { x, y, down: true };
+					dragged = { id, x: x - (from.x - frame(id).x), y: y - (from.y - frame(id).y), live: false };
+					landing = dropAt(id, x, y)?.rect ?? null;
+				};
+				const letGo = (id: number) => {
+					const plan = pointer ? dropAt(id, pointer.x, pointer.y) : null;
+					if (plan) carryOut(id, plan.drop);
+					if (pointer) pointer = { ...pointer, down: false };
+					dragged = null;
+					landing = null;
+				};
+				const moves: (() => void)[] = [
+					() => reach(3),
+					() => grip(3),
+					() => carryTo(3, frame(1).x + frame(1).w / 2, frame(1).y + frame(1).h / 2),
+					() => letGo(3),
+					() => reach(2),
+					() => grip(2),
+					() => carryTo(2, frame(3).x + frame(3).w * 0.1, frame(3).y + frame(3).h / 2),
+					() => letGo(2),
+					() => (pointer = null),
+					() => arrange(0, [1, 2, 3]),
+				];
+				moves[beat % moves.length]();
 			} else if (name === 'quit') {
 				running = !running;
 			} else {
@@ -2029,10 +2394,11 @@ brew install --cask chandram-dutta/tap/iguana</code></pre>
 			window.clearInterval(ticker);
 			enter(step);
 			if (!reduced && step > 0 && step < last) {
-				const quit = captions[step].dataset.chapter === 'quit';
+				const name = captions[step].dataset.chapter;
+				const quit = name === 'quit';
 				starter = window.setTimeout(() => {
 					act(step);
-					ticker = window.setInterval(() => act(step), quit ? 1700 : 1150);
+					ticker = window.setInterval(() => act(step), quit ? 1700 : name === 'drag' ? 850 : 1150);
 				}, quit ? 900 : 480);
 			}
 		}
@@ -2115,6 +2481,9 @@ brew install --cask chandram-dutta/tap/iguana</code></pre>
 			} else if (key === 'minus' || key === 'equal') {
 				press(['option', key]);
 				resize(key === 'equal');
+			} else if (key === 's') {
+				press(['option', 's']);
+				toggleStack();
 			} else if (key === 'open') {
 				open();
 			} else if (key === 'close') {
@@ -2126,7 +2495,7 @@ brew install --cask chandram-dutta/tap/iguana</code></pre>
 		const codes: Record<string, string> = {
 			KeyH: 'h', KeyJ: 'j', KeyK: 'k', KeyL: 'l',
 			ArrowLeft: 'h', ArrowDown: 'j', ArrowUp: 'k', ArrowRight: 'l',
-			Minus: 'minus', Equal: 'equal',
+			Minus: 'minus', Equal: 'equal', KeyS: 's',
 		};
 
 		window.addEventListener('keydown', (event) => {
