@@ -87,6 +87,8 @@ public struct Config: Equatable {
     public var autoSplit = true
     public var resizeStep = 0.05
     public var mouseFollowsFocus = false
+    /// The window the pointer comes to rest on gets the focus, without a click.
+    public var focusFollowsMouse = false
     public var stripReserve = StripReserve.auto
     public var stripWidth: Double = 150
     public var menuBarDesktops = MenuBarDesktops.current
@@ -117,6 +119,7 @@ public struct Config: Equatable {
     auto-split = true    # new windows split the focused window along its longer side
     resize-step = 0.05   # share of the container that one `resize` step moves
     mouse-follows-focus = false
+    focus-follows-mouse = false   # the window the pointer rests on gets the focus
 
     [animation]
     enabled = true       # windows glide to their new place instead of jumping
@@ -273,9 +276,10 @@ public struct Config: Equatable {
         }
 
         if let layout = doc["layout"]?.tableValue {
-            checkKeys(layout, ["auto-split", "resize-step", "mouse-follows-focus"], "[layout]")
+            checkKeys(layout, ["auto-split", "resize-step", "mouse-follows-focus", "focus-follows-mouse"], "[layout]")
             if let v = flag(layout["auto-split"], "layout.auto-split") { c.autoSplit = v }
             if let v = flag(layout["mouse-follows-focus"], "layout.mouse-follows-focus") { c.mouseFollowsFocus = v }
+            if let v = flag(layout["focus-follows-mouse"], "layout.focus-follows-mouse") { c.focusFollowsMouse = v }
             if let v = layout["resize-step"] {
                 if let d = v.doubleValue, d > 0, d <= 0.5 {
                     c.resizeStep = d

@@ -47,6 +47,7 @@ Most of Iguana is built on interfaces Apple documents.
 | Workspace notifications | Being told when apps launch, quit, activate, hide and show, and when the desktop or the displays change. |
 | Synthetic key events | Pressing Mission Control's shortcut to switch desktop. |
 | Synthetic mouse events | Only in the fallback for sending a window to another desktop: holding the window by its title bar. |
+| Mouse movement | Only while [`focus-follows-mouse`](/reference/configuration/#focus-follows-mouse) is on: hearing that the pointer moved, to tell when it has come to rest on a window. Needs no extra permission. |
 
 Iguana also reads three system preferences: whether Stage Manager is on, whether its strip of
 recent apps hides itself, and which side the Dock is on. It uses them to decide where to

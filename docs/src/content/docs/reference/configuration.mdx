@@ -131,6 +131,7 @@ outer = { top = 4, left = 8, bottom = 8, right = 8 }
 auto-split = true    # new windows split the focused window along its longer side
 resize-step = 0.05   # share of the container that one `resize` step moves
 mouse-follows-focus = false
+focus-follows-mouse = false   # the window the pointer rests on gets the focus
 ```
 
 ### `auto-split`
@@ -163,6 +164,33 @@ When `true`, Iguana moves the pointer to the centre of a window when a shortcut 
 | --- | --- |
 | Type | boolean |
 | Default | `false` |
+
+### `focus-follows-mouse`
+
+When `true`, the window the pointer comes to rest on gets the focus, without a click. The
+pointer has to lie still on the window for a moment, about 80 milliseconds, so the windows
+you only pass over are left alone.
+
+| | |
+| --- | --- |
+| Type | boolean |
+| Default | `false` |
+
+- **Standard windows only.** Tiled or floating, on any display. The window comes to the
+  front, as it does for the [`focus`](/reference/commands/#focus) command.
+- **Never while a mouse button is down.** Dragging, resizing and selecting are left alone.
+- **Never over anything else.** Not over the menu bar, the Dock, the desktop, a menu, a
+  popover or a dialog, and not while a menu is open anywhere.
+- **Never onto a window that is covered where the pointer is.** The window in front at that
+  point is the one under the pointer.
+- **The keyboard is not overruled.** After a shortcut, or anything else that is not the
+  pointer, moved the focus, nothing happens until you move the pointer again, by more than a
+  few points. A pointer that happens to lie on another window does not take the focus back.
+- **It works with [`mouse-follows-focus`](#mouse-follows-focus).** When a shortcut takes the
+  pointer along to the window it focused, that does not count as you moving it.
+- **It is about focus, not tiling.** It keeps working while tiling is paused.
+
+While this is off, Iguana does not listen to the pointer at all.
 
 ## `[animation]`
 
@@ -573,6 +601,7 @@ outer = 8            # or: outer = { top = 8, left = 8, bottom = 8, right = 8 }
 auto-split = true    # new windows split the focused window along its longer side
 resize-step = 0.05   # share of the container that one `resize` step moves
 mouse-follows-focus = false
+focus-follows-mouse = false   # the window the pointer rests on gets the focus
 
 [animation]
 enabled = true       # windows glide to their new place instead of jumping

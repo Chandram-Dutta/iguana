@@ -56,6 +56,8 @@ final class WindowManager {
     private(set) var config = Config.default
     private(set) var configWarnings: [String] = []
     var onChange: (() -> Void)?
+    /// Iguana moved the pointer itself (`mouse-follows-focus`), and where to.
+    var onPointerWarp: ((CGPoint) -> Void)?
     var onConfigChange: (() -> Void)?
     var onOpenSettings: (() -> Void)?
     var onOpenTour: (() -> Void)?
@@ -668,7 +670,7 @@ final class WindowManager {
         return "ok"
     }
 
-    private func focus(window id: CGWindowID, attempt: Int = 0) {
+    private func focus(window id: CGWindowID, attempt: Int = 0, warp: Bool = true) {
         guard let w = windows[id] else {
             // The window closed while its focus was being confirmed: stop waiting for it.
             if focusIntent == id { focusIntent = nil }
@@ -681,8 +683,9 @@ final class WindowManager {
         focusedWindow = id
         focusIntent = id
         for tree in trees.values where tree.contains(id) { tree.focused = id }
-        if config.mouseFollowsFocus, attempt == 0, let f = lastFrames[id] ?? w.element.frame {
+        if config.mouseFollowsFocus, warp, attempt == 0, let f = lastFrames[id] ?? w.element.frame {
             CGWarpMouseCursorPosition(CGPoint(x: f.midX, y: f.midY))
+            onPointerWarp?(CGPoint(x: f.midX, y: f.midY))
         }
         // macOS sometimes reports success and leaves the focus where it was. Check, and try again.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
@@ -1111,6 +1114,14 @@ final class WindowManager {
     func focusWindow(_ id: CGWindowID) {
         guard started, AXIsProcessTrusted(), windows[id] != nil else { return }
         focus(window: id)
+        scheduleRefresh()
+    }
+
+    /// Focus the window the pointer rests on (`focus-follows-mouse`). The pointer is already
+    /// where the user wants it, so `mouse-follows-focus` does not move it.
+    func focusFromPointer(_ id: CGWindowID) {
+        guard started, AXIsProcessTrusted(), windows[id] != nil else { return }
+        focus(window: id, warp: false)
         scheduleRefresh()
     }
 

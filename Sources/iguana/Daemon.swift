@@ -6,6 +6,8 @@ import SwiftUI
 final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let wm = WindowManager()
     private var hotkeys: Hotkeys?
+    /// `focus-follows-mouse`: gives the focus to the window the pointer rests on.
+    private let pointerFocus = FocusFollowsMouse()
     private var statusItem: NSStatusItem?
     private var trustTimer: Timer?
     private var hotkeyProblems: [String] = []
@@ -46,6 +48,7 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
         setUpStatusItem()
         hotkeys = Hotkeys()
         wm.onChange = { [weak self] in
+            if let self { self.pointerFocus.changed(self.wm) }
             self?.updateStatusItem()
             if self?.settings?.isVisible == true { self?.settings?.model.refresh() }
             if let self { self.hooks.changed(self.wm) }

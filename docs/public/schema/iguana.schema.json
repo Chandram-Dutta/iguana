@@ -36,7 +36,8 @@
       "properties": {
         "auto-split": { "type": "boolean", "default": true, "description": "A new window splits the focused window along its longer side. When false it is added to the focused window's row or column." },
         "resize-step": { "type": "number", "exclusiveMinimum": 0, "maximum": 0.5, "default": 0.05, "description": "Share of the container that one resize step moves (0.05 is five percent)." },
-        "mouse-follows-focus": { "type": "boolean", "default": false, "description": "Move the pointer to the centre of a window when a shortcut focuses it." }
+        "mouse-follows-focus": { "type": "boolean", "default": false, "description": "Move the pointer to the centre of a window when a shortcut focuses it." },
+        "focus-follows-mouse": { "type": "boolean", "default": false, "description": "Focus the window the pointer comes to rest on, without a click." }
       }
     },
     "animation": {
