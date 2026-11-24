@@ -51,7 +51,7 @@ private let axCallback: AXObserverCallback = { _, element, notification, refcon 
 /// system is showing right now. It never hides, parks or moves a window to make a "workspace".
 /// Spaces, Mission Control, Stage Manager, fullscreen and minimising stay the system's business.
 final class WindowManager {
-    static let version = "0.2.0"
+    static let version = "0.2.1"
 
     private(set) var config = Config.default
     private(set) var configWarnings: [String] = []
