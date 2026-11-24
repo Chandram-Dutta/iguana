@@ -1116,6 +1116,30 @@ final class WindowManager {
         return "\(d.desktopOffset + i)"
     }
 
+    // MARK: Facts for the JSON reports and the hooks
+
+    /// What Reports.swift and Hooks.swift read. They only look: nothing outside this file
+    /// changes a window or a layout.
+    struct Facts {
+        let windows: [CGWindowID: WindowState]
+        let apps: [pid_t: AppState]
+        let trees: [String: Tree]
+        /// The windows that have a tile on screen right now.
+        let tiled: Set<CGWindowID>
+        let visible: Set<CGWindowID>
+        let activeDisplay: DisplayInfo?
+    }
+
+    /// `fresh` looks at the displays and the focus again first, as running a command does.
+    func facts(fresh: Bool = false) -> Facts {
+        if fresh {
+            displays = DisplayInfo.current()
+            if started, AXIsProcessTrusted() { updateFocus(ScreenSnapshot.take()) }
+        }
+        return Facts(windows: windows, apps: apps, trees: trees, tiled: Set(lastFrames.keys), visible: lastVisible,
+                     activeDisplay: activeDisplay)
+    }
+
     // MARK: Saved layouts
 
     private struct SavedState: Codable {

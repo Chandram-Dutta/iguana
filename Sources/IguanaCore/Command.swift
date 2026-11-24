@@ -50,7 +50,7 @@ public enum Command: Equatable {
     move-to-space N|next|prev --stay    send it there and stay where you are
     pause                           toggle tiling on or off
     reload                          reload the config file
-    list-windows | list-spaces | tree | status
+    list-windows | list-spaces | tree | status    reports; add --json for a JSON document
     settings                        open the settings window
     tour                            show the welcome tour again
     quit

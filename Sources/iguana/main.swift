@@ -73,7 +73,7 @@ case "debug-tour":
 default:
     let line = arguments.joined(separator: " ")
     do {
-        _ = try Command.parse(line)
+        _ = try Command.parseRequest(line)
     } catch {
         FileHandle.standardError.write(Data("iguana: \(error)\nRun `iguana help` for the list of commands.\n".utf8))
         exit(2)
