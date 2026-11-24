@@ -92,6 +92,8 @@ final class WindowManager {
     private var justAdopted = Set<CGWindowID>()
     /// The next refresh places windows at once (arriving on a desktop, first layout).
     private var instantNext = true
+    /// How often a stack has been put in order since it last was in order or the user last did something.
+    private var stackOrderTries = 0
 
     // MARK: Lifecycle
 
@@ -240,6 +242,7 @@ final class WindowManager {
     }
 
     private func mouseUp() {
+        stackOrderTries = 0
         guard let d = drag else { return }
         drag = nil
         defer { scheduleRefresh(after: 0) }
@@ -250,8 +253,10 @@ final class WindowManager {
             // Resized by hand: keep the new proportions.
             if abs(dw) > 3 { tree.changeShare(of: d.id, along: .horizontal, .ratio(Double(now.width / d.start.width)), visible: lastVisible) }
             if abs(dh) > 3 { tree.changeShare(of: d.id, along: .vertical, .ratio(Double(now.height / d.start.height)), visible: lastVisible) }
-        } else if let cursor = CGEvent(source: nil)?.location,
-                  let target = lastFrames.first(where: { $0.key != d.id && $0.value.contains(cursor) })?.key {
+        } else if let cursor = CGEvent(source: nil)?.location, slots[d.id]?.contains(cursor) != true,
+                  // The windows of a stack overlap: a window let go on its own tile stays, and of
+                  // several tiles under the pointer the one in front is meant.
+                  let target = ScreenSnapshot.take().order.first(where: { $0 != d.id && lastFrames[$0]?.contains(cursor) == true }) {
             // Dropped on another tile: trade places.
             if tree.contains(target) {
                 tree.swap(d.id, target)
@@ -296,8 +301,30 @@ final class WindowManager {
         slots = newSlots
         lastFrames = frames
         lastVisible = Set(frames.keys)
+        orderStack(snap)
         scheduleSave()
         onChange?()
+    }
+
+    /// The windows of a stack overlap, and which of them is above which decides whether each one
+    /// still shows its strip. Raise the ones that are out of order, the focused window last.
+    /// Nothing is hidden or moved for this; the windows only change places front to back.
+    private func orderStack(_ snap: ScreenSnapshot) {
+        guard drag == nil, let id = focusedWindow, lastFrames[id] != nil, let (_, tree) = treeEntry(containing: id) else { return }
+        let raise = tree.stackRaiseOrder(focused: id, frontToBack: snap.order, visible: lastVisible)
+        guard !raise.isEmpty else {
+            stackOrderTries = 0
+            return
+        }
+        // Raising a window can itself cause a refresh, and an app can answer a raise in ways of
+        // its own. Three tries without the stack coming right, and it is left alone until the
+        // user does something, so that this can never go round in circles.
+        guard stackOrderTries < 3 else { return }
+        stackOrderTries += 1
+        if stackOrderTries == 3 { Log.write("stack: raising \(raise) twice did not put the stack around window \(id) in order; trying once more, then leaving it") }
+        for other in raise { if let w = windows[other] { AXUIElementPerformAction(w.element, kAXRaiseAction as CFString) } }
+        // Raising another window of the same app can make that one the app's main window.
+        windows[id]?.element.set(kAXMainAttribute, true)
     }
 
     private func enumerate(_ state: AppState) {
@@ -438,7 +465,7 @@ final class WindowManager {
                 unverifiedMinimums.subtract(doubtful)
                 recheckMinimums(in: tree, key: key, visible: ids, usable: usable, only: doubtful)
             }
-            let computed = computeLayout(tree, in: usable, gap: config.gapInner, visible: ids, minSizes: minSizes)
+            let computed = computeLayout(tree, in: usable, gap: config.gapInner, visible: ids, minSizes: minSizes, peek: config.stackPeek)
             allSlots.merge(computed) { a, _ in a }
             var applied = computed
             if let z = zoomed[key] { applied[z] = usable }
@@ -533,7 +560,7 @@ final class WindowManager {
     }
 
     private func recheckMinimums(in tree: Tree, key: String, visible ids: Set<CGWindowID>, usable: CGRect, only: Set<CGWindowID>? = nil) {
-        let free = computeLayout(tree, in: usable, gap: config.gapInner, visible: ids)
+        let free = computeLayout(tree, in: usable, gap: config.gapInner, visible: ids, peek: config.stackPeek)
         for (id, slot) in free where only?.contains(id) != false {
             guard let w = windows[id], var m = w.minSize, zoomed[key] != id else { continue }
             let wide = m.width > slot.width + 2, tall = m.height > slot.height + 2
@@ -549,6 +576,7 @@ final class WindowManager {
     // MARK: Commands
 
     func run(_ command: Command) -> String {
+        stackOrderTries = 0
         if started, AXIsProcessTrusted() {
             displays = DisplayInfo.current()
             updateFocus(ScreenSnapshot.take())
@@ -591,6 +619,11 @@ final class WindowManager {
             }
         case .flip:
             return withFocusedTile { id, tree, _ in tree.flip(id) ? "ok" : "error: cannot flip" }
+        case .stack:
+            return withFocusedTile { id, tree, _ in
+                guard let stacked = tree.toggleStack(id) else { return "ok: no other window to stack with" }
+                return stacked ? "ok: stacked" : "ok: unstacked"
+            }
         case .balance:
             return withFocusedTile { _, tree, key in
                 tree.balance()
@@ -657,7 +690,9 @@ final class WindowManager {
             if let front = snap.order.first(where: { frames[$0] != nil }) { focus(window: front) }
             return "ok"
         }
-        guard let target = nearestWindow(from: origin, direction: dir, among: frames, excluding: current) else {
+        // Windows in a stack overlap, so there the layout decides what is next, not the picture.
+        guard let target = focusTarget(from: current, at: origin, direction: dir, among: frames,
+                                       trees: displays.compactMap { trees[$0.treeKey] }, visible: lastVisible, frontToBack: snap.order) else {
             return "ok: nothing in that direction"
         }
         focus(window: target)

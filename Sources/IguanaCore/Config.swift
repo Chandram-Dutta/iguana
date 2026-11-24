@@ -86,6 +86,8 @@ public struct Config: Equatable {
     /// New windows split the focused window along its longer side instead of widening the row.
     public var autoSplit = true
     public var resizeStep = 0.05
+    /// Points of each window of a stack that stay in view behind the one in front.
+    public var stackPeek: Double = 32
     public var mouseFollowsFocus = false
     public var stripReserve = StripReserve.auto
     public var stripWidth: Double = 150
@@ -112,6 +114,7 @@ public struct Config: Equatable {
     [layout]
     auto-split = true    # new windows split the focused window along its longer side
     resize-step = 0.05   # share of the container that one `resize` step moves
+    stack-peek = 32      # points of each window in a stack that stay visible behind the front one
     mouse-follows-focus = false
 
     [animation]
@@ -153,6 +156,7 @@ public struct Config: Equatable {
     option-minus = "resize shrink"
     option-equal = "resize grow"
     option-slash = "flip"
+    option-s = "stack"
     option-f = "zoom"
     option-shift-space = "float"
     option-shift-b = "balance"
@@ -256,8 +260,9 @@ public struct Config: Equatable {
         }
 
         if let layout = doc["layout"]?.tableValue {
-            checkKeys(layout, ["auto-split", "resize-step", "mouse-follows-focus"], "[layout]")
+            checkKeys(layout, ["auto-split", "resize-step", "stack-peek", "mouse-follows-focus"], "[layout]")
             if let v = flag(layout["auto-split"], "layout.auto-split") { c.autoSplit = v }
+            if let v = number(layout["stack-peek"], "layout.stack-peek", min: 8, max: 120) { c.stackPeek = v }
             if let v = flag(layout["mouse-follows-focus"], "layout.mouse-follows-focus") { c.mouseFollowsFocus = v }
             if let v = layout["resize-step"] {
                 if let d = v.doubleValue, d > 0, d <= 0.5 {

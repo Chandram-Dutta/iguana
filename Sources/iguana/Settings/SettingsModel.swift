@@ -94,18 +94,19 @@ struct CommandGroup: Identifiable {
         return [
             CommandGroup(title: "Focus", commands: directions.map { CommandInfo(title: "Focus \($0.1)", text: "focus \($0.0)") }),
             CommandGroup(title: "Move Window", commands: directions.map { CommandInfo(title: "Move \($0.1)", text: "move \($0.0)") }),
-            CommandGroup(title: "Stack With Neighbour", commands: [
-                CommandInfo(title: "Stack With the Window on the Left", text: "join left"),
-                CommandInfo(title: "Stack With the Window Below", text: "join down"),
-                CommandInfo(title: "Stack With the Window Above", text: "join up"),
-                CommandInfo(title: "Stack With the Window on the Right", text: "join right"),
+            CommandGroup(title: "Group With Neighbour", commands: [
+                CommandInfo(title: "Group With the Window on the Left", text: "join left"),
+                CommandInfo(title: "Group With the Window Below", text: "join down"),
+                CommandInfo(title: "Group With the Window Above", text: "join up"),
+                CommandInfo(title: "Group With the Window on the Right", text: "join right"),
             ]),
             CommandGroup(title: "Size and Arrangement", commands: [
                 CommandInfo(title: "Grow", text: "resize grow"),
                 CommandInfo(title: "Shrink", text: "resize shrink"),
                 CommandInfo(title: "Balance Sizes", text: "balance"),
                 CommandInfo(title: "Fill the Desktop", text: "zoom"),
-                CommandInfo(title: "Switch Side-by-Side / Stacked", text: "flip"),
+                CommandInfo(title: "Switch Side-by-Side / Top-to-Bottom", text: "flip"),
+                CommandInfo(title: "Stack or Unstack Windows", text: "stack"),
                 CommandInfo(title: "Float or Tile Window", text: "float"),
                 CommandInfo(title: "Close Window", text: "close"),
                 CommandInfo(title: "Pause Tiling", text: "pause"),

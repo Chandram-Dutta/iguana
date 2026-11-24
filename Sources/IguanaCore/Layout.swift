@@ -33,12 +33,17 @@ func distribute(total: CGFloat, weights: [CGFloat], mins: [CGFloat]) -> [CGFloat
 }
 
 /// Compute the frame of every visible window of a tree inside `rect`.
+///
+/// The children of a stacked container overlap: each is the container's length less one `peek`
+/// for every other child, and starts one `peek` after the child before it. That leaves a strip of
+/// every child in view at the two ends of the stack, whichever one is in front.
 public func computeLayout(
     _ tree: Tree,
     in rect: CGRect,
     gap: CGFloat = 0,
     visible: Set<WindowID>? = nil,
-    minSizes: [WindowID: CGSize] = [:]
+    minSizes: [WindowID: CGSize] = [:],
+    peek: CGFloat = 32
 ) -> [WindowID: CGRect] {
     var out: [WindowID: CGRect] = [:]
 
@@ -47,8 +52,17 @@ public func computeLayout(
         let kids = n.children.filter { tree.hasVisible($0, visible) }
         guard let o = n.orientation, !kids.isEmpty else { return .zero }
         let sizes = kids.map(minSize)
-        let gaps = gap * CGFloat(kids.count - 1)
         let widths = sizes.map(\.width), heights = sizes.map(\.height)
+        if n.stacked {
+            // Room for the widest child and a strip of each of the others. With no minimum to
+            // honour a stack asks for nothing, like any other container.
+            let strips = peek * CGFloat(kids.count - 1)
+            let w = widths.max() ?? 0, h = heights.max() ?? 0
+            return o == .horizontal
+                ? CGSize(width: w > 0 ? w + strips : 0, height: h)
+                : CGSize(width: w, height: h > 0 ? h + strips : 0)
+        }
+        let gaps = gap * CGFloat(kids.count - 1)
         return o == .horizontal
             ? CGSize(width: widths.reduce(0, +) + gaps, height: heights.max() ?? 0)
             : CGSize(width: widths.max() ?? 0, height: heights.reduce(0, +) + gaps)
@@ -62,6 +76,24 @@ public func computeLayout(
         let kids = n.children.filter { tree.hasVisible($0, visible) }
         guard let o = n.orientation, !kids.isEmpty else { return }
         let horizontal = o == .horizontal
+        if n.stacked, kids.count > 1 {
+            let length = horizontal ? r.width : r.height, start = horizontal ? r.minX : r.minY
+            // In a small container the strips give way first: the window in front keeps at least half of it.
+            let step = min(peek, length / CGFloat(2 * (kids.count - 1)))
+            let shared = length - step * CGFloat(kids.count - 1)
+            for (i, kid) in kids.enumerated() {
+                // A child that cannot be as short as the others is as long as it has to be, and
+                // starts early enough to end inside the container.
+                let least = horizontal ? minSize(kid).width : minSize(kid).height
+                let len = min(max(shared, least), length)
+                let offset = min(step * CGFloat(i), length - len)
+                let a = (start + offset).rounded(), b = (start + offset + len).rounded()
+                place(kid, horizontal
+                    ? CGRect(x: a, y: r.minY, width: b - a, height: r.height)
+                    : CGRect(x: r.minX, y: a, width: r.width, height: b - a))
+            }
+            return
+        }
         let total = (horizontal ? r.width : r.height) - gap * CGFloat(kids.count - 1)
         let lengths = distribute(
             total: total,

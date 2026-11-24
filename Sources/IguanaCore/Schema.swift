@@ -51,6 +51,7 @@ extension Config {
           "properties": {
             "auto-split": { "type": "boolean", "default": true, "description": "A new window splits the focused window along its longer side. When false it is added to the focused window's row or column." },
             "resize-step": { "type": "number", "exclusiveMinimum": 0, "maximum": 0.5, "default": 0.05, "description": "Share of the container that one resize step moves (0.05 is five percent)." },
+            "stack-peek": { "type": "number", "minimum": 8, "maximum": 120, "default": 32, "description": "Points of each window in a stack that stay visible behind the window in front." },
             "mouse-follows-focus": { "type": "boolean", "default": false, "description": "Move the pointer to the centre of a window when a shortcut focuses it." }
           }
         },
@@ -98,7 +99,7 @@ extension Config {
                 { "type": "string", "pattern": "^resize( (width|height))? (grow|shrink)( (width|height))?$" },
                 { "type": "string", "pattern": "^space ([1-9]|1[0-6]|next|prev|previous)$" },
                 { "type": "string", "pattern": "^move-to-space( (--stay|--follow))? ([1-9]|1[0-6]|next|prev|previous)( (--stay|--follow))?$" },
-                { "enum": ["flip", "balance", "float", "zoom", "close", "pause", "reload", "settings", "tour", "list-windows", "list-spaces", "tree", "status", "quit"] }
+                { "enum": ["flip", "stack", "balance", "float", "zoom", "close", "pause", "reload", "settings", "tour", "list-windows", "list-spaces", "tree", "status", "quit"] }
               ]
             }
           }

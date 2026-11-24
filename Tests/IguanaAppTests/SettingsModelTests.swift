@@ -66,7 +66,7 @@ final class SettingsModelTests: XCTestCase {
         model.set(["animation", "enabled"], .bool(false))
         XCTAssertTrue(fileText.hasPrefix("# mine\n[gaps]\ninner = 9   # tight\n"))
         XCTAssertFalse(model.config.animate)
-        XCTAssertEqual(model.config.bindings.count, 40, "a file without [bindings] keeps every built-in shortcut")
+        XCTAssertEqual(model.config.bindings.count, 41, "a file without [bindings] keeps every built-in shortcut")
     }
 
     func testOuterGap() {
@@ -86,7 +86,7 @@ final class SettingsModelTests: XCTestCase {
         model.bind("cmd-option-left", to: "focus left", replacing: old)
         XCTAssertEqual(source(of: "focus left"), ["cmd-option-left"])
         XCTAssertTrue(fileText.contains("option-h = \"\""), "the built-in shortcut is switched off, not just forgotten")
-        XCTAssertEqual(model.config.bindings.count, 40)
+        XCTAssertEqual(model.config.bindings.count, 41)
         XCTAssertEqual(model.problems, [])
 
         // Changing it back restores the original line.
@@ -117,7 +117,7 @@ final class SettingsModelTests: XCTestCase {
 
         model.resetShortcuts()
         XCTAssertFalse(model.shortcutsDifferFromBuiltIn)
-        XCTAssertEqual(model.config.bindings.count, 40)
+        XCTAssertEqual(model.config.bindings.count, 41)
         XCTAssertEqual(model.problems, [])
     }
 

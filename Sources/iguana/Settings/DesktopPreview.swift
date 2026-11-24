@@ -34,7 +34,7 @@ struct DesktopPreview: View {
                             width: (data.usable.width - outer.left - outer.right) * scale,
                             height: (data.usable.height - outer.top - outer.bottom) * scale)
         let tree = Tree(snapshot: data.layout)
-        let slots = computeLayout(tree, in: usable, gap: config.gapInner * scale, visible: data.visible)
+        let slots = computeLayout(tree, in: usable, gap: config.gapInner * scale, visible: data.visible, peek: config.stackPeek * scale)
         // Keep a stable order so that the same window keeps its identity while it travels.
         let order = tree.windows.filter { slots[$0] != nil }
         guard !order.isEmpty else { return [] }
@@ -64,6 +64,8 @@ struct DesktopPreview: View {
                     TileView(icon: tile.icon, focused: tile.focused, size: tile.frame.size, select: onSelect.map { select in { select(tile.id) } })
                         .frame(width: max(tile.frame.width, 0), height: max(tile.frame.height, 0))
                         .position(x: tile.frame.midX, y: tile.frame.midY)
+                        // In a stack the tiles overlap, and the focused window is the one in front.
+                        .zIndex(tile.focused ? 1 : 0)
                 }
             }
             .frame(width: size.width, height: size.height)

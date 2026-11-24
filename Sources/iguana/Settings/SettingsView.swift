@@ -306,6 +306,11 @@ private struct LayoutPane: View {
                         model.set(["layout", "resize-step"], .double($0 / 100))
                     }
                 }
+                SettingRow(title: "Stack peek", detail: "How much of each window in a stack shows behind the one in front.") {
+                    ValueSlider(label: "Stack peek", value: model.config.stackPeek, range: 8...120, step: 4, format: points) {
+                        model.setNumber(["layout", "stack-peek"], $0)
+                    }
+                }
                 SettingRow(title: "Pointer follows focus", detail: "Move the pointer to a window when a shortcut focuses it.") {
                     Toggle("Pointer follows focus", isOn: SwiftUI.Binding(
                         get: { model.config.mouseFollowsFocus }, set: { model.set(["layout", "mouse-follows-focus"], .bool($0)) }))
@@ -457,7 +462,7 @@ private struct ShortcutsPane: View {
     private let desktops = (1...9).map { ("\($0)", "Desktop \($0)") } + [("next", "Next desktop"), ("prev", "Previous desktop")]
     private let windowCommands = [
         ("resize grow", "Grow"), ("resize shrink", "Shrink"), ("balance", "Even out all sizes"), ("zoom", "Fill the desktop"),
-        ("flip", "Switch between side by side and stacked"), ("float", "Float or tile"), ("close", "Close"), ("pause", "Pause tiling"),
+        ("flip", "Switch between side by side and top to bottom"), ("stack", "Stack or unstack"), ("float", "Float or tile"), ("close", "Close"), ("pause", "Pause tiling"),
     ]
 
     private var customText: String { customCommand.trimmingCharacters(in: .whitespaces) }
@@ -473,7 +478,7 @@ private struct ShortcutsPane: View {
 
     var body: some View {
         PaneScaffold(title: "Shortcuts", subtitle: "Click a shortcut and type a new one. Delete clears it, Esc cancels.") {
-            matrix(title: "Directions", columns: ["Focus", "Move", "Stack with"], rows: directions.map { d in
+            matrix(title: "Directions", columns: ["Focus", "Move", "Group with"], rows: directions.map { d in
                 (AnyView(Label(d.1, systemImage: d.2).labelStyle(DirectionLabelStyle())), ["focus \(d.0)", "move \(d.0)", "join \(d.0)"])
             })
 

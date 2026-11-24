@@ -26,6 +26,9 @@ public final class Node {
     public fileprivate(set) var weight: Double
     public fileprivate(set) var children: [Node] = []
     public fileprivate(set) weak var parent: Node?
+    /// A stacked container gives all of its children the same area, each shifted a little so
+    /// that a strip of the ones behind stays in view. Only containers are ever stacked.
+    public fileprivate(set) var stacked = false
 
     fileprivate init(window: WindowID, weight: Double = 1) {
         kind = .window(window)
@@ -82,6 +85,8 @@ public struct NodeSnapshot: Codable, Equatable {
     public var orientation: Orientation?
     public var weight: Double
     public var children: [NodeSnapshot]?
+    /// Only written for a stacked container, so state saved before stacks existed still loads.
+    public var stacked: Bool? = nil
 }
 
 public enum ShareChange {
@@ -125,6 +130,8 @@ public final class Tree {
     ///   is split in that orientation instead of widening the container (dwindle behaviour).
     /// - `sameSlot`: the new window shares the anchor's slot, used when one window replaces
     ///   another on screen (native tabs).
+    ///
+    /// A window that opens next to one in a stack joins the stack, whatever `split` says.
     @discardableResult
     public func insert(_ id: WindowID, after anchor: WindowID? = nil, split: Orientation? = nil, sameSlot: Bool = false) -> Bool {
         guard !contains(id) else { return false }
@@ -136,7 +143,7 @@ public final class Tree {
             p.insert(Node(window: id, weight: an.weight), at: i + 1)
             return true
         }
-        if let split, split != p.orientation {
+        if let split, split != p.orientation, !p.stacked {
             if p.children.count == 1 {
                 p.kind = .container(split)
                 p.insert(Node(window: id, weight: an.weight), at: i + 1)
@@ -283,14 +290,26 @@ public final class Tree {
         return true
     }
 
+    /// Switch the container that holds the window between split and stacked. Returns the new
+    /// state, or nil when the window has its container to itself and there is nothing to stack.
+    @discardableResult
+    public func toggleStack(_ id: WindowID) -> Bool? {
+        guard let p = node(id)?.parent, p.children.count > 1 else { return nil }
+        p.stacked.toggle()
+        let now = p.stacked
+        normalize()
+        return now
+    }
+
     /// Change how much of its container a window takes. With `axis == nil` the nearest container
-    /// that has more than one visible child is used.
+    /// that has more than one visible child is used. The windows of a stack all have the same
+    /// size, so from inside a stack it is the stack as a whole that grows or shrinks.
     @discardableResult
     public func changeShare(of id: WindowID, along axis: Orientation? = nil, _ change: ShareChange, visible: Set<WindowID>? = nil) -> Bool {
         guard var branch = node(id) else { return false }
         while let p = branch.parent {
             let vis = p.children.filter { hasVisible($0, visible) }
-            if axis == nil || p.orientation == axis, vis.count > 1, vis.contains(where: { $0 === branch }) {
+            if axis == nil || p.orientation == axis, !p.stacked, vis.count > 1, vis.contains(where: { $0 === branch }) {
                 let total = vis.reduce(0) { $0 + $1.weight }
                 let share = branch.weight / total
                 var target: Double
@@ -329,7 +348,8 @@ public final class Tree {
             guard let o = n.orientation else { return }
             n.children.forEach(walk)
             let kids = n.children.filter { hasVisible($0, visible) }
-            guard kids.count > 1 else { return }
+            // The windows of a stack overlap; their sizes say nothing about weights.
+            guard kids.count > 1, !n.stacked else { return }
             let lengths = kids.map { kid -> Double in
                 guard let e = extent(kid) else { return 0 }
                 return Double(o == .horizontal ? e.width : e.height)
@@ -364,7 +384,8 @@ public final class Tree {
     }
 
     /// Keep the tree canonical: no empty containers, no single-child containers, and no container
-    /// nested in a parent that splits the same way.
+    /// nested in a parent that arranges its children the same way. A stack and a split are
+    /// different arrangements even when they run in the same direction, so those stay nested.
     func normalize() {
         normalize(root)
         while root.children.count == 1, let only = root.children.first, only.orientation != nil {
@@ -372,6 +393,8 @@ public final class Tree {
             only.weight = 1
             root = only
         }
+        // A stack that is down to one window is an ordinary tile again, at the root as anywhere else.
+        if root.children.count < 2 { root.stacked = false }
     }
 
     private func normalize(_ node: Node) {
@@ -396,7 +419,7 @@ public final class Tree {
                 node.insert(only, at: i)
                 continue
             }
-            if co == orientation {
+            if co == orientation, c.stacked == node.stacked {
                 let kids = c.children
                 let total = kids.reduce(0) { $0 + $1.weight }
                 c.detach()
@@ -416,7 +439,7 @@ public final class Tree {
     public var snapshot: NodeSnapshot {
         func snap(_ n: Node) -> NodeSnapshot {
             NodeSnapshot(window: n.windowID, orientation: n.orientation, weight: n.weight,
-                         children: n.orientation == nil ? nil : n.children.map(snap))
+                         children: n.orientation == nil ? nil : n.children.map(snap), stacked: n.stacked ? true : nil)
         }
         return snap(root)
     }
@@ -427,10 +450,12 @@ public final class Tree {
             if let id = s.window { return Node(window: id, weight: s.weight > 0 ? s.weight : 1) }
             guard let o = s.orientation else { return nil }
             let n = Node(container: o, weight: s.weight > 0 ? s.weight : 1)
+            n.stacked = s.stacked ?? false
             for c in s.children ?? [] { if let child = build(c) { n.append(child) } }
             return n
         }
         var seen = Set<WindowID>()
+        root.stacked = snapshot.stacked ?? false
         for c in snapshot.children ?? [] {
             if let child = build(c) { root.append(child) }
         }
@@ -449,7 +474,7 @@ public final class Tree {
             if let id = n.windowID {
                 lines.append("\(pad)- \(label(id))  [weight \(share)]")
             } else if let o = n.orientation {
-                lines.append("\(pad)\(o.rawValue)  [weight \(share)]")
+                lines.append("\(pad)\(o.rawValue)\(n.stacked ? " stack" : "")  [weight \(share)]")
                 n.children.forEach { walk($0, depth + 1) }
             }
         }
