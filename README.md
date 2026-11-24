@@ -148,4 +148,9 @@ the command socket. `docs/` is the documentation site.
 
 ## Licence
 
-[MIT](LICENSE).
+Copyright (C) 2026 Chandram Dutta.
+
+Iguana is free software: you can redistribute it and/or modify it under the terms of the
+[GNU General Public License, version 3](LICENSE). Anyone who passes on a copy, changed or
+not, has to keep the copyright notices and release it, with its source, under the same
+licence. It comes with no warranty.
