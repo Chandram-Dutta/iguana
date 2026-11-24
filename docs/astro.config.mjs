@@ -15,6 +15,15 @@ export default defineConfig({
 				alt: '',
 			},
 			favicon: '/favicon.svg',
+			// The picture a link to any page shows when it is shared.
+			head: [
+				{ tag: 'meta', attrs: { property: 'og:image', content: 'https://iguana.onlychan.xyz/og.png' } },
+				{ tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },
+				{ tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
+				{ tag: 'meta', attrs: { name: 'twitter:image', content: 'https://iguana.onlychan.xyz/og.png' } },
+				{ tag: 'meta', attrs: { name: 'theme-color', content: '#061a14' } },
+				{ tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' } },
+			],
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/Chandram-Dutta/iguana' }],
 			editLink: { baseUrl: 'https://github.com/Chandram-Dutta/iguana/edit/main/docs/' },
 			customCss: ['./src/styles/iguana.css'],
