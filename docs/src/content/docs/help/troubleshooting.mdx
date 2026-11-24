@@ -198,6 +198,30 @@ The fallback always ends on the destination desktop, so `--stay` does not apply.
 If the window stays behind, the log says either that Iguana could not take hold of the window
 by its title bar, or that the window did not come along to the new desktop.
 
+## A rule does not send a window to its desktop
+
+A [rule with a `desktop`](/guides/desktops-and-displays/#open-an-apps-windows-on-a-desktop)
+acts once, when a window opens. Check these in order:
+
+- **Was the window already open?** Windows that were open when Iguana started, or when the
+  config was last reloaded, are never moved. Close the window and open it again.
+- **Does the rule match, and is it the first that does?** `iguana list-windows` shows the app
+  name and title to match. The first rule that matches a window decides everything for it, so
+  a float rule higher up for the same app means the `desktop` rule is never asked.
+- **Is it a standard window?** Windows listed as `unmanaged` are not sent anywhere.
+- **Is tiling paused?** Nothing is sent during a pause.
+- **Read the log.** `~/Library/Logs/Iguana.log` has a line for each window a rule sent, and
+  for each one it could not send:
+
+```text
+rule: sent window 1187 of Slack to desktop 3
+rule: window 1187 of Slack was not sent to desktop 5: there are only 3 desktops
+rule: this macOS can only take a window to another desktop by going there with it, so rules with a desktop are not applied
+```
+
+The last line means the system's window-management bridge is missing. A rule never takes you
+to another desktop, so without the bridge it leaves the window where it opened.
+
 ## Animation looks choppy
 
 Heavy apps redraw slowly while they are being resized. Shorten

@@ -1,12 +1,13 @@
 ---
 title: Floating windows and rules
-description: Which windows Iguana tiles, which it leaves alone, how to float a window by hand and how to write rules that float apps or window titles.
+description: Which windows Iguana tiles, which it leaves alone, how to float a window by hand and how to write rules that float an app's windows or send them to a desktop.
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
 After this page you will know which windows Iguana tiles, how to take a window out of the
-layout, and how to write a rule so that an app's windows always float.
+layout, and how to write a rule so that an app's windows always float or open on a desktop of
+your choice.
 
 A **floating** window is one Iguana does not place. It stays where you put it, at the size
 you gave it, and the tiled windows ignore it.
@@ -49,22 +50,26 @@ Windows you floated by hand are remembered when Iguana restarts.
 
 ## Rules
 
-A rule decides whether the windows that match it float. Rules live in the
+A rule says what happens to the windows that match it: whether they float, and which desktop
+they are sent to when they first appear. Rules live in the
 [config file](/reference/configuration/#rule) as `[[rule]]` sections, and in the
 **Floating Windows** pane of the [settings window](/guides/settings-window/#floating-windows).
 
-Each rule has up to three keys:
+Each rule has up to four keys:
 
 | Key | Type | Meaning |
 | --- | --- | --- |
 | `app` | string | A bundle identifier, matched exactly, or part of the app's name. Case is ignored. |
 | `title` | string | A regular expression matched against the window title. Case is ignored. |
-| `float` | boolean | `true` floats matching windows. `false` makes the rule an exception: matching windows are tiled. Defaults to `true`. |
+| `float` | boolean | `true` floats matching windows. `false` makes the rule an exception: matching windows are tiled. Defaults to `true` in a rule without `desktop`. |
+| `desktop` | whole number, 1 to 16 | Sends a matching window to that desktop when it first appears. See [Send an app's windows to a desktop](#send-an-apps-windows-to-a-desktop). |
 
 A rule needs `app`, `title` or both. With both, a window must match both.
 
 **The first rule that matches a window decides.** Rules are tried from the top of the file
-down. A window that no rule matches is tiled.
+down, and the first one that matches answers for everything: whether the window floats and
+where it is sent. The rules below it are not asked. A window that no rule matches is tiled and
+stays on the desktop it opens on.
 
 <Tabs>
 	<TabItem label="By bundle identifier">
@@ -150,8 +155,37 @@ The app and the title here are an example. The other way round, with the general
 first, the exception would never be reached.
 
 Create exceptions in the config file, where you can see their order. The Floating Windows pane
-of the settings window shows an exception with a "Tiled, as an exception" label and keeps it
-as one when you change other rules there.
+of the settings window shows an exception with a "Tiled, as an exception" label and its Float
+switch off, and keeps it as one when you change other rules there.
+
+### Send an app's windows to a desktop
+
+Give a rule a `desktop` and a window that matches it is sent to that desktop when it opens.
+You stay on the desktop you are on.
+
+```toml title="iguana.toml"
+# Slack's windows open on desktop 3 and are tiled there.
+[[rule]]
+app = "com.tinyspeck.slackmacgap"
+desktop = 3
+
+# Music floats, on desktop 2.
+[[rule]]
+app = "com.apple.Music"
+float = true
+desktop = 2
+```
+
+A rule with only `desktop` says nothing about floating. Its windows are tiled like any other
+window, and its dialogs float on their own. Add `float = true` to float them as well.
+
+Because the first matching rule answers for everything, a window gets its floating and its
+desktop from the same rule. If Slack is matched by a `desktop` rule, a float rule further
+down that also matches Slack does nothing for it. Put both keys in one rule instead.
+
+The window is sent once, when it opens. After that it is yours to move.
+[Desktops and displays](/guides/desktops-and-displays/#open-an-apps-windows-on-a-desktop)
+says exactly when a window is sent and when it is left alone.
 
 ### No rules at all
 
@@ -166,13 +200,19 @@ Removing the last rule in the settings window writes this line for you.
 
 ### When rules are checked
 
-A rule is checked when a window first appears, and for every window again when the config is
-reloaded. A window whose title changes later is not checked again until then.
+A rule is checked when a window first appears. Whether a window floats is checked again for
+every window when the config is reloaded. A window whose title changes later is not checked
+again until then.
 
-A rule that has neither `app` nor `title`, or whose `title` is not a valid regular
-expression, is skipped with a warning. The other rules still apply.
+The desktop is different: it only counts at the moment a window opens. Reloading the config
+never moves a window that is already open.
+
+A rule that has neither `app` nor `title`, whose `title` is not a valid regular expression,
+or whose `desktop` is not a whole number from 1 to 16, is skipped with a warning. The other
+rules still apply.
 
 ## Related
 
 - [Configuration reference](/reference/configuration/#rule)
+- [Desktops and displays](/guides/desktops-and-displays/): how desktops are numbered.
 - [Troubleshooting: a window will not tile](/help/troubleshooting/#a-window-will-not-tile)

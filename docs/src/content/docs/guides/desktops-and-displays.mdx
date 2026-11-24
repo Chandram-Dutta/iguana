@@ -1,12 +1,13 @@
 ---
 title: Desktops and displays
-description: How Iguana tiles each macOS desktop, how to switch between desktops and move windows across desktops and displays.
+description: How Iguana tiles each macOS desktop, how to switch between desktops, move windows across desktops and displays, and open an app's windows on a desktop of its own.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
 After this page you will be able to switch desktops, send windows between desktops and
-displays, and know how desktops are numbered when you have more than one display.
+displays, have an app's windows open on a desktop you choose, and know how desktops are
+numbered when you have more than one display.
 
 ## Each desktop has its own layout
 
@@ -94,6 +95,50 @@ When the fallback is used, the log says so. See
 </Aside>
 
 A window in a native fullscreen Space cannot be sent to another desktop.
+
+## Open an app's windows on a desktop
+
+A [rule](/guides/floating-windows/#rules) with a `desktop` sends the windows it matches to
+that desktop as they open, so an app can have a desktop of its own:
+
+```toml title="iguana.toml"
+[[rule]]
+app = "com.tinyspeck.slackmacgap"
+desktop = 3
+```
+
+The bundle identifier here is Slack's, as an example. The **Floating Windows** pane of the
+[settings window](/guides/settings-window/#floating-windows) has the same choice as a pop-up
+menu on each rule.
+
+When a matching window opens, Iguana sends it to desktop 3 and you stay where you are, as
+with `move-to-space 3 --stay`. If the new window had the keyboard, the window you were using
+before gets it back. The sent window joins the layout of desktop 3 the next time that desktop
+is shown.
+
+- **Once for each window.** A window is sent when it opens. Move it to another desktop
+  afterwards and it stays there.
+- **Nothing moves at launch.** Windows that are already open when Iguana starts, or when the
+  config is reloaded, stay where they are. The rule acts on windows that open after that.
+- **Only standard windows.** Dialogs, sheets and fixed-size windows are not sent anywhere. A
+  new tab stays with the window it is a tab of.
+- **While tiling is paused, nothing is sent,** and a window that opened during the pause is
+  not sent afterwards.
+- **A desktop that does not exist** leaves the window where it is. The log gets a line such
+  as `rule: window 1187 of Slack was not sent to desktop 5: there are only 3 desktops`.
+  Create desktops in Mission Control.
+- **The first rule that matches a window decides** whether it floats and where it goes. See
+  [Floating windows and rules](/guides/floating-windows/#send-an-apps-windows-to-a-desktop).
+
+<Aside type="caution" title="Needs the system's window-management bridge">
+A rule only sends a window where it can do so without taking you along. That needs the quick
+route described under [Two routes](#two-routes-depending-on-your-macos). On a macOS without
+it, the fallback always follows the window, so Iguana does not use it for rules: the window
+stays where it opened, and the log says once that rules with a desktop are not applied.
+</Aside>
+
+A rule cannot send a window to a particular display. A desktop belongs to a display, so
+naming a desktop on another display does move the window there.
 
 ## More than one display
 

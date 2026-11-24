@@ -95,8 +95,8 @@ keeps the new proportions.
 There are two ways to change settings and they are the same thing underneath.
 
 **The settings window** (menu bar item > Settings…, or `iguana settings`) has panes for layout
-and gaps, animation, shortcuts and floating-window rules. Changes apply to your real windows as
-you make them.
+and gaps, animation, shortcuts and the rules that float an app's windows or send them to a
+desktop. Changes apply to your real windows as you make them.
 
 **The config file** is `~/.config/iguana/iguana.toml`. `iguana config init` writes it with every
 setting explained in comments, plus a schema file that gives editors with TOML support completion
@@ -122,7 +122,8 @@ automatically while Reduce Motion is on.
   few milliseconds and needs no SIP changes; Iguana then switches to that Space. Add `--stay` to a
   `move-to-space` binding to send the window away and stay where you are. On systems without that route Iguana falls
   back to holding the window by its title bar and switching Space, which is slower and always
-  follows the window.
+  follows the window. A `[[rule]]` with `desktop = N` sends an app's new windows to a desktop
+  through the quick route only, because a rule never takes you along.
 - **Space switches are animated by macOS.** Turn on Reduce Motion (System Settings > Accessibility
   > Display) for a quick cross-fade.
 - Reading which Space is showing uses undocumented system calls (read-only). They have been stable
