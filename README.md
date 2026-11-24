@@ -22,11 +22,9 @@ opposite bet:
 
 ## Install
 
-Download **[Iguana.dmg](https://github.com/Chandram-Dutta/iguana/releases/latest/download/Iguana.dmg)**,
-open it and drag Iguana into Applications. It needs macOS 14 or later, on Apple silicon or Intel.
-The app is signed and notarized.
+Iguana needs macOS 14 or later, on Apple silicon or Intel. The app is signed and notarized.
 
-Or with Homebrew, which also puts the `iguana` command on your PATH:
+### Homebrew
 
 ```sh
 brew tap chandram-dutta/tap
@@ -34,7 +32,16 @@ brew trust chandram-dutta/tap     # newer versions of Homebrew ask for this; old
 brew install --cask chandram-dutta/tap/iguana
 ```
 
-Or build it from source, with Xcode 26 or later (or its Command Line Tools):
+This also puts the `iguana` command on your PATH. Update later with `brew upgrade --cask iguana`.
+
+### Download
+
+Download **[Iguana.dmg](https://github.com/Chandram-Dutta/iguana/releases/latest/download/Iguana.dmg)**,
+open it and drag Iguana into Applications.
+
+### From source
+
+With Xcode 26 or later (or its Command Line Tools):
 
 ```sh
 scripts/bundle.sh          # builds and signs build/Iguana.app
@@ -53,7 +60,8 @@ it. Click it for a menu that starts with the desktop in miniature (click a windo
 every other desktop with its layout (click one to go there), above Pause, Balance and Settings. With `desktops = "all"` or `"occupied"` under `[menu-bar]`, the icon draws every
 desktop side by side; `click-to-switch = true` makes a click on one go there.
 
-To use the command line, put the binary on your `PATH`:
+To use the command line after a download, put the binary on your `PATH` (Homebrew has already
+done this):
 
 ```sh
 ln -s /Applications/Iguana.app/Contents/MacOS/iguana /usr/local/bin/iguana

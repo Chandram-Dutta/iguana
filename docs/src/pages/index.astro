@@ -220,12 +220,19 @@ const download = `${repository}/releases/latest/download/Iguana.dmg`;
 
 			<section class="install">
 				<div class="wrap">
-					<h2>Download it. Open it.</h2>
-					<div class="actions">
-						<a class="button" href={download}>Download for macOS</a>
-						<span class="note">macOS 14 or later, Apple silicon and Intel</span>
+					<h2>Download it, or brew it.</h2>
+					<div class="get">
+						<div class="get-download">
+							<a class="button" href={download}>Download for macOS</a>
+							<span class="note">macOS 14 or later, Apple silicon and Intel</span>
+						</div>
+						<div class="get-brew">
+							<pre class="brew" aria-label="Install with Homebrew"><code data-brew>brew tap chandram-dutta/tap
+brew trust chandram-dutta/tap
+brew install --cask chandram-dutta/tap/iguana</code></pre>
+							<button type="button" class="chip copy" data-copy>Copy</button>
+						</div>
 					</div>
-					<pre class="brew" aria-label="Or install with Homebrew"><code>brew install --cask chandram-dutta/tap/iguana</code></pre>
 					<p class="also">
 						<a class="quiet" href="/start/install/">Install guide</a>
 						<a class="quiet" href={repository}>Source on GitHub</a>
@@ -1086,18 +1093,45 @@ const download = `${repository}/releases/latest/download/Iguana.dmg`;
 		color: var(--soft);
 	}
 
+	/* Two ways in, side by side: the download and the Homebrew commands. */
+	.get {
+		display: grid;
+		grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+		gap: 1.5rem clamp(2rem, 4.5vw, 5rem);
+		align-items: center;
+	}
+	@media (max-width: 899px) {
+		.get {
+			grid-template-columns: 1fr;
+		}
+	}
+	.get-download {
+		display: grid;
+		gap: 0.9rem;
+		justify-items: start;
+	}
+	.get-brew {
+		position: relative;
+	}
 	.brew {
 		font-family: var(--mono);
 		font-size: 0.95rem;
-		color: var(--soft);
-		width: fit-content;
-		max-width: 100%;
-		margin: 1.5rem 0 0;
-		padding: 0.7rem 1.1rem;
-		border-radius: 12px;
-		background: rgba(0, 0, 0, 0.28);
+		line-height: 1.75;
+		color: var(--text);
+		margin: 0;
+		padding: 1.1rem 1.3rem;
+		border-radius: 16px;
+		background: rgba(0, 0, 0, 0.3);
 		box-shadow: inset 0 0 0 1px var(--line);
 		overflow-x: auto;
+	}
+	.copy {
+		position: absolute;
+		top: 0.7rem;
+		right: 0.7rem;
+		padding: 0.3rem 0.8rem;
+		font-size: 0.85rem;
+		background: var(--lift);
 	}
 	.also {
 		display: flex;
@@ -1741,5 +1775,20 @@ const download = `${repository}/releases/latest/download/Iguana.dmg`;
 				render();
 			});
 		}
+	}
+
+	// The Homebrew commands, to the clipboard.
+	const copy = document.querySelector<HTMLButtonElement>('[data-copy]');
+	const commands = document.querySelector<HTMLElement>('[data-brew]');
+	if (copy && commands) {
+		copy.addEventListener('click', async () => {
+			try {
+				await navigator.clipboard.writeText(commands.textContent ?? '');
+				copy.textContent = 'Copied';
+			} catch {
+				copy.textContent = 'Select and copy';
+			}
+			window.setTimeout(() => (copy.textContent = 'Copy'), 1600);
+		});
 	}
 </script>
