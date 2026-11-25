@@ -934,7 +934,8 @@ position = "center"
 For both `size` and `position`:
 
 - **They only apply to windows the rule floats.** In a rule with `float = false`, or with only
-  `desktop`, they do nothing, and Iguana warns about them.
+  `desktop` or `display`, they are kept but do nothing, and Iguana warns about them:
+  `size is only for windows the rule floats, so it has no effect here`.
 - **It happens once for each window,** when the window opens while Iguana is running.
   Windows that are already open are not moved, neither when Iguana starts nor when the config
   is reloaded. Nothing is placed while tiling is paused.

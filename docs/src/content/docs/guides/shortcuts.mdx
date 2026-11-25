@@ -113,8 +113,10 @@ option-shift-g = "join right; balance"
 ```
 
 The first command that fails stops the rest. `space` and `move-to-space` can only come last,
-because macOS finishes the switch after the command has returned. Reports and `quit` cannot
-be part of a chain. [Chains](/reference/commands/#chains) has every rule.
+because macOS finishes the switch after the command has returned — except `move-to-space`
+with `--stay`, which switches nothing and may go anywhere in the chain. Reports, `quit` and
+`subscribe` cannot be part of a chain, and neither can `--json`.
+[Chains](/reference/commands/#chains) has every rule.
 
 The same works in a terminal, in quotes: `iguana "flip; balance"`.
 

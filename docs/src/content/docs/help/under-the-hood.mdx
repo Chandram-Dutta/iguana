@@ -138,7 +138,7 @@ With that, Iguana makes no request at all unless you ask for one with
 | --- | --- |
 | `~/.config/iguana/iguana.toml` | Your settings. Optional. |
 | `~/Library/Application Support/Iguana/state.json` | The layout tree of each desktop, the windows you floated by hand and the minimum sizes Iguana has learned, with the app, title and frame of each of those windows. Written about a second after the layout changes and again when Iguana quits. |
-| `~/Library/Application Support/Iguana/iguana.sock` | The socket for the command line tool. Readable and writable only by you. |
+| `~/Library/Application Support/Iguana/iguana.sock` | The socket for the command line tool, `iguana subscribe` included — it keeps its connection open and is sent one line per event. Readable and writable only by you. |
 | `~/Library/Logs/Iguana.log` | The log. |
 | `~/Library/Preferences/xyz.onlychan.iguana.plist` | Whether the welcome tour has been shown, when Iguana last looked for a newer version, and the newer version it found. |
 
@@ -161,6 +161,8 @@ anywhere.
 - **Animation runs per app.** Each app's windows are driven on a separate background queue,
   frames are paced by the display's refresh, and frames an app cannot keep up with are
   dropped. See [Animation](/guides/animation/#how-it-stays-smooth).
+- **A subscriber cannot stall Iguana.** A `subscribe` that stops reading its lines is let go
+  once 256 lines are waiting for it.
 - **A hook cannot stall Iguana.** The commands under
   [`[hooks]`](/reference/configuration/#hooks) are the only other programs Iguana starts.
   They are started off the main thread and never waited for, one run of each at a time. What

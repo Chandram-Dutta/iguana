@@ -55,9 +55,10 @@ iguana "flip; balance"
 - **Empty parts are left out,** so a `;` at the end does no harm.
 - **`space` and `move-to-space` come last.** macOS finishes the switch after the command has
   returned, so a command after it would act on the desktop you are leaving. Anywhere else
-  they are an error: `'space' must come last in a chain`.
-- **Reports and `quit` cannot be part of a chain,** and neither can `--json`. The error names
-  the command: `'status' cannot be part of a chain`.
+  they are an error: `'space' must come last in a chain`. A `move-to-space` with `--stay`
+  switches nothing, so it may go anywhere in the chain.
+- **Reports, `quit` and `subscribe` cannot be part of a chain,** and neither can `--json`.
+  The error names the command: `'status' cannot be part of a chain`.
 
 In a terminal, put the chain in quotes. Without them the shell reads `;` as the end of the
 `iguana` command.
@@ -678,7 +679,7 @@ moves to the centre of the display instead, so a click lands there.
 | --- | --- |
 | `ok` | A window was focused. |
 | `ok: no window on that display` | |
-| `ok: only one display` | |
+| `ok: only one display` | `next` or `prev` with only one display connected. A number works even then: `focus-display 1` is that display. |
 | `error: there is no display N (there are M)` | The number is higher than the number of displays. |
 
 ### `move-to-display`
@@ -701,8 +702,8 @@ the right edge, a window in the middle lands in the middle.
 | Reply | When |
 | --- | --- |
 | `ok` | The window was moved. |
-| `ok: already on display N` | The window is on that display. |
-| `ok: only one display` | |
+| `ok: already on display N` | The window is on that display, so with one display `move-to-display 1` answers this. |
+| `ok: only one display` | `next` or `prev` with only one display connected. A number works even then. |
 | `error: no focused window` | |
 | `error: there is no display N (there are M)` | The number is higher than the number of displays. |
 | `error: display N is showing a fullscreen app` | Iguana leaves fullscreen Spaces alone. |
@@ -1261,14 +1262,17 @@ iguana subscribe desktop-changed focus-changed
 ```
 
 - **The current state comes first.** As soon as you subscribe, Iguana sends one
-  `desktop-changed` line for each display and one `focus-changed` line, as if they had just
-  happened, so a status bar can draw at once. Only the events you asked for are sent.
+  `desktop-changed` line for each display, one `layout-changed` line for each display showing
+  a desktop, one `pause-changed` line and one `focus-changed` line, as if they had just
+  happened, so a status bar can draw at once. Only the events you asked for are sent, and
+  `window-created` and `window-closed` have no state, so they get no initial line.
 - **Each line says what a hook would be told.** There is one key for each of the
   [variables of a hook](/reference/configuration/#what-the-command-is-given): its name in lower
   case, without `IGUANA_`, and with `-` for `_`. `IGUANA_WINDOW_ID` is `window-id`.
-- **Values have their JSON types.** A whole number is a number, `true` and `false` are
-  booleans, an empty value is `null`, and anything else is a string. So `desktop` is `null` on
-  a fullscreen Space, and `window-id` is `null` when no window has the focus.
+- **Only three keys are typed.** `desktop` and `window-id` are numbers, `paused` is a boolean,
+  and an empty value is `null` for every key. Everything else is always a string, even when it
+  looks like a number or `true`: a window titled `42` comes through as `"42"`. So `desktop` is
+  `null` on a fullscreen Space, and `window-id` is `null` when no window has the focus.
 - **One event, one line.** The keys are sorted, and a line break in a window title is written
   as `\n`, so every line is a whole JSON object.
 - **The same rules as hooks.** An event is sent only when something really changed, whether or
@@ -1280,7 +1284,8 @@ iguana subscribe desktop-changed focus-changed
   for it, so it never slows Iguana down.
 
 `subscribe` is for the command line, and its output is always JSON, so it takes no `--json`.
-A name that is not an event is a mistake, and the tool stops with exit code 2.
+A name that is not an event is a mistake, and the tool stops with exit code 2. An Iguana too
+old for `subscribe` answers with one error line that is not JSON, and the tool exits 1.
 
 | Reply | When |
 | --- | --- |

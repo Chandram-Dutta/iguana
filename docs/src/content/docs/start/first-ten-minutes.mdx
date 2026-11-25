@@ -69,7 +69,8 @@ Focus is which window receives your typing. To see which one that is, switch on 
 - <kbd>option</kbd>+<kbd>l</kbd> focuses the window to the right.
 
 Try it: from C, press <kbd>option</kbd>+<kbd>k</kbd> to reach B, then <kbd>option</kbd>+<kbd>h</kbd>
-to reach A.
+to reach A. <kbd>option</kbd>+<kbd>tab</kbd> goes back to the window you were in before, and
+<kbd>option</kbd>+<kbd>w</kbd> opens a switcher to find a window by name.
 
 ## Move a window
 
@@ -103,6 +104,12 @@ Add <kbd>shift</kbd> to move the focused window instead of the focus.
 You can also use the mouse. Drag a tiled window by its title bar and an outline shows where it
 lands: drop it on the middle of another window to swap the two, or near an edge to take that
 half of the tile.
+
+## Take a change back
+
+<kbd>option</kbd>+<kbd>z</kbd> undoes the last change to the layout, and
+<kbd>option</kbd>+<kbd>shift</kbd>+<kbd>z</kbd> makes it again. Try it on the moves you just
+made: the windows go back, then forward again.
 
 ## Group two windows
 
@@ -206,7 +213,7 @@ To send a window away and stay where you are, bind a key to `move-to-space 2 --s
 [Customising shortcuts](/guides/shortcuts/).
 </Aside>
 
-## See that there is nothing to undo
+## See that nothing moves when Iguana quits
 
 Choose **Quit Iguana** from the menu bar item. No window moves. Open Iguana again and the
 layout you built is still in place.

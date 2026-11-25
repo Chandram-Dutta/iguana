@@ -228,6 +228,9 @@ state, so nothing is sent for them first.
 
 The six events are `desktop-changed`, `focus-changed`, `window-created`, `window-closed`,
 `layout-changed` and `pause-changed` — the same six the [hooks](#be-told-hooks) can run for.
+Each line is a JSON object with one key per hook variable. Only three keys are typed:
+`desktop` and `window-id` are numbers and `paused` is a boolean; an empty value is `null` for
+every key, and everything else is always a string, even when it looks like a number or `true`.
 
 ```sh
 iguana subscribe desktop-changed focus-changed

@@ -53,7 +53,7 @@ back. That covers:
 - windows in another Stage Manager stage,
 - background tabs of a window that uses native tabs. Two native tabs share one tile.
 
-### Nothing to undo
+### Nothing to put back
 
 Because Iguana never hides anything, there is nothing to restore when it stops. Quit Iguana,
 or let it crash, and every window is exactly where you see it. Layouts are saved, so they are
@@ -104,11 +104,13 @@ Leaving macOS in charge has a cost. Be clear about these before you switch:
   the system's slide. Turning on Reduce Motion in System Settings shortens it to a fade.
   There is no instant switch.
 - **No scratchpad.** There is no hidden holding area for windows, because Iguana does not
-  hide windows at all.
+  hide windows at all. [`focus-app`](/reference/commands/#focus-app) is the nearest thing: it
+  brings an app's window to you, or opens the app.
 - **One layout model.** There are no preset layouts to cycle through. You shape the layout
   with `move`, `join`, `flip`, `stack` and `resize`.
-- **Rules cannot assign an app to a display.** A rule can float an app's windows and send
-  them to a desktop when they open. It cannot name a display.
+- **Rules act once, when a window opens.** A rule can float an app's windows, send them to a
+  desktop or a display, and give floating windows a size and a place. Windows that are already
+  open are left alone until you run `apply-rules`.
 
 <Aside>
 The full list, including the limits that come from macOS itself, is on the
