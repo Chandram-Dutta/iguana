@@ -668,8 +668,9 @@ A shortcut that cannot be used is a warning, and the others still work:
 
 ## `[[rule]]`
 
-What to do with the windows of an app: keep them floating, send them to a desktop when they
-first appear, or both. Each rule is its own `[[rule]]` section. Dialogs, sheets and fixed-size
+What to do with the windows of an app: keep them floating, give the floating ones a size and
+a position, send them to a desktop when they first appear, or all of these. Each rule is its
+own `[[rule]]` section. Dialogs, sheets and fixed-size
 windows float on their own and need no rule.
 
 **The first rule that matches a window decides.** Rules are tried in the order they appear in
@@ -784,6 +785,66 @@ desktop = 2
 A rule whose `desktop` is not a whole number from 1 to 16 is skipped with a warning.
 [Desktops and displays](/guides/desktops-and-displays/#open-an-apps-windows-on-a-desktop) has
 more.
+
+### `size`
+
+The width and the height, in points, that a window the rule floats is given when it first
+appears.
+
+| | |
+| --- | --- |
+| Type | array of two numbers: `[width, height]` |
+| Default | none: the window opens at the size its app gives it |
+| Allowed | 100 to 10000 for each |
+
+On its own, `size` keeps the window's top-left corner where its app put it. A window that would
+then reach past the edge of the area is moved in until it fits.
+
+```toml title="iguana.toml"
+[[rule]]
+app = "com.apple.calculator"
+float = true
+size = [400, 600]
+```
+
+### `position`
+
+Where a window the rule floats is put when it first appears. The positions are the ones the
+[`place`](/reference/commands/#place) command takes, in the same area.
+
+| | |
+| --- | --- |
+| Type | string |
+| Default | none: the window opens where its app puts it |
+| Allowed | `"center"`, `"left"`, `"right"`, `"top"`, `"bottom"`, `"top-left"`, `"top-right"`, `"bottom-left"`, `"bottom-right"`, `"full"` |
+
+`"center"` keeps the window's own size, or takes the rule's `size` first if it has one. The
+halves, the quarters and `"full"` have a size of their own, so they ignore `size`.
+
+```toml title="iguana.toml"
+# Calculator opens in the middle of the screen, 400 by 600 points.
+[[rule]]
+app = "com.apple.calculator"
+float = true
+size = [400, 600]
+position = "center"
+```
+
+For both `size` and `position`:
+
+- **They only apply to windows the rule floats.** In a rule with `float = false`, or with only
+  `desktop`, they do nothing, and Iguana warns about them.
+- **It happens once for each window,** when the window opens while Iguana is running.
+  Windows that are already open are not moved, neither when Iguana starts nor when the config
+  is reloaded. Nothing is placed while tiling is paused.
+- **Only standard windows are placed.** Dialogs and sheets stay where their app shows them,
+  and a new tab stays with its window. A window that cannot be resized is still moved to its
+  position.
+- **An app can refuse the size,** if its window has a minimum size or a fixed one. The window
+  then still goes against the same edges, as with [`place`](/reference/commands/#place).
+
+A `size` that is not two numbers from 100 to 10000, or a `position` that is not one of the
+names above, is ignored with a warning. The rest of the rule still applies.
 
 ### Built-in rules
 
@@ -918,7 +979,8 @@ option-shift-period = "move-to-display next"
 # Rules for the windows of an app. `app` is a bundle id or part of the app name, `title` is a
 # regular expression. `float = true` keeps matching windows floating; dialogs, sheets and
 # fixed-size windows float on their own. `desktop = 3` sends a matching window to desktop 3
-# when it first appears, and leaves you where you are.
+# when it first appears, and leaves you where you are. In a rule that floats its windows,
+# `size = [400, 600]` and `position = "center"` (any `place` position) set where a new one opens.
 # Once the file has any [[rule]], the built-in rules below no longer apply by themselves.
 # The first rule that matches a window decides, so an exception (float = false) goes above
 # the general rule it is an exception to.

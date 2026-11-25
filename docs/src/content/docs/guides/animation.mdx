@@ -12,7 +12,8 @@ will know when turning animation off is the better choice.
 
 When the layout changes, windows glide to their new place instead of jumping. That happens
 when a window opens or closes, when you move, join or flip, when you resize with a shortcut,
-when you zoom, and so on.
+when you zoom, and so on. A floating window you put somewhere with
+[`place`](/reference/commands/#place) glides there too.
 
 Some things are never animated:
 
@@ -21,7 +22,9 @@ Some things are never animated:
 - **Anything while Reduce Motion is on.** If macOS's Reduce Motion setting is on, Iguana's
   animation is off, whatever the config says.
 - **A window that has only just joined the layout.** A newly opened window is put in its
-  slot at once. The windows that make room for it glide.
+  slot at once. The windows that make room for it glide. A new floating window that a
+  [rule](/guides/floating-windows/#size-and-place-an-apps-windows) sizes or places is also put
+  there at once.
 - **Very small changes.** A change of 12 points or less is applied at once.
 
 <Aside>

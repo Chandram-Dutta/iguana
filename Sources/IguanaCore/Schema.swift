@@ -129,6 +129,7 @@ extension Config {
                 { "type": "string", "pattern": "^space ([1-9]|1[0-6]|next|prev|previous|recent)$" },
                 { "type": "string", "pattern": "^move-to-space( (--stay|--follow))? ([1-9]|1[0-6]|next|prev|previous|recent)( (--stay|--follow))?$" },
                 { "type": "string", "pattern": "^(focus-display|move-to-display) ([1-9]|1[0-6]|next|prev|previous)$" },
+                { "type": "string", "pattern": "^place (center|left|right|top|bottom|top-left|top-right|bottom-left|bottom-right|full)$" },
                 { "enum": ["flip", "stack", "balance", "float", "zoom", "close", "undo", "redo", "pause", "reload", "settings", "tour", "update", "list-windows", "list-spaces", "tree", "status", "quit"] }
               ]
             }
@@ -136,7 +137,7 @@ extension Config {
         },
         "rule": {
           "type": "array",
-          "description": "Windows that should stay floating, or be sent to a desktop when they first appear. Written as [[rule]] sections. The first rule that matches a window decides.",
+          "description": "Windows that should stay floating, and where they open, or be sent to a desktop when they first appear. Written as [[rule]] sections. The first rule that matches a window decides.",
           "items": {
             "type": "object",
             "additionalProperties": false,
@@ -145,7 +146,9 @@ extension Config {
               "app": { "type": "string", "description": "A bundle identifier (exact match) or part of the app's name." },
               "title": { "type": "string", "description": "A regular expression matched against the window title, ignoring case." },
               "float": { "type": "boolean", "description": "Whether matching windows float. A rule with neither float nor desktop floats them; a rule with only desktop leaves floating alone." },
-              "desktop": { "type": "integer", "minimum": 1, "maximum": 16, "description": "Send a matching window to this desktop when it first appears, and stay on the desktop being used. Desktops are numbered as Mission Control numbers them." }
+              "desktop": { "type": "integer", "minimum": 1, "maximum": 16, "description": "Send a matching window to this desktop when it first appears, and stay on the desktop being used. Desktops are numbered as Mission Control numbers them." },
+              "size": { "type": "array", "items": { "type": "number", "minimum": 100, "maximum": 10000 }, "minItems": 2, "maxItems": 2, "description": "Width and height in points, for example [400, 600], that a window the rule floats is given when it first appears. Alone, it keeps the window's top-left corner." },
+              "position": { "enum": ["center", "left", "right", "top", "bottom", "top-left", "top-right", "bottom-left", "bottom-right", "full"], "description": "Where a window the rule floats is put when it first appears, as the place command puts it. Halves, quarters and full have a size of their own, so they ignore size." }
             }
           }
         },

@@ -403,6 +403,10 @@ final class SettingsModel: ObservableObject {
                 // A rule that only names a desktop says nothing about floating, and is written that way.
                 if let float = rule.float { entry.append(("float", .bool(float))) }
                 if let desktop = rule.desktop { entry.append(("desktop", .int(desktop))) }
+                if let size = rule.size {
+                    entry.append(("size", .array([size.width, size.height].map { $0 == $0.rounded() ? .int(Int($0)) : .double(Double($0)) })))
+                }
+                if let position = rule.position { entry.append(("position", .string(position.rawValue))) }
                 return entry
             })
             if rules.isEmpty { editor.set(["rule"], to: .array([])) }

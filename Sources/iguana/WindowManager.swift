@@ -121,6 +121,10 @@ final class WindowManager {
     /// The user's changes to each layout, for `undo` and `redo`. Kept until Iguana quits.
     private var history = LayoutHistory()
     private var isRecording = false
+    private var placementRules = PlacementRuleQueue()
+    /// Floating windows on their way to a place, and where each goes instead if it will not take
+    /// the size it was given.
+    private var placing: [CGWindowID: (asked: CGRect, fit: (CGSize) -> CGRect)] = [:]
 
     // MARK: Lifecycle
 
@@ -343,6 +347,8 @@ final class WindowManager {
         allDirty = false
         dirtyApps.removeAll()
         for pid in pids { if let state = apps[pid] { enumerate(state) } }
+        // On the display it opened on, before a rule can send it to another desktop.
+        applyPlacementRules()
         // Before the layout, so a window that a rule sends away never takes a tile here first.
         applyDesktopRules()
 
@@ -407,6 +413,7 @@ final class WindowManager {
             let decides = rule(for: w, app: state.app)
             w.ruleFloat = decides?.floats ?? false
             if let n = decides?.desktop { desktopRules.note(id, desktop: n, app: state.app.localizedName) }
+            if let decides { placementRules.note(id, rule: decides, app: state.app.localizedName ?? "an app", at: Date()) }
             if restoredFloating.remove(id) != nil { w.userFloat = true }
             if let size = restoredMinSizes.removeValue(forKey: id) {
                 w.minSize = size
@@ -481,6 +488,7 @@ final class WindowManager {
     private func prune(existing: Set<CGWindowID>) {
         for id in windows.keys where !existing.contains(id) {
             animator.cancel(id)
+            placing[id] = nil
             windows[id] = nil
             lastFrames[id] = nil
             slots[id] = nil
@@ -641,6 +649,9 @@ final class WindowManager {
     /// minimum size. A busy window can also answer with the size it had before, so ask once
     /// more and believe only what it still says a moment later.
     private func landed(_ id: CGWindowID, asked: CGRect, actual: CGSize?) {
+        if let placed = placing.removeValue(forKey: id), placed.asked == asked {
+            return placedLanded(id, asked: asked, actual: actual, fit: placed.fit)
+        }
         guard let w = windows[id], let actual, !zoomed.values.contains(id) else { return }
         let known = w.minSize ?? .zero
         guard (actual.width > asked.width + 2 && actual.width > known.width)
@@ -799,6 +810,7 @@ final class WindowManager {
             if w.floating { for tree in trees.values { tree.remove(w.id) } }
             refresh()
             return w.floating ? "ok: floating" : "ok: tiled"
+        case .place(let placement): return place(placement)
         case .close:
             guard let w = targetWindow(window) else { return "error: no focused window" }
             guard let button = w.element.element(kAXCloseButtonAttribute) else { return "error: this window has no close button" }
@@ -887,6 +899,81 @@ final class WindowManager {
         recheckMinimums(in: tree, key: key)
         refresh()
         return redoing ? "ok: redone" : "ok: undone"
+    }
+
+    // MARK: Placing floating windows
+
+    /// `place`: put the focused window in a part of its display's area.
+    private func place(_ placement: Placement) -> String {
+        guard let id = focusedWindow, let w = windows[id] else { return "error: no focused window" }
+        guard w.element.isSettable(kAXPositionAttribute) else { return "error: this window cannot be moved" }
+        guard let display = display(holding: w) ?? activeDisplay else { return "error: no display" }
+        guard display.isDesktop else { return "error: a fullscreen window cannot be placed" }
+        // A tiled window is floated first, as `float` does.
+        let floated = w.tileable && !w.floating
+        if floated {
+            w.userFloat = true
+            for tree in trees.values { tree.remove(id) }
+            refresh()
+        }
+        guard let frame = animator.destination(of: id) ?? w.element.frame else { return "error: cannot read the window's position" }
+        let area = display.usableFrame(config)
+        let target = placement.frame(in: area, gap: config.gapInner, size: frame.size)
+        place(w, at: target, glide: true) { placement.fit($0, to: target, in: area) }
+        return floated ? "ok: floating" : "ok"
+    }
+
+    /// Take a floating window to `target`. It glides there as tiled windows do, unless `glide` is
+    /// false or the move is tiny. `fit` says where the window goes if it will not take the size.
+    private func place(_ w: WindowState, at target: CGRect, glide: Bool, fit: @escaping (CGSize) -> CGRect) {
+        let current = w.element.frame ?? target
+        let change = max(abs(current.minX - target.minX), abs(current.minY - target.minY),
+                         abs(current.width - target.width), abs(current.height - target.height))
+        let glides = glide && config.animate && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion && change > 12
+        placing[w.id] = (target, fit)
+        animator.move(w.id, pid: w.pid, element: w.element, app: apps[w.pid]?.element,
+                      from: current, to: target, duration: glides ? config.animationDuration : 0, easing: config.animationEasing)
+    }
+
+    /// A placed window has been given its frame. One that did not take the size (a minimum, a
+    /// fixed size) is moved to where `fit` puts it at the size it has. A busy window can answer
+    /// with the size it had before, so it is asked once more and looked at again a moment later.
+    private func placedLanded(_ id: CGWindowID, asked: CGRect, actual: CGSize?, fit: @escaping (CGSize) -> CGRect) {
+        func refused(_ size: CGSize) -> Bool { abs(size.width - asked.width) > 2 || abs(size.height - asked.height) > 2 }
+        guard let w = windows[id], w.floating, actual.map(refused) != false else { return }
+        w.element.setSize(asked.size)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            // Unless something has moved the window since: the user, or another placement.
+            guard let self, self.placing[id] == nil, !self.animator.isMoving(id), self.windows[id]?.floating == true,
+                  let now = w.element.frame, abs(now.minX - asked.minX) <= 2, abs(now.minY - asked.minY) <= 2, refused(now.size) else { return }
+            w.element.setPosition(fit(now.size).origin)
+        }
+    }
+
+    /// A rule can give the windows it floats a size and a position. A new window it matches is
+    /// placed once, when it opens, at once rather than gliding: like a window that joins a layout.
+    private func applyPlacementRules() {
+        guard placementRules.hasLooked else { return placementRules.firstLook(existing: ScreenSnapshot.take().all) }
+        let due = placementRules.due(at: Date(), paused: paused) { id in
+            guard let w = windows[id], w.floating else { return nil }
+            // A window that cannot be resized is still placed; one that cannot be moved is not.
+            guard w.tileable || Self.isMovableStandardWindow(w.element), let frame = w.element.frame else { return false }
+            return isTab(w, frame) ? nil : true
+        }
+        guard !due.isEmpty else { return }
+        displays = DisplayInfo.current()
+        for entry in due {
+            guard let w = windows[entry.window], let frame = w.element.frame, let display = display(holding: w), display.isDesktop else { continue }
+            let area = display.usableFrame(config)
+            guard let target = entry.rule.frame(for: frame, in: area, gap: config.gapInner) else { continue }
+            place(w, at: target, glide: false) { entry.rule.fit($0, to: target, in: area) }
+            Log.write("rule: placed window \(entry.window) of \(entry.app)")
+        }
+    }
+
+    private static func isMovableStandardWindow(_ el: AXUIElement) -> Bool {
+        el.string(kAXRoleAttribute) == kAXWindowRole && el.string(kAXSubroleAttribute) == kAXStandardWindowSubrole
+            && el.isSettable(kAXPositionAttribute)
     }
 
     private func focus(_ dir: Direction) -> String {
@@ -1392,6 +1479,7 @@ final class WindowManager {
         }
         // A rule sends a window to its desktop when the window appears. Those that are open now stay.
         desktopRules.markExisting()
+        placementRules.markExisting(ScreenSnapshot.take().all)
         for (pid, state) in apps {
             for w in windows.values where w.pid == pid { w.ruleFloat = matchesFloatRule(w, app: state.app) }
         }

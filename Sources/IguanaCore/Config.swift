@@ -29,15 +29,24 @@ public struct Rule: Equatable {
     /// The desktop matching windows are sent to when they first appear, numbered the way
     /// Mission Control numbers them.
     public var desktop: Int?
+    /// The size and the place a window the rule floats is given when it first appears. They are
+    /// kept in a rule that does not float, so that saving the rules from the settings window
+    /// does not lose them, but they do nothing there.
+    public var size: CGSize?
+    public var position: Placement?
 
     /// The desktops a rule can name: the ones `space` and `move-to-space` accept.
     public static let desktopNumbers = 1...16
+    /// The widths and heights a rule's `size` can give, in points.
+    public static let sizeRange: ClosedRange<Double> = 100...10000
 
-    public init(app: String?, title: String?, float: Bool? = nil, desktop: Int? = nil) {
+    public init(app: String?, title: String?, float: Bool? = nil, desktop: Int? = nil, size: CGSize? = nil, position: Placement? = nil) {
         self.app = app
         self.title = title
         self.float = float ?? (desktop == nil ? true : nil)
         self.desktop = desktop
+        self.size = size
+        self.position = position
     }
 
     /// Whether the rule floats the windows it matches.
@@ -245,7 +254,8 @@ public struct Config: Equatable {
     # Rules for the windows of an app. `app` is a bundle id or part of the app name, `title` is a
     # regular expression. `float = true` keeps matching windows floating; dialogs, sheets and
     # fixed-size windows float on their own. `desktop = 3` sends a matching window to desktop 3
-    # when it first appears, and leaves you where you are.
+    # when it first appears, and leaves you where you are. In a rule that floats its windows,
+    # `size = [400, 600]` and `position = "center"` (any `place` position) set where a new one opens.
     # Once the file has any [[rule]], the built-in rules below no longer apply by themselves.
     # The first rule that matches a window decides, so an exception (float = false) goes above
     # the general rule it is an exception to.
@@ -451,11 +461,11 @@ public struct Config: Equatable {
             c.rules = []
             for (i, entry) in list.enumerated() {
                 guard let t = entry.tableValue else { continue }
-                checkKeys(t, ["app", "title", "float", "desktop"], "rule \(i + 1)")
+                checkKeys(t, ["app", "title", "float", "desktop", "size", "position"], "rule \(i + 1)")
                 var desktop: Int?
                 if case .int(let n)? = t["desktop"] { desktop = n }
                 // A `float` that is not true or false has always been read as true.
-                let rule = Rule(app: t["app"]?.stringValue, title: t["title"]?.stringValue,
+                var rule = Rule(app: t["app"]?.stringValue, title: t["title"]?.stringValue,
                                 float: t["float"].map { $0.boolValue ?? true }, desktop: desktop)
                 if rule.app == nil && rule.title == nil {
                     warnings.append("rule \(i + 1) needs 'app' or 'title'")
@@ -470,6 +480,28 @@ public struct Config: Equatable {
                     let range = Rule.desktopNumbers
                     warnings.append("rule \(i + 1): desktop must be a whole number from \(range.lowerBound) to \(range.upperBound); skipping this rule")
                     continue
+                }
+                // A size or a position that is wrong is left out on its own: the rest of the rule still applies.
+                if let v = t["size"] {
+                    if let a = v.arrayValue, a.count == 2, let w = a[0].doubleValue, let h = a[1].doubleValue,
+                       Rule.sizeRange.contains(w), Rule.sizeRange.contains(h) {
+                        rule.size = CGSize(width: w, height: h)
+                    } else {
+                        let range = Rule.sizeRange
+                        warnings.append("rule \(i + 1): size must be two numbers from \(Int(range.lowerBound)) to \(Int(range.upperBound)), such as [400, 600]; ignoring it")
+                    }
+                }
+                if let v = t["position"] {
+                    if let p = v.stringValue.flatMap(Placement.init(rawValue:)) {
+                        rule.position = p
+                    } else {
+                        warnings.append("rule \(i + 1): position must be one of: \(Placement.names); ignoring it")
+                    }
+                }
+                let given = [("size", rule.size != nil), ("position", rule.position != nil)].filter(\.1).map(\.0)
+                if !rule.floats, !given.isEmpty {
+                    let one = given.count == 1
+                    warnings.append("rule \(i + 1): \(given.joined(separator: " and ")) \(one ? "is" : "are") only for windows the rule floats; ignoring \(one ? "it" : "them")")
                 }
                 c.rules.append(rule)
             }

@@ -32,6 +32,8 @@ public enum Command: Equatable {
     /// Rebuild the layout of the focused window's desktop once.
     case arrange(Arrangement)
     case float
+    /// Put the focused window in a part of its display, floating.
+    case place(Placement)
     case zoom
     case close
     /// Take back the last change to the layout of the active desktop, or make it again.
@@ -69,6 +71,7 @@ public enum Command: Equatable {
     split horizontal|vertical|auto  choose where the next new window opens: beside the focused one, below it, or as auto-split says
     arrange columns|rows|grid|main  rearrange every window on the focused window's desktop at once
     float                           toggle tiling for the focused window
+    place center|left|right|top|bottom|top-left|top-right|bottom-left|bottom-right|full    float the focused window and put it in that part of its display
     zoom                            toggle the focused window filling the Space
     close                           close the focused window
     undo                            take back the last change to the layout of this desktop
@@ -119,6 +122,12 @@ public enum Command: Equatable {
             }
             return match.1
         }
+        func placement() throws -> Placement {
+            guard args.count == 1, let p = Placement(rawValue: args[0]) else {
+                throw CommandError("'\(name)' needs one of: \(Placement.names)")
+            }
+            return p
+        }
         func noArgs(_ c: Command) throws -> Command {
             guard args.isEmpty else { throw CommandError("'\(name)' takes no arguments") }
             return c
@@ -148,6 +157,7 @@ public enum Command: Equatable {
         case "split": return .split(try choice([("horizontal", .horizontal), ("vertical", .vertical), ("auto", nil)]))
         case "arrange": return .arrange(try choice(Arrangement.allCases.map { ($0.rawValue, $0) }))
         case "float": return try noArgs(.float)
+        case "place": return .place(try placement())
         case "zoom": return try noArgs(.zoom)
         case "close": return try noArgs(.close)
         case "undo": return try noArgs(.undo)
