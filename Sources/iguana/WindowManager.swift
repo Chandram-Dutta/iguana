@@ -253,6 +253,14 @@ final class WindowManager {
             onFrameChange?(element)
         case kAXUIElementDestroyedNotification:
             scheduleRefresh()
+            // The window server drops a closing window a moment after its app says it is gone,
+            // so the first refresh can still see it and keep its slot. Look again shortly after;
+            // scheduleRefresh coalesces, so this only costs one or two extra passes.
+            for delay in [0.3, 1.0] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                    self?.scheduleRefresh()
+                }
+            }
         default:
             var pid: pid_t = 0
             AXUIElementGetPid(element, &pid)

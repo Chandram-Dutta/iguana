@@ -119,7 +119,9 @@ Most of these act on the focused window and need it to be tiled. When it is not,
 ### Acting on another window
 
 From the command line, `--window ID` makes a command act on the window with that id instead
-of the focused one, exactly as if it had the focus. The focus stays where it is.
+of the focused one, exactly as if it had the focus. The focus stays where it is. The exception
+is `zoom --window ID`: a zoomed window is raised, and raising a window of the app in front
+gives it the focus.
 [`list-windows`](#list-windows) gives the ids. A shortcut cannot name a window.
 
 These commands take it: `focus`, `move`, `join`, `resize`, `flip`, `stack`, `balance`,
