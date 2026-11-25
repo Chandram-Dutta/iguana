@@ -510,6 +510,7 @@ private struct ShortcutsPane: View {
     private let windowCommands = [
         ("resize grow", "Grow"), ("resize shrink", "Shrink"), ("balance", "Even out all sizes"), ("zoom", "Fill the desktop"),
         ("flip", "Switch between side by side and top to bottom"), ("stack", "Stack or unstack"), ("float", "Float or tile"), ("close", "Close"), ("pause", "Pause tiling"),
+        ("undo", "Undo the last layout change"), ("redo", "Redo the layout change"),
     ]
 
     private var customText: String { customCommand.trimmingCharacters(in: .whitespaces) }

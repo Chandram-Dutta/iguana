@@ -116,6 +116,8 @@ struct CommandGroup: Identifiable {
                 CommandInfo(title: "Float or Tile Window", text: "float"),
                 CommandInfo(title: "Close Window", text: "close"),
                 CommandInfo(title: "Pause Tiling", text: "pause"),
+                CommandInfo(title: "Undo Layout Change", text: "undo"),
+                CommandInfo(title: "Redo Layout Change", text: "redo"),
             ]),
             CommandGroup(title: "Go to Desktop", commands: (1...9).map { CommandInfo(title: "Desktop \($0)", text: "space \($0)") } + [
                 CommandInfo(title: "Next Desktop", text: "space next"),

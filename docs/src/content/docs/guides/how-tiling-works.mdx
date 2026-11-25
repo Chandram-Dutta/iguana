@@ -187,7 +187,8 @@ and vertical.
 In both examples, B and C end up splitting the same way as their parent, so Iguana merges
 them into it. Together they keep the share of the desktop they had, but they are no longer a
 group of their own. Pressing `flip` again with B focused now flips the outer container. To
-get the grouping back, use `join`, then `balance` if you want equal sizes again.
+get the grouping back, use [`undo`](#undo). Or use `join`, then `balance` if you want equal
+sizes again.
 </Aside>
 
 ## Stack
@@ -305,6 +306,21 @@ Dragging a window to the very edge of the screen counts as the edge of the tile 
 macOS has an outline of its own for a window dragged to a screen edge; see
 [Two outlines appear when I drag a window](/help/troubleshooting/#two-outlines-appear-when-i-drag-a-window)
 if you see both.
+
+## Undo
+
+`undo` takes back the last change you made to the layout of the desktop you are on, and
+`redo` makes it again. The default shortcuts are <kbd>option</kbd>+<kbd>z</kbd> and
+<kbd>option</kbd>+<kbd>shift</kbd>+<kbd>z</kbd>.
+
+- **What counts.** `move`, `join`, `resize`, `flip`, `stack` and `balance`, and dragging a
+  tile or its edge with the mouse. Windows opening and closing do not count, and neither do
+  `zoom` and `float`.
+- **One desktop at a time.** Each desktop on each display has its own changes, the last 50.
+  `undo` works on the desktop of the focused window.
+- **Windows that came and went.** The layout comes back without the windows that have closed
+  or left the desktop since, and a window that has opened since is placed like a new window.
+- **Until Iguana quits.** The changes are not kept across a restart, unlike the layouts.
 
 ## Windows that are not showing keep their slot
 

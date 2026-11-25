@@ -103,6 +103,9 @@ final class WindowManager {
     /// How often a stack has been put in order since it last was in order or the user last did something.
     private var stackOrderTries = 0
     private let desktopRules = DesktopRules()
+    /// The user's changes to each layout, for `undo` and `redo`. Kept until Iguana quits.
+    private var history = LayoutHistory()
+    private var isRecording = false
 
     // MARK: Lifecycle
 
@@ -278,13 +281,15 @@ final class WindowManager {
         // resizing it, so it must not change the proportions of the layout.
         if !d.carried, abs(dw) > 3 || abs(dh) > 3 {
             // Resized by hand: keep the new proportions.
-            if abs(dw) > 3 { tree.changeShare(of: d.id, along: .horizontal, .ratio(Double(now.width / d.start.width)), visible: lastVisible) }
-            if abs(dh) > 3 { tree.changeShare(of: d.id, along: .vertical, .ratio(Double(now.height / d.start.height)), visible: lastVisible) }
+            recording {
+                if abs(dw) > 3 { tree.changeShare(of: d.id, along: .horizontal, .ratio(Double(now.width / d.start.width)), visible: lastVisible) }
+                if abs(dh) > 3 { tree.changeShare(of: d.id, along: .vertical, .ratio(Double(now.height / d.start.height)), visible: lastVisible) }
+            }
         } else if let cursor = CGEvent(source: nil)?.location,
                   // The same question the outline asked all through the drag (DragPreview.swift),
                   // so what it showed is what is done: trade places, take half of a tile, join a stack.
                   let plan = dropPlan(dragging: d.id, from: d.start, now: d.carried ? CGRect(origin: now.origin, size: d.start.size) : now, at: cursor) {
-            DragDrop.carryOut(plan.drop, of: d.id, in: displays.compactMap { trees[$0.treeKey] }, visible: lastVisible)
+            recording { DragDrop.carryOut(plan.drop, of: d.id, in: displays.compactMap { trees[$0.treeKey] }, visible: lastVisible) }
             if displayIndex(for: now) != displayIndex(for: plan.rect) {
                 // Let go with most of itself on another display than the one it lands on. A
                 // layout is made of the windows on its display, so the window is put there first.
@@ -336,6 +341,8 @@ final class WindowManager {
         }
 
         let (frames, newSlots) = layoutAll(snap)
+        // A desktop whose windows have all gone has nothing left to undo.
+        for (key, tree) in trees where tree.isEmpty { history.forget(key: key) }
         apply(frames, snap, animated: !instantNext)
         instantNext = false
         slots = newSlots
@@ -695,13 +702,13 @@ final class WindowManager {
         }
         switch command {
         case .focus(let dir): return focus(dir)
-        case .move(let dir): return move(dir)
+        case .move(let dir): return recording { move(dir) }
         case .join(let dir):
-            return withFocusedTile { id, tree, _ in
+            return recording { withFocusedTile { id, tree, _ in
                 tree.join(id, with: dir, visible: lastVisible) ? "ok" : "ok: no neighbour in that direction"
-            }
+            } }
         case .resize(let axis, let grow):
-            return withFocusedTile { id, tree, key in
+            return recording { withFocusedTile { id, tree, key in
                 // Start from the sizes on screen, which differ from the weights where a window is
                 // held at its minimum size.
                 tree.matchWeights(to: slots, visible: lastVisible)
@@ -710,20 +717,20 @@ final class WindowManager {
                 }
                 recheckMinimums(in: tree, key: key)
                 return "ok"
-            }
+            } }
         case .flip:
-            return withFocusedTile { id, tree, _ in tree.flip(id) ? "ok" : "error: cannot flip" }
+            return recording { withFocusedTile { id, tree, _ in tree.flip(id) ? "ok" : "error: cannot flip" } }
         case .stack:
-            return withFocusedTile { id, tree, _ in
+            return recording { withFocusedTile { id, tree, _ in
                 guard let stacked = tree.toggleStack(id) else { return "ok: no other window to stack with" }
                 return stacked ? "ok: stacked" : "ok: unstacked"
-            }
+            } }
         case .balance:
-            return withFocusedTile { _, tree, key in
+            return recording { withFocusedTile { _, tree, key in
                 tree.balance()
                 recheckMinimums(in: tree, key: key)
                 return "ok"
-            }
+            } }
         case .zoom:
             return withFocusedTile { id, _, key in
                 zoomed[key] = zoomed[key] == id ? nil : id
@@ -742,6 +749,8 @@ final class WindowManager {
             guard let button = w.element.element(kAXCloseButtonAttribute) else { return "error: this window has no close button" }
             AXUIElementPerformAction(button, kAXPressAction as CFString)
             return "ok"
+        case .undo: return undo(redoing: false)
+        case .redo: return undo(redoing: true)
         case .space(let target): return switchSpace(target)
         case .moveToSpace(let target, let follow): return moveToSpace(target, follow: follow)
         case .pause:
@@ -773,6 +782,41 @@ final class WindowManager {
         let result = body(id, tree, key)
         refresh()
         return result
+    }
+
+    /// Run a change of layout the user asked for, and remember it as one step on every desktop
+    /// it changed, for `undo`. Wrapping a change that is already being recorded adds nothing.
+    @discardableResult
+    private func recording<T>(_ body: () -> T) -> T {
+        guard !isRecording else { return body() }
+        let before = trees.mapValues(\.snapshot)
+        isRecording = true
+        let result = body()
+        isRecording = false
+        for (key, tree) in trees { if let b = before[key] { history.record(key: key, before: b, after: tree.snapshot) } }
+        return result
+    }
+
+    /// The layout of the active desktop: the one the focused window is tiled in, or else the
+    /// one the active display is showing.
+    private var activeTreeKey: String? {
+        if let id = focusedWindow, lastFrames[id] != nil, let (key, _) = treeEntry(containing: id) { return key }
+        return activeDisplay.flatMap { $0.isDesktop ? $0.treeKey : nil }
+    }
+
+    private func undo(redoing: Bool) -> String {
+        let nothing = redoing ? "ok: nothing to redo" : "ok: nothing to undo"
+        guard let key = activeTreeKey, let tree = trees[key] else { return nothing }
+        let current = tree.snapshot
+        guard let snapshot = redoing ? history.redo(key: key, current: current) : history.undo(key: key, current: current) else { return nothing }
+        let here = Set(tree.windows)
+        tree.restore(snapshot)
+        // A window that has closed, floated or gone to another desktop since stays gone. One that
+        // has arrived since is not in the snapshot, and the refresh places it as a new window.
+        tree.prune { here.contains($0) }
+        recheckMinimums(in: tree, key: key)
+        refresh()
+        return redoing ? "ok: redone" : "ok: undone"
     }
 
     private func focus(_ dir: Direction) -> String {
@@ -843,7 +887,11 @@ final class WindowManager {
         w.element.setPosition(area.origin)
         w.lastSetFrame = nil
         tree.remove(id)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in self?.refresh() }
+        // The window joins the layout over there in this refresh, and that is part of the move.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            guard let self else { return }
+            self.recording { self.refresh() }
+        }
         return "ok"
     }
 
