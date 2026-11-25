@@ -89,11 +89,6 @@ struct DisplayInfo {
         return list
     }
 
-    /// The displays in the order they are numbered, each with its number (`DisplayOrder`).
-    static func numbered(_ displays: [DisplayInfo]) -> [(number: Int, display: DisplayInfo)] {
-        DisplayOrder.order(displays.map(\.frame)).enumerated().map { ($0.offset + 1, displays[$0.element]) }
-    }
-
     /// What `[[display]]` and `[gaps]` come to on this display.
     func settings(_ config: Config) -> DisplaySettings.Effective {
         config.displaySettings(name: name, number: number)

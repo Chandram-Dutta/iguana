@@ -47,7 +47,7 @@ extension WindowManager {
     }
 
     /// Every display, in the order they are numbered.
-    private var displayReports: [Report.Display] { DisplayInfo.numbered(displays).map { $0.display.report(number: $0.number) } }
+    private var displayReports: [Report.Display] { displays.sorted { $0.number < $1.number }.map { $0.report(number: $0.number) } }
 
     private func windowsReport(_ facts: Facts) -> Report.Windows {
         let onScreen = ScreenSnapshot.take().onScreen

@@ -1135,7 +1135,7 @@ final class WindowManager {
 
     /// The display a command names, as an index into `displays`, and its number.
     private func display(_ target: DisplayTarget, from here: Int?) -> Result<(index: Int, number: Int), DisplayTarget.Refusal> {
-        let order = DisplayOrder.order(displays.map(\.frame))
+        let order = displays.enumerated().sorted { $0.element.number < $1.element.number }.map(\.offset)
         return target.resolve(active: here.flatMap { order.firstIndex(of: $0) }, count: order.count).map { (order[$0], $0 + 1) }
     }
 
@@ -1537,9 +1537,9 @@ final class WindowManager {
 
     private func listSpaces() -> String {
         displays = DisplayInfo.current()
-        return DisplayInfo.numbered(displays).map { n, d in
+        return displays.sorted { $0.number < $1.number }.map { d in
             let now = d.spaceIndex.map { "desktop \(d.desktopOffset + $0) of \(d.totalDesktops)" } ?? "a fullscreen Space"
-            return "Display \(n), \(d.name): showing \(now); this display has \(d.spaceCount) desktop(s)"
+            return "Display \(d.number), \(d.name): showing \(now); this display has \(d.spaceCount) desktop(s)"
         }.joined(separator: "\n")
     }
 
