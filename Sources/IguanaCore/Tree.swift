@@ -102,7 +102,7 @@ public enum ShareChange {
 /// a background native tab) stay in the tree and keep their slot. Every operation that depends on
 /// what the user can see takes a `visible` set and skips the rest.
 public final class Tree {
-    public private(set) var root: Node
+    public internal(set) var root: Node
     /// Last focused window of this tree. New windows open next to it.
     public var focused: WindowID?
 

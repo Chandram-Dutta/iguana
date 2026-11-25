@@ -20,6 +20,10 @@ public enum Command: Equatable {
     case flip
     case stack
     case balance
+    /// Where the next window that opens beside the focused one goes; nil leaves it to `auto-split`.
+    case split(Orientation?)
+    /// Rebuild the layout of the focused window's desktop once.
+    case arrange(Arrangement)
     case float
     case zoom
     case close
@@ -46,6 +50,8 @@ public enum Command: Equatable {
     flip                            switch the focused container between side-by-side and top-to-bottom
     stack                           switch the focused container between tiles and a stack of overlapping windows
     balance                         give every window an equal share again
+    split horizontal|vertical|auto  choose where the next new window opens: beside the focused one, below it, or as auto-split says
+    arrange columns|rows|grid|main  rearrange every window on the focused window's desktop at once
     float                           toggle tiling for the focused window
     zoom                            toggle the focused window filling the Space
     close                           close the focused window
@@ -85,6 +91,12 @@ public enum Command: Equatable {
                 return .index(n)
             }
         }
+        func choice<T>(_ options: [(String, T)]) throws -> T {
+            guard args.count == 1, let match = options.first(where: { $0.0 == args[0] }) else {
+                throw CommandError("'\(name)' needs one of: \(options.map(\.0).joined(separator: ", "))")
+            }
+            return match.1
+        }
         func noArgs(_ c: Command) throws -> Command {
             guard args.isEmpty else { throw CommandError("'\(name)' takes no arguments") }
             return c
@@ -111,6 +123,8 @@ public enum Command: Equatable {
         case "flip": return try noArgs(.flip)
         case "stack": return try noArgs(.stack)
         case "balance": return try noArgs(.balance)
+        case "split": return .split(try choice([("horizontal", .horizontal), ("vertical", .vertical), ("auto", nil)]))
+        case "arrange": return .arrange(try choice(Arrangement.allCases.map { ($0.rawValue, $0) }))
         case "float": return try noArgs(.float)
         case "zoom": return try noArgs(.zoom)
         case "close": return try noArgs(.close)
