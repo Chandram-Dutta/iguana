@@ -21,7 +21,8 @@ accepted and treated as lower case.
 
 ### Replies
 
-Every command answers with one line, or with a report.
+Every command answers with one line, or with a report. [`subscribe`](#subscribe) is the one
+exception: it goes on printing a line for each event until Iguana quits.
 
 - `ok` means the command did what it says.
 - `ok: …` means there was nothing to do, and says why. For example `ok: nothing in that direction`.
@@ -64,6 +65,7 @@ error: Iguana needs Accessibility permission (System Settings > Privacy & Securi
 | [`list-spaces`](#list-spaces) | Show which desktop each display is showing. |
 | [`tree`](#tree) | Print the layout tree. |
 | [`status`](#status) | Show whether Iguana is tiling, and any problems. |
+| [`subscribe`](#subscribe) | Print a line of JSON for each event, as it happens. |
 | [`quit`](#quit) | Quit Iguana. |
 
 ## Windows
@@ -774,3 +776,50 @@ With `--json`:
 | `tourShowing` | `true` while the welcome tour is on screen. |
 | `lastShortcut` | The last shortcut received: its `keys`, how many `secondsAgo`, and the `reply` it got. `null` when none has been received since Iguana started. |
 | `update` | A newer version of Iguana: its `version`, for example `"0.2.2"`, and the `url` of its page. `null` when none is known: there is none, Iguana has not looked yet, or [`updates.check`](/reference/configuration/#check) is `false`. |
+
+### `subscribe`
+
+```text
+subscribe [event ...]
+```
+
+Stays connected and prints one line of JSON for each event, as it happens, until Iguana quits.
+The events are the ones [`[hooks]`](/reference/configuration/#hooks) knows, such as
+`desktop-changed` and `focus-changed`. Name one or more to hear only those. With none, you hear
+every event.
+
+```sh
+iguana subscribe desktop-changed focus-changed
+```
+
+```jsonl
+{"desktop":2,"display":"Built-in Retina Display","event":"desktop-changed"}
+{"app":"Safari","desktop":2,"display":"Built-in Retina Display","event":"focus-changed","title":"Apple","window-id":1203}
+{"app":"Terminal","desktop":2,"display":"Built-in Retina Display","event":"focus-changed","title":"zsh","window-id":1187}
+```
+
+- **The current state comes first.** As soon as you subscribe, Iguana sends one
+  `desktop-changed` line for each display and one `focus-changed` line, as if they had just
+  happened, so a status bar can draw at once. Only the events you asked for are sent.
+- **Each line says what a hook would be told.** There is one key for each of the
+  [variables of a hook](/reference/configuration/#what-the-command-is-given): its name in lower
+  case, without `IGUANA_`, and with `-` for `_`. `IGUANA_WINDOW_ID` is `window-id`.
+- **Values have their JSON types.** A whole number is a number, `true` and `false` are
+  booleans, an empty value is `null`, and anything else is a string. So `desktop` is `null` on
+  a fullscreen Space, and `window-id` is `null` when no window has the focus.
+- **One event, one line.** The keys are sorted, and a line break in a window title is written
+  as `\n`, so every line is a whole JSON object.
+- **The same rules as hooks.** An event is sent only when something really changed, whether or
+  not a hook is set for it. Nothing is sent before tiling starts; when it does, the current
+  state comes first. See [How a command is run](/reference/configuration/#how-a-command-is-run).
+- **It ends when Iguana quits,** and the command exits with status 0. Press Control-C to stop
+  it yourself.
+- **Read as you go.** A subscriber that stops reading is let go once 256 lines are waiting
+  for it, so it never slows Iguana down.
+
+`subscribe` is for the command line, and its output is always JSON, so it takes no `--json`.
+A name that is not an event is a mistake, and the tool stops with exit code 2.
+
+| Reply | When |
+| --- | --- |
+| `error: subscribe only works from the command line` | From a shortcut, which has nowhere to print. |

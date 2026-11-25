@@ -22,6 +22,7 @@ iguana config check [file]
 iguana settings
 iguana tour
 iguana update
+iguana subscribe [event ...]
 iguana help
 iguana version
 iguana <command>
@@ -67,6 +68,21 @@ latest, or the newer version and the address of its page. This is the
 [`update`](/reference/commands/#update) command, so Iguana has to be running: the running app
 makes the request. It exits with status 1 when the check could not be made.
 
+### `iguana subscribe`
+
+Stays connected to the running app and prints one line of JSON for each event, as it
+happens: first the current state, then every change. This is the
+[`subscribe`](/reference/commands/#subscribe) command, so Iguana has to be running.
+
+```sh
+iguana subscribe desktop-changed focus-changed
+```
+
+Each line is printed the moment it arrives, so it can be piped straight into a script. The
+tool runs until Iguana quits, and then exits with status 0. Press Control-C to stop it
+sooner. [Status bars and scripts](/guides/status-bars-and-scripts/#be-told-a-stream-of-events)
+has an example.
+
 ### `iguana help`
 
 Prints the usage text and the list of commands. `-h` and `--help` do the same.
@@ -99,7 +115,9 @@ What happens:
    stops, without contacting the app.
 2. It sends the command to the running app over a socket in your own Library folder,
    `~/Library/Application Support/Iguana/iguana.sock`. Only your user account can use it.
-3. The app runs the command and sends back its reply, which the tool prints.
+3. The app runs the command and sends back its reply, which the tool prints. For
+   [`subscribe`](/reference/commands/#subscribe) the connection stays open instead, and the
+   app sends a line for each event until it quits.
 
 Because every command works this way, anything a shortcut can do can also be scripted.
 
@@ -114,13 +132,13 @@ Because every command works this way, anything a shortcut can do can also be scr
 tool stops with exit code 2.
 
 To be told when something changes, instead of asking, see
-[`[hooks]`](/reference/configuration/#hooks).
+[`subscribe`](/reference/commands/#subscribe) and [`[hooks]`](/reference/configuration/#hooks).
 
 ### Exit codes
 
 | Code | Meaning |
 | --- | --- |
-| `0` | The reply did not start with `error`. This includes replies such as `ok: nothing in that direction`, and every JSON document. |
+| `0` | The reply did not start with `error`. This includes replies such as `ok: nothing in that direction`, every JSON document, and the end of `subscribe` when Iguana quits. |
 | `1` | The reply started with `error`, or Iguana is not running. |
 | `2` | The command was not well formed, so it was not sent. |
 
