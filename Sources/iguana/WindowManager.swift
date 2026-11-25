@@ -788,7 +788,7 @@ final class WindowManager {
                 }
             }
         case .arrange(let arrangement):
-            return withTile(window) { id, tree, key in
+            return recording { withTile(window) { id, tree, key in
                 let shown = tree.windows.filter { lastVisible.contains($0) }
                 guard shown.count > 1 || arrangement == .main else { return "ok: nothing to arrange" }
                 tree.arrange(arrangement, order: readingOrder(slots.filter { shown.contains($0.key) }), main: id,
@@ -796,7 +796,7 @@ final class WindowManager {
                 zoomed[key] = nil
                 recheckMinimums(in: tree, key: key)
                 return "ok"
-            }
+            } }
         case .zoom:
             return withTile(window) { id, _, key in
                 zoomed[key] = zoomed[key] == id ? nil : id
@@ -822,7 +822,7 @@ final class WindowManager {
         case .space(let target): return switchSpace(target)
         case .moveToSpace(let target, let follow): return moveToSpace(target, follow: follow, window: window)
         case .focusDisplay(let target): return focusDisplay(target)
-        case .moveToDisplay(let target): return moveToDisplay(target, window)
+        case .moveToDisplay(let target): return recording { moveToDisplay(target, window) }
         case .pause:
             setPaused(!paused)
             return paused ? "ok: paused" : "ok: tiling"

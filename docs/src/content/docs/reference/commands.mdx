@@ -420,11 +420,13 @@ on. Run it again to go further back.
 
 A change is one of these:
 
-- `move`, `join`, `resize`, `flip`, `stack` and `balance`,
+- `move`, `join`, `resize`, `flip`, `stack`, `balance` and `arrange`,
+- `move` and `move-to-display` taking a tiled window to another display,
 - dragging a tile onto another to swap them, take half of one or join a stack,
 - dragging the edge of a tile to resize it.
 
-Windows opening and closing are not changes, and neither are `zoom` and `float`.
+Windows opening and closing are not changes, and neither are `zoom`, `float`, `split` and
+`place`.
 
 The layout comes back without the windows that have closed, floated or left the desktop
 since, and a window that has opened since is placed like a new window. `undo` never moves a
