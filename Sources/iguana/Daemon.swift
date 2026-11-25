@@ -155,18 +155,20 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     /// While the tour is on screen, shortcuts and commands act on its practice desktop.
-    private func tourReply(_ command: Command, _ binding: KeyBinding? = nil) -> String? {
+    private func tourReply(_ command: Command, _ binding: KeyBinding? = nil, window: CGWindowID? = nil) -> String? {
         // Only while the tour has the keyboard. With another app in front, shortcuts and commands
         // are meant for the real windows.
         guard let tour, tour.isInFront else { return nil }
+        // A request that names a real window would otherwise land on the practice desktop.
+        if window != nil { return "error: not while the welcome tour is on screen" }
         return tour.model.handle(command, binding: binding)
     }
 
     private func handle(_ line: String) -> String {
         do {
-            let (command, json) = try Command.parseRequest(line)
-            if json { return jsonReport(command) }
-            return tourReply(command) ?? wm.run(command)
+            let request = try Command.parseRequest(line)
+            if request.json { return jsonReport(request.command) }
+            return tourReply(request.command, window: request.window) ?? wm.run(request.command, window: request.window)
         } catch {
             return "error: \(error)"
         }

@@ -15,6 +15,7 @@ func printUsage() {
       iguana settings               open the settings window
       iguana tour                   show the welcome tour again
       iguana <command>              send a command to the running window manager
+      iguana <command> --window ID  act on that window instead of the focused one (ids: iguana list-windows)
 
     commands:
     \(Command.usage.split(separator: "\n").map { "  \($0)" }.joined(separator: "\n"))

@@ -663,7 +663,9 @@ final class WindowManager {
 
     // MARK: Commands
 
-    func run(_ command: Command) -> String {
+    /// `window` is the one a request named with `--window`. The command acts on it as it would
+    /// on the focused window, and the focus stays where it is. Nil means the focused window.
+    func run(_ command: Command, window: CGWindowID? = nil) -> String {
         stackOrderTries = 0
         if started, AXIsProcessTrusted() {
             displays = DisplayInfo.current()
@@ -693,15 +695,20 @@ final class WindowManager {
         guard AXIsProcessTrusted() else {
             return "error: Iguana needs Accessibility permission (System Settings > Privacy & Security > Accessibility)"
         }
+        if let window, windows[window] == nil { return "error: no window \(window)" }
         switch command {
         case .focus(let dir): return focus(dir)
-        case .move(let dir): return move(dir)
+        case .focusWindow:
+            guard let window else { return "error: 'focus' needs one of: left, right, up, down" }
+            focusWindow(window)
+            return "ok"
+        case .move(let dir): return move(dir, window)
         case .join(let dir):
-            return withFocusedTile { id, tree, _ in
+            return withTile(window) { id, tree, _ in
                 tree.join(id, with: dir, visible: lastVisible) ? "ok" : "ok: no neighbour in that direction"
             }
         case .resize(let axis, let grow):
-            return withFocusedTile { id, tree, key in
+            return withTile(window) { id, tree, key in
                 // Start from the sizes on screen, which differ from the weights where a window is
                 // held at its minimum size.
                 tree.matchWeights(to: slots, visible: lastVisible)
@@ -712,38 +719,38 @@ final class WindowManager {
                 return "ok"
             }
         case .flip:
-            return withFocusedTile { id, tree, _ in tree.flip(id) ? "ok" : "error: cannot flip" }
+            return withTile(window) { id, tree, _ in tree.flip(id) ? "ok" : "error: cannot flip" }
         case .stack:
-            return withFocusedTile { id, tree, _ in
+            return withTile(window) { id, tree, _ in
                 guard let stacked = tree.toggleStack(id) else { return "ok: no other window to stack with" }
                 return stacked ? "ok: stacked" : "ok: unstacked"
             }
         case .balance:
-            return withFocusedTile { _, tree, key in
+            return withTile(window) { _, tree, key in
                 tree.balance()
                 recheckMinimums(in: tree, key: key)
                 return "ok"
             }
         case .zoom:
-            return withFocusedTile { id, _, key in
+            return withTile(window) { id, _, key in
                 zoomed[key] = zoomed[key] == id ? nil : id
                 if let w = windows[id] { AXUIElementPerformAction(w.element, kAXRaiseAction as CFString) }
                 return "ok"
             }
         case .float:
-            guard let id = focusedWindow, let w = windows[id] else { return "error: no focused window" }
+            guard let w = targetWindow(window) else { return "error: no focused window" }
             guard w.tileable else { return "error: this window cannot be tiled" }
             w.userFloat = !w.floating
-            if w.floating { for tree in trees.values { tree.remove(id) } }
+            if w.floating { for tree in trees.values { tree.remove(w.id) } }
             refresh()
             return w.floating ? "ok: floating" : "ok: tiled"
         case .close:
-            guard let id = focusedWindow, let w = windows[id] else { return "error: no focused window" }
+            guard let w = targetWindow(window) else { return "error: no focused window" }
             guard let button = w.element.element(kAXCloseButtonAttribute) else { return "error: this window has no close button" }
             AXUIElementPerformAction(button, kAXPressAction as CFString)
             return "ok"
         case .space(let target): return switchSpace(target)
-        case .moveToSpace(let target, let follow): return moveToSpace(target, follow: follow)
+        case .moveToSpace(let target, let follow): return moveToSpace(target, follow: follow, window: window)
         case .pause:
             setPaused(!paused)
             return paused ? "ok: paused" : "ok: tiling"
@@ -766,9 +773,21 @@ final class WindowManager {
         refresh()
     }
 
-    private func withFocusedTile(_ body: (CGWindowID, Tree, String) -> String) -> String {
-        guard let id = focusedWindow, lastFrames[id] != nil, let (key, tree) = treeEntry(containing: id) else {
-            return "error: the focused window is not tiled"
+    /// The window a command acts on: the one a request named with `--window`, or else the
+    /// focused window. Every command that acts on a window finds it here.
+    private func targetWindow(_ named: CGWindowID?) -> WindowState? {
+        (named ?? focusedWindow).flatMap { windows[$0] }
+    }
+
+    /// What a command that needs a tile answers when the window it acts on has none on screen.
+    private func notTiled(_ named: CGWindowID?) -> String {
+        named.map { "error: window \($0) is not tiled on a desktop being shown" } ?? "error: the focused window is not tiled"
+    }
+
+    /// Runs a command on the tile of the window it acts on (`targetWindow`), then lays out again.
+    private func withTile(_ named: CGWindowID?, _ body: (CGWindowID, Tree, String) -> String) -> String {
+        guard let id = targetWindow(named)?.id, lastFrames[id] != nil, let (key, tree) = treeEntry(containing: id) else {
+            return notTiled(named)
         }
         let result = body(id, tree, key)
         refresh()
@@ -827,9 +846,10 @@ final class WindowManager {
         return Private.windowID(of: el)
     }
 
-    private func move(_ dir: Direction) -> String {
-        guard let id = focusedWindow, let w = windows[id], let frame = lastFrames[id],
-              let (_, tree) = treeEntry(containing: id) else { return "error: the focused window is not tiled" }
+    private func move(_ dir: Direction, _ named: CGWindowID?) -> String {
+        guard let w = targetWindow(named), let frame = lastFrames[w.id],
+              let (_, tree) = treeEntry(containing: w.id) else { return notTiled(named) }
+        let id = w.id
         if tree.move(id, dir, visible: lastVisible) {
             refresh()
             return "ok"
@@ -884,14 +904,21 @@ final class WindowManager {
 
     /// `ruled` is the window a rule sends, in place of the focused one. It starts from the display
     /// it is on, and it is never carried across by hand, because that takes the user along.
-    private func moveToSpace(_ target: SpaceTarget, follow: Bool, ruled: CGWindowID? = nil) -> String {
-        guard let id = ruled ?? focusedWindow, let w = windows[id] else { return "error: no focused window" }
+    /// `named` is a window a request named with `--window`. It starts from where it is too, which
+    /// can be a desktop that is not being shown, and takes the keyboard along only if it has it.
+    private func moveToSpace(_ target: SpaceTarget, follow: Bool, window named: CGWindowID? = nil, ruled: CGWindowID? = nil) -> String {
+        guard let id = ruled ?? targetWindow(named)?.id, let w = windows[id] else { return "error: no focused window" }
         guard !syntheticDrag else { return "error: a move is already in progress" }
         displays = DisplayInfo.current()
-        guard let here = (ruled == nil ? nil : display(holding: w)) ?? activeDisplay else { return "error: no display" }
-        guard here.isDesktop else { return "error: a fullscreen window cannot be sent to another desktop" }
-
+        guard let here = (ruled == nil && named == nil ? nil : display(holding: w)) ?? activeDisplay else { return "error: no display" }
         let desktops = Desktop.all()
+        // The desktop the window is on. Only a named window can be on one that is not being shown.
+        let spaces = named == nil ? [] : Private.spaces(of: id)
+        let from = spaces.isEmpty || spaces.contains(here.spaceID) ? here.spaceID : spaces[0]
+        guard from == here.spaceID ? here.isDesktop : desktops.contains(where: { $0.id == from }) else {
+            return "error: a fullscreen window cannot be sent to another desktop"
+        }
+
         let destination: Desktop
         switch target {
         case .index(let n):
@@ -899,12 +926,12 @@ final class WindowManager {
             destination = desktops[n - 1]
         case .next, .prev:
             let onThisDisplay = desktops.filter { $0.displayID == here.managedID }
-            guard let i = onThisDisplay.firstIndex(where: { $0.id == here.spaceID }) else { return "error: cannot tell which desktop is showing" }
+            guard let i = onThisDisplay.firstIndex(where: { $0.id == from }) else { return "error: cannot tell which desktop is showing" }
             let j = target == .next ? i + 1 : i - 1
             guard onThisDisplay.indices.contains(j) else { return "ok: no desktop in that direction" }
             destination = onThisDisplay[j]
         }
-        guard destination.id != here.spaceID else { return "ok: already on desktop \(destination.number)" }
+        guard destination.id != from else { return "ok: already on desktop \(destination.number)" }
 
         // A window has to sit on the display its Space belongs to.
         if destination.displayID != here.managedID, let there = displays.first(where: { $0.managedID == destination.displayID }) {
@@ -919,11 +946,14 @@ final class WindowManager {
             // The window joins the destination's layout when that Space is next on screen, by the
             // same rule as a newly opened window: it splits the window that was last focused there.
             w.lastSetFrame = nil
-            if follow {
+            if follow, destination.id == here.spaceID {
+                // Brought to the desktop being shown, so there is no desktop to go to.
+                focus(window: id)
+            } else if follow {
                 let origin = here.spaceID
                 _ = Private.press(shortcut: Private.SystemShortcut.desktop(destination.number))
                 whenSpaceChanges(from: origin, timeout: 3) { [weak self] _ in self?.focus(window: id) }
-            } else {
+            } else if named == nil || id == focusedWindow {
                 // Hand the keyboard to the window that is left nearest to where this one was.
                 let remaining = slots.filter { $0.key != id }
                 if let oldSlot, let next = remaining.min(by: { distance($0.value, oldSlot) < distance($1.value, oldSlot) })?.key {
@@ -934,7 +964,8 @@ final class WindowManager {
             if ruled == nil { refresh() }
             return "ok"
         }
-        guard ruled == nil else { return "error: the system did not move the window" }
+        // Carrying it by hand needs it on screen.
+        guard ruled == nil, named == nil || isShowing(id, ScreenSnapshot.take()) else { return "error: the system did not move the window" }
 
         // Older systems, or a window the bridge refuses: carry it across by hand. This always
         // ends on the destination desktop.

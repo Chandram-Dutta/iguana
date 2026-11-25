@@ -318,6 +318,22 @@ public enum Report {
     }
 }
 
+/// A line from the command line: a command, whether `--json` asked for its answer as a JSON
+/// document, and the window `--window` named for it to act on. Shortcuts are parsed without
+/// this, because a shortcut has nowhere to print an answer and no window to name.
+public struct Request: Equatable {
+    public var command: Command
+    public var json: Bool
+    /// The window the command acts on instead of the focused one.
+    public var window: WindowID?
+
+    public init(command: Command, json: Bool = false, window: WindowID? = nil) {
+        self.command = command
+        self.json = json
+        self.window = window
+    }
+}
+
 extension Command {
     /// The commands that can answer with a JSON document.
     public var hasJSONForm: Bool {
@@ -327,17 +343,41 @@ extension Command {
         }
     }
 
-    /// A line from the command line: a command, and whether `--json` asked for its answer as a
-    /// JSON document. Shortcuts are parsed without this, because a shortcut has nowhere to
-    /// print an answer.
-    public static func parseRequest(_ text: String) throws -> (command: Command, json: Bool) {
-        let words = text.split(whereSeparator: { $0 == " " || $0 == "\t" })
-        let rest = words.filter { $0.lowercased() != "--json" }
-        guard rest.count < words.count else { return (try parse(text), false) }
-        let command = try parse(rest.joined(separator: " "))
-        guard command.hasJSONForm else {
-            throw CommandError("'\(rest.first?.lowercased() ?? "")' has no --json form (list-windows, list-spaces, tree and status have one)")
+    /// The commands that act on one window, and so can be told which one with `--window`.
+    public var acceptsWindow: Bool {
+        switch self {
+        case .focusWindow, .move, .join, .resize, .flip, .stack, .balance, .float, .zoom, .close, .moveToSpace: return true
+        default: return false
         }
-        return (command, true)
+    }
+
+    /// Reads a line from the command line. The flags can come anywhere in it.
+    public static func parseRequest(_ text: String) throws -> Request {
+        var words = text.split(whereSeparator: { $0 == " " || $0 == "\t" }).map(String.init)
+        let json = words.contains { $0.lowercased() == "--json" }
+        words.removeAll { $0.lowercased() == "--json" }
+        var window: WindowID?
+        if let i = words.firstIndex(where: { $0.lowercased() == "--window" }) {
+            // A decimal number, as list-windows prints it.
+            guard i + 1 < words.count, words[i + 1].allSatisfy({ $0.isASCII && $0.isNumber }), let id = WindowID(words[i + 1]) else {
+                throw CommandError("--window needs a window id (see iguana list-windows)")
+            }
+            words.removeSubrange(i...(i + 1))
+            guard !words.contains(where: { $0.lowercased() == "--window" }) else { throw CommandError("give --window only once") }
+            window = id
+        }
+        if json, window != nil { throw CommandError("use --json or --window, not both") }
+
+        let name = words.first?.lowercased() ?? ""
+        // `focus` alone is not a command; with a window named it means that window.
+        let command: Command = try window != nil && words.count == 1 && name == "focus" ? .focusWindow : parse(words.joined(separator: " "))
+        if json, !command.hasJSONForm {
+            throw CommandError("'\(name)' has no --json form (list-windows, list-spaces, tree and status have one)")
+        }
+        if window != nil, !command.acceptsWindow {
+            if case .focus = command { throw CommandError("'focus --window ID' takes no direction: it focuses that window") }
+            throw CommandError("'\(name)' does not take --window")
+        }
+        return Request(command: command, json: json, window: window)
     }
 }

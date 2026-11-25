@@ -80,6 +80,20 @@ of text that starts with `error` and the exit status is not 0. In a script, chec
 before you hand the output to `jq`.
 </Aside>
 
+### Act on a window you found
+
+Every window in `list-windows` has an `id`. Give it to a window command with `--window`, and
+the command acts on that window instead of the focused one. The focus stays where it is.
+
+```sh
+# Send every Mail window to desktop 3, and stay where you are.
+iguana list-windows --json | jq -r '.windows[] | select(.app == "Mail") | .id' |
+  while read -r id; do iguana move-to-space 3 --stay --window "$id"; done
+```
+
+[Acting on another window](/reference/commands/#acting-on-another-window) lists the commands
+that take it.
+
 ## Be told: hooks
 
 A hook is a shell command in the config file. Iguana runs it when its event happens.
