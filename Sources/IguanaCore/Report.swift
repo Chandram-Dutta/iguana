@@ -349,7 +349,8 @@ extension Command {
     /// The commands that act on one window, and so can be told which one with `--window`.
     public var acceptsWindow: Bool {
         switch self {
-        case .focusWindow, .move, .join, .resize, .flip, .stack, .balance, .float, .zoom, .close, .moveToSpace: return true
+        case .focusWindow, .move, .join, .resize, .flip, .stack, .balance, .float, .zoom, .close,
+                .moveToSpace, .moveToDisplay, .place, .arrange, .split: return true
         default: return false
         }
     }

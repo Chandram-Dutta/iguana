@@ -86,7 +86,8 @@ of the focused one, exactly as if it had the focus. The focus stays where it is.
 [`list-windows`](#list-windows) gives the ids. A shortcut cannot name a window.
 
 These commands take it: `focus`, `move`, `join`, `resize`, `flip`, `stack`, `balance`,
-`float`, `zoom`, `close` and `move-to-space`. With any other command the line is not sent:
+`split`, `arrange`, `float`, `zoom`, `close`, `move-to-space`, `move-to-display` and
+`place`. With any other command the line is not sent:
 
 ```text
 iguana: 'space' does not take --window
@@ -95,10 +96,14 @@ iguana: 'space' does not take --window
 - `focus --window ID` focuses that window. It takes no direction.
 - `move`, `join`, `resize`, `flip`, `stack`, `balance` and `zoom` need the window to be tiled
   on a desktop that is being shown. `balance` evens out that window's desktop.
-- `float` and `close` work for any window Iguana knows about, on any desktop.
+- `split` and `arrange` act on the layout that window is tiled in.
+- `float`, `close` and `place` work for any window Iguana knows about, on any desktop. `place`
+  floats a tiled window first, as it does the focused one.
 - `move-to-space` sends that window from whichever desktop it is on. With `--follow`, the
   default, you go with it and it gets the focus. With `--stay`, the focus only moves if that
   window had it.
+- `move-to-display` takes that window to another display. The focus stays with it only if it
+  had the focus.
 
 | Reply | When |
 | --- | --- |
@@ -267,7 +272,8 @@ side by side with the focused window, `vertical` puts it below. `auto` goes back
 
 The choice belongs to the focused window and is used once, by the next window that opens next
 to it. It works whatever `auto-split` is set to. It is forgotten when the window closes,
-floats or leaves its desktop.
+floats or leaves its desktop. With [`--window`](#acting-on-another-window), the choice belongs
+to that window.
 
 A new window next to a window in a [stack](#stack) joins the stack, whatever `split` says.
 [Where a new window opens](/guides/how-tiling-works/#where-a-new-window-opens) has a diagram.
@@ -303,7 +309,7 @@ room until they come back.
 
 This happens once. The result is an ordinary layout, and every other command changes it as
 usual. [Arrange a desktop at once](/guides/how-tiling-works/#arrange-a-desktop-at-once) has
-diagrams.
+diagrams. With [`--window`](#acting-on-another-window), that window's desktop is rearranged.
 
 | Reply | When |
 | --- | --- |
@@ -334,7 +340,8 @@ is. Tiling it again adds it to the layout like a newly opened window. See
 place center|left|right|top|bottom|top-left|top-right|bottom-left|bottom-right|full
 ```
 
-Puts the focused window in a part of its display, and leaves it floating there. The part is
+Puts the focused window in a part of its display, and leaves it floating there. With
+[`--window`](#acting-on-another-window), that window is placed. The part is
 cut from the area tiled windows use: the display without the menu bar and the Dock, inside
 the [outer gaps](/reference/configuration/#outer).
 
@@ -598,9 +605,10 @@ moves to the centre of the display instead, so a click lands there.
 move-to-display next|prev|N
 ```
 
-Takes the focused window to another display. The focus stays with the window. `N`, `next`
-and `prev` mean the same as for [`focus-display`](#focus-display), counted from the display
-the window is on. The window does not have to be tiled.
+Takes the focused window to another display. The focus stays with the window. With
+[`--window`](#acting-on-another-window), that window is taken and the focus stays where it
+is. `N`, `next` and `prev` mean the same as for [`focus-display`](#focus-display), counted
+from the display the window is on. The window does not have to be tiled.
 
 A tiled window joins the layout of the desktop that display is showing, beside the window
 last focused there, as when [`move`](#move) carries a window across at the edge of the

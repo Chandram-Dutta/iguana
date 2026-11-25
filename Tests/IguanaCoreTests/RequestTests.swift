@@ -43,7 +43,8 @@ final class RequestTests: XCTestCase {
 
     func testTheCommandsThatActOnAWindowTakeIt() throws {
         for line in ["move up", "join down", "resize shrink", "flip", "stack", "balance", "float", "zoom", "close",
-                     "move-to-space 3", "move-to-space prev --stay"] {
+                     "move-to-space 3", "move-to-space prev --stay", "move-to-display 2", "move-to-display prev",
+                     "place center", "place top-left", "arrange grid", "arrange main", "split vertical", "split auto"] {
             let request = try Command.parseRequest("\(line) --window 12")
             XCTAssertEqual(request.window, 12, line)
             XCTAssertEqual(request.command, try Command.parse(line), line)
@@ -52,7 +53,8 @@ final class RequestTests: XCTestCase {
     }
 
     func testEveryOtherCommandRefusesIt() {
-        for line in ["space 2", "pause", "reload", "list-windows", "list-spaces", "tree", "status", "settings", "tour", "update", "quit"] {
+        for line in ["space 2", "focus-display next", "undo", "redo", "pause", "reload", "list-windows", "list-spaces",
+                     "tree", "status", "settings", "tour", "update", "quit"] {
             let name = String(line.split(separator: " ")[0])
             XCTAssertThrowsError(try Command.parseRequest("\(line) --window 12"), line) { error in
                 XCTAssertEqual((error as? CommandError)?.description, "'\(name)' does not take --window", line)

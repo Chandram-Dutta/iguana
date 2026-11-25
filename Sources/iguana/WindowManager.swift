@@ -810,7 +810,7 @@ final class WindowManager {
             if w.floating { for tree in trees.values { tree.remove(w.id) } }
             refresh()
             return w.floating ? "ok: floating" : "ok: tiled"
-        case .place(let placement): return place(placement)
+        case .place(let placement): return place(placement, window)
         case .close:
             guard let w = targetWindow(window) else { return "error: no focused window" }
             guard let button = w.element.element(kAXCloseButtonAttribute) else { return "error: this window has no close button" }
@@ -822,7 +822,7 @@ final class WindowManager {
         case .space(let target): return switchSpace(target)
         case .moveToSpace(let target, let follow): return moveToSpace(target, follow: follow, window: window)
         case .focusDisplay(let target): return focusDisplay(target)
-        case .moveToDisplay(let target): return moveToDisplay(target)
+        case .moveToDisplay(let target): return moveToDisplay(target, window)
         case .pause:
             setPaused(!paused)
             return paused ? "ok: paused" : "ok: tiling"
@@ -903,9 +903,10 @@ final class WindowManager {
 
     // MARK: Placing floating windows
 
-    /// `place`: put the focused window in a part of its display's area.
-    private func place(_ placement: Placement) -> String {
-        guard let id = focusedWindow, let w = windows[id] else { return "error: no focused window" }
+    /// `place`: put the window it acts on in a part of its display's area.
+    private func place(_ placement: Placement, _ named: CGWindowID? = nil) -> String {
+        guard let w = targetWindow(named) else { return "error: no focused window" }
+        let id = w.id
         guard w.element.isSettable(kAXPositionAttribute) else { return "error: this window cannot be moved" }
         guard let display = display(holding: w) ?? activeDisplay else { return "error: no display" }
         guard display.isDesktop else { return "error: a fullscreen window cannot be placed" }
@@ -1167,9 +1168,11 @@ final class WindowManager {
         return "ok"
     }
 
-    /// The focus stays with the window, wherever it goes.
-    private func moveToDisplay(_ target: DisplayTarget) -> String {
-        guard let id = focusedWindow, let w = windows[id] else { return "error: no focused window" }
+    /// The focus stays with the window, wherever it goes. A window `move-to-display` names with
+    /// `--window` is taken instead of the focused one, and the focus stays where it is.
+    private func moveToDisplay(_ target: DisplayTarget, _ named: CGWindowID? = nil) -> String {
+        guard let w = targetWindow(named) else { return "error: no focused window" }
+        let id = w.id
         let tile = lastFrames[id]
         guard let frame = tile ?? w.element.frame, let here = displayIndex(for: frame) else { return "error: cannot read the window's position" }
         guard displays[here].isDesktop else { return "error: a fullscreen window cannot be sent to another display" }
