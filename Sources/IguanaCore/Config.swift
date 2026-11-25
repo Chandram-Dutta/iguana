@@ -130,6 +130,9 @@ public struct Config: Equatable {
     public var animationDuration = 0.16
     public var animationEasing = Easing.easeOut
     public var bindings: [Binding] = []
+    /// The `[mode.NAME]` tables: sets of shortcuts that take the place of `bindings` while their
+    /// mode is on. None is built in.
+    public var modes: [String: [Binding]] = [:]
     public var rules: [Rule] = []
     /// Shell commands to run when something changes. An event without a command is not in here.
     public var hooks: [HookEvent: String] = [:]
@@ -256,6 +259,16 @@ public struct Config: Equatable {
     option-shift-comma = "move-to-display prev"
     option-shift-period = "move-to-display next"
 
+    # A mode is a second set of shortcuts that takes over until you leave it. Bind a key to it
+    # above, for example option-r = "mode resize". Inside a mode a key needs no modifier, and
+    # esc goes back to [bindings] unless the mode binds esc itself.
+    # [mode.resize]
+    # h = "resize shrink width"
+    # l = "resize grow width"
+    # j = "resize grow height"
+    # k = "resize shrink height"
+    # return = "mode default"
+
     # Rules for the windows of an app. `app` is a bundle id or part of the app name, `title` is a
     # regular expression. `float = true` keeps matching windows floating; dialogs, sheets and
     # fixed-size windows float on their own. `desktop = 3` sends a matching window to desktop 3
@@ -318,7 +331,7 @@ public struct Config: Equatable {
             }
         }
 
-        checkKeys(doc, ["gaps", "layout", "animation", "focus-ring", "stage-manager", "menu-bar", "updates", "hooks", "bindings", "rule", "display"], "the config file")
+        checkKeys(doc, ["gaps", "layout", "animation", "focus-ring", "stage-manager", "menu-bar", "updates", "hooks", "bindings", "mode", "rule", "display"], "the config file")
 
         if let gaps = doc["gaps"]?.tableValue {
             checkKeys(gaps, ["inner", "outer"], "[gaps]")
@@ -458,6 +471,7 @@ public struct Config: Equatable {
             }
             c.bindings = merged.values.sorted { $0.source < $1.source }
         }
+        loadModes(doc["mode"], into: &c, warnings: &warnings)
 
         if let rules = doc["rule"] {
             guard let list = rules.arrayValue else {

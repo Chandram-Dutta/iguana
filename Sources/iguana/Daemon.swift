@@ -67,6 +67,14 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if let self { self.dragPreview.drag(on, self.wm) }
         }
         wm.onConfigChange = { [weak self] in self?.registerHotkeys() }
+        wm.onModeChange = { [weak self] in
+            // On the next turn of the run loop: the key that switched the mode is still being
+            // handled, and must not fire again in the new set.
+            DispatchQueue.main.async {
+                self?.registerHotkeys()
+                self?.updateStatusItem()
+            }
+        }
         wm.statusExtras = { [weak self] in
             guard let self else { return [] }
             var lines = ["shortcuts: \(self.registeredShortcuts) active"] + self.hotkeyProblems.map { "  warning: \($0)" }
@@ -134,6 +142,8 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func showTour() {
+        // The tour teaches the keys of [bindings].
+        wm.switchMode(Config.defaultMode)
         if tour == nil {
             let controller = TourWindowController(config: wm.config) { [weak self] in
                 self?.statusItem?.button?.window?.frame
@@ -249,13 +259,20 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func registerHotkeys() {
         guard let hotkeys else { return }
-        hotkeyProblems = hotkeys.register(wm.config.bindings) { [weak self] binding in
+        let bindings = wm.config.bindings(inMode: wm.mode) ?? wm.config.bindings
+        hotkeyProblems = hotkeys.register(bindings) { [weak self] binding in
             guard let self else { return }
             let reply = self.tourReply(binding.command, binding) ?? self.wm.run(binding.command)
             self.lastShortcut = (binding.source, reply, Date())
             if reply.hasPrefix("error") { Log.write("\(binding.source): \(reply)") }
         }
-        registeredShortcuts = wm.config.bindings.count - hotkeyProblems.count
+        registeredShortcuts = bindings.count - hotkeyProblems.count
+        // A mistyped key in a mode would otherwise only come to light once the mode is on.
+        for (name, list) in wm.config.modes.sorted(by: { $0.key < $1.key }) where name != wm.mode {
+            for b in list where Hotkeys.keyCodes[b.combo.key] == nil {
+                hotkeyProblems.append("binding '\(b.source)' in [mode.\(name)]: unknown key '\(b.combo.key)'")
+            }
+        }
         for p in hotkeyProblems { Log.write(p) }
     }
 
@@ -342,7 +359,7 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
         activeDeskNumber = active?.number
         statusSlots = []
         // The number is drawn into the picture, so that it sits on one line with the drawing.
-        let label = trusted ? wm.menuBarTitle : "needs permission"
+        let label = trusted ? StatusIcon.label(desktop: wm.menuBarTitle, mode: wm.mode) : "needs permission"
 
         // The opt-in row of desktops: every one, or every one in use.
         let choice = wm.config.menuBarDesktops
@@ -368,7 +385,9 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         button.title = ""
         button.imagePosition = .imageOnly
-        button.setAccessibilityTitle(trusted ? (label.isEmpty ? "Iguana" : "Iguana, desktop \(label)") : "Iguana needs permission")
+        let mode = wm.mode == Config.defaultMode ? "" : ", \(wm.mode) mode"
+        let desktop = wm.menuBarTitle.isEmpty ? "" : ", desktop \(wm.menuBarTitle)"
+        button.setAccessibilityTitle(trusted ? "Iguana\(desktop)\(mode)" : "Iguana needs permission")
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -447,8 +466,12 @@ extension Daemon: SettingsBackend {
         updateStatusItem()
     }
 
+    /// Shortcuts come back as those of [bindings]: a mode does not outlast the pause.
     func suspendShortcuts(_ suspended: Bool) {
-        if suspended { hotkeys?.unregisterAll() } else { registerHotkeys() }
+        if suspended { hotkeys?.unregisterAll() } else {
+            wm.switchMode(Config.defaultMode)
+            registerHotkeys()
+        }
     }
 
     var tiledWindowCount: Int { wm.tiledWindowCount }

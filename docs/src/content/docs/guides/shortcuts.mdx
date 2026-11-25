@@ -6,7 +6,8 @@ description: Change, add and switch off Iguana's keyboard shortcuts, in the conf
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
 After this page you will be able to change any built-in shortcut, add shortcuts for commands
-that have none, and switch off the ones you do not want.
+that have none, switch off the ones you do not want, run several commands with one key, and
+set up modes.
 
 ## How a shortcut is written
 
@@ -17,13 +18,15 @@ option-shift-h
 ```
 
 The modifiers are `cmd`, `ctrl`, `option` and `shift`. The order of the modifiers does not
-matter. Every shortcut needs at least one modifier.
+matter. Every shortcut in `[bindings]` needs at least one modifier. Inside a [mode](#modes) a
+key alone will do.
 
 The key is a letter, a digit or a name such as `minus`, `space` or `left`. The full list is
 on the [Key names](/reference/key-names/) page.
 
-Each shortcut runs one [command](/reference/commands/), written exactly as you would type it
-after `iguana` in a terminal.
+Each shortcut runs a [command](/reference/commands/), written exactly as you would type it
+after `iguana` in a terminal, or [several commands](#run-several-commands-with-one-key) with
+`;` between them.
 
 ## Change shortcuts in the config file
 
@@ -95,7 +98,69 @@ built-in set back.
 
 The window writes the same `[bindings]` entries described above. If the keys you type were
 already used by another command, they move to the new one and a notice says so.
-[The settings window](/guides/settings-window/#shortcuts) has the details.
+[The settings window](/guides/settings-window/#shortcuts) has the details. The window does not
+edit [modes](#modes), and leaves them as they are in the file.
+
+## Run several commands with one key
+
+Put `;` between the commands. They run in order, as if you had pressed one shortcut after
+another:
+
+```toml title="iguana.toml"
+[bindings]
+option-shift-r = "flip; balance"
+option-shift-g = "join right; balance"
+```
+
+The first command that fails stops the rest. `space` and `move-to-space` can only come last,
+because macOS finishes the switch after the command has returned. Reports and `quit` cannot
+be part of a chain. [Chains](/reference/commands/#chains) has every rule.
+
+The same works in a terminal, in quotes: `iguana "flip; balance"`.
+
+## Modes
+
+A mode is a second set of shortcuts. One key switches to it, and from then on only the keys
+of the mode work, until you leave it. Inside a mode a key needs no modifier, so a mode suits a
+task with many small steps, such as resizing:
+
+```toml title="iguana.toml"
+[bindings]
+option-r = "mode resize"
+
+[mode.resize]
+h = "resize shrink width"
+l = "resize grow width"
+j = "resize grow height"
+k = "resize shrink height"
+shift-h = "move left"
+return = "mode default"
+```
+
+<Steps>
+
+1. Press <kbd>option</kbd>+<kbd>r</kbd>. The menu bar item shows `resize` beside the desktop
+   number.
+2. Press <kbd>h</kbd>, <kbd>l</kbd>, <kbd>j</kbd> and <kbd>k</kbd> as often as you like. Each
+   press is one resize step.
+3. Press <kbd>return</kbd> or <kbd>esc</kbd>. The name goes away, and the usual shortcuts work
+   again.
+
+</Steps>
+
+- **<kbd>esc</kbd> always leads out.** A mode that does not bind <kbd>esc</kbd> itself gets
+  `esc = "mode default"`.
+- **While a mode is on, its keys are taken from every app.** In the example, <kbd>h</kbd> no
+  longer types an h anywhere. Leave the mode before you type.
+- **Nothing of `[bindings]` works in a mode** unless the mode binds it too.
+- **A mode ends by itself** when you change or remove its section in the file, when the
+  welcome tour starts, and after the settings window has recorded a shortcut.
+- **`iguana status` names the mode** on a `mode:` line, and `status --json` has it under
+  `mode`.
+
+A key in a mode can switch to another mode, and a chain can switch too:
+`return = "balance; mode default"` evens out the windows and leaves the mode.
+[`[mode.NAME]`](/reference/configuration/#modename) lists the rules for names and keys.
 
 ## Recipes
 

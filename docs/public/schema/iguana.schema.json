@@ -104,7 +104,7 @@
       "additionalProperties": false,
       "patternProperties": {
         "^((cmd|command|super|ctrl|control|opt|option|shift)-)+([a-z0-9]|minus|equal|comma|period|slash|semicolon|quote|backslash|backtick|leftbracket|rightbracket|space|tab|return|enter|delete|esc|escape|left|right|up|down|f[1-9]|f1[0-2]|-)$": {
-          "description": "A command, for example \"focus left\" or \"move-to-space 3 --stay\".",
+          "description": "A command, for example \"focus left\" or \"move-to-space 3 --stay\". Several commands joined with ; run in order: \"flip; balance\".",
           "oneOf": [
             { "const": "" },
             { "const": false },
@@ -115,8 +115,29 @@
             { "type": "string", "pattern": "^move-to-space( (--stay|--follow))? ([1-9]|1[0-6]|next|prev|previous|recent)( (--stay|--follow))?$" },
             { "type": "string", "pattern": "^(focus-display|move-to-display) ([1-9]|1[0-6]|next|prev|previous)$" },
             { "type": "string", "pattern": "^place (center|left|right|top|bottom|top-left|top-right|bottom-left|bottom-right|full)$" },
+            { "type": "string", "pattern": "^mode [a-z0-9-]+$" },
+            { "type": "string", "pattern": ";" },
             { "enum": ["flip", "stack", "balance", "float", "zoom", "close", "undo", "redo", "pause", "reload", "apply-rules", "settings", "tour", "update", "list-windows", "list-spaces", "tree", "status", "quit"] }
           ]
+        }
+      }
+    },
+    "mode": {
+      "type": "object",
+      "description": "Modes: sets of shortcuts that take the place of [bindings] while they are on. Each is a [mode.NAME] section. The command \"mode NAME\" switches one on, \"mode default\" or esc goes back to [bindings].",
+      "propertyNames": { "not": { "const": "default" } },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z0-9-]+$": {
+          "type": "object",
+          "description": "The shortcuts of this mode, written like those of [bindings], except that a key needs no modifier. Esc goes back to [bindings] unless the mode binds esc itself.",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^((cmd|command|super|ctrl|control|opt|option|shift)-)*([a-z0-9]|minus|equal|comma|period|slash|semicolon|quote|backslash|backtick|leftbracket|rightbracket|space|tab|return|enter|delete|esc|escape|left|right|up|down|f[1-9]|f1[0-2]|-)$": {
+              "description": "A command, or several joined with ;. \"\" or false leaves the key unbound.",
+              "oneOf": [{ "type": "string" }, { "const": false }]
+            }
+          }
         }
       }
     },

@@ -220,6 +220,7 @@ final class ReportTests: XCTestCase {
             "reply" : "ok",
             "secondsAgo" : 4
           },
+          "mode" : null,
           "paused" : false,
           "permission" : true,
           "shortcuts" : {

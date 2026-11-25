@@ -525,7 +525,9 @@ final class TourModel: ObservableObject {
     /// leaves to the window manager.
     func handle(_ command: Command, binding: KeyBinding? = nil) -> String? {
         switch command {
-        case .status, .reload, .quit, .listWindows, .listSpaces, .tree, .update: return nil
+        // `mode default` is the way out of a mode, and must work here too. Other modes and
+        // chains are refused below: the tour teaches the keys of [bindings], one at a time.
+        case .status, .reload, .quit, .listWindows, .listSpaces, .tree, .update, .mode(Config.defaultMode): return nil
         default: break
         }
         guard !closing else { return "ok: the tour is closing" }

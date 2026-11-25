@@ -74,6 +74,8 @@ for (const line of usage.split('\n')) {
 		for (const name of grammar.split(' | ')) usageCommands.add(name.trim());
 		continue;
 	}
+	// Commands joined with `;` are not a command of their own; that line is checked below.
+	if (grammar.includes(';')) continue;
 	const [name, ...args] = grammar.split(' ');
 	usageCommands.add(name);
 	for (const arg of args) for (const word of arg.replace(/[\[\]]/g, '').split('|')) usageWords.add(word);
@@ -97,6 +99,10 @@ for (const line of usage.split('\n')) {
 	if (grammar.includes(' | ')) continue;
 	expect(commandsPage.includes(`\n${grammar}\n`), `commands.mdx does not show the grammar line "${grammar}"`);
 }
+// Chains have a section of their own, which shows their grammar line.
+const chainLine = usage.split('\n').map((line) => line.split(/\s{2,}/)[0]).find((grammar) => grammar.includes(';'));
+expect(chainLine !== undefined, 'Command.usage has no line for commands joined with ;');
+expect((section(commandsPage, '### Chains') ?? '').includes(`\n${chainLine}\n`), 'commands.mdx: the "### Chains" section does not show the grammar line for chains');
 // The range of desktop numbers.
 const range = commandSwift.match(/n >= (\d+), n <= (\d+)/);
 expect(range && commandsPage.includes(`from ${range[1]} to ${range[2]}`), 'commands.mdx: the Space number range does not match Command.parse');

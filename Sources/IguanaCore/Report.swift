@@ -300,10 +300,12 @@ public enum Report {
         /// `null` when no newer release is known: there is none, Iguana has not looked yet, or
         /// looking is switched off.
         @Nullable public var update: Update?
+        /// The `[mode.NAME]` whose shortcuts are on, `null` while those of `[bindings]` are.
+        @Nullable public var mode: String?
 
         public init(version: String, permission: Bool, paused: Bool, configPath: String, configExists: Bool,
                     configWarnings: [String], windows: WindowCounts, stageManager: StageManager, displays: [Display],
-                    shortcuts: Shortcuts, tourShowing: Bool, lastShortcut: LastShortcut?, update: Update? = nil) {
+                    shortcuts: Shortcuts, tourShowing: Bool, lastShortcut: LastShortcut?, update: Update? = nil, mode: String? = nil) {
             self.version = version
             self.permission = permission
             self.paused = paused
@@ -317,6 +319,7 @@ public enum Report {
             self.tourShowing = tourShowing
             self.lastShortcut = lastShortcut
             self.update = update
+            self.mode = mode
         }
     }
 }
@@ -379,6 +382,7 @@ extension Command {
             throw CommandError("'\(name)' has no --json form (list-windows, list-spaces, tree and status have one)")
         }
         if window != nil, !command.acceptsWindow {
+            if case .sequence = command { throw CommandError("'--window' cannot be used in a chain") }
             if case .focus = command { throw CommandError("'focus --window ID' takes no direction: it focuses that window") }
             throw CommandError("'\(name)' does not take --window")
         }

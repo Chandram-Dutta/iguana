@@ -59,6 +59,10 @@ public enum Command: Equatable {
     case tour
     /// Ask now whether a newer Iguana has been released.
     case update
+    /// Switch the shortcuts to those of a `[mode.NAME]` table, or back to `[bindings]` with `default`.
+    case mode(String)
+    /// Several commands run one after another, written with `;` between them.
+    case sequence([Command])
     case quit
 
     public static let usage = """
@@ -91,10 +95,13 @@ public enum Command: Equatable {
     settings                        open the settings window
     tour                            show the welcome tour again
     update                          ask now whether a newer Iguana has been released
+    mode NAME|default               switch the shortcuts to a [mode.NAME] table, or back to [bindings]
+    COMMAND; COMMAND ...            run several commands in order, stopping at the first error
     quit
     """
 
     public static func parse(_ text: String) throws -> Command {
+        if text.contains(";") { return try chain(text) }
         let words = text.split(whereSeparator: { $0 == " " || $0 == "\t" }).map { $0.lowercased() }
         guard let name = words.first else { throw CommandError("empty command") }
         let args = Array(words.dropFirst())
@@ -187,6 +194,7 @@ public enum Command: Equatable {
         case "settings": return try noArgs(.settings)
         case "tour": return try noArgs(.tour)
         case "update": return try noArgs(.update)
+        case "mode": return .mode(try modeName(args))
         case "quit": return try noArgs(.quit)
         default: throw CommandError("unknown command '\(name)'")
         }
@@ -202,7 +210,8 @@ public struct KeyCombo: Hashable {
     public let modifiers: Set<Modifier>
     public let key: String
 
-    public static func parse(_ text: String) throws -> KeyCombo {
+    /// `requireModifier` is false inside a `[mode.NAME]` table, where a plain `h` is a shortcut.
+    public static func parse(_ text: String, requireModifier: Bool = true) throws -> KeyCombo {
         let parts = text.lowercased().split(separator: "-", omittingEmptySubsequences: false).map(String.init)
         guard var key = parts.last else { throw CommandError("empty key binding") }
         var modParts = parts.dropLast()
@@ -225,7 +234,7 @@ public struct KeyCombo: Hashable {
             default: throw CommandError("'\(text)': unknown modifier '\(p)' (use cmd, ctrl, option, shift)")
             }
         }
-        guard !mods.isEmpty else { throw CommandError("'\(text)': a binding needs at least one modifier") }
+        guard !mods.isEmpty || !requireModifier else { throw CommandError("'\(text)': a binding needs at least one modifier") }
         return KeyCombo(modifiers: mods, key: key)
     }
 }
