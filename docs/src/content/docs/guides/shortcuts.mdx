@@ -111,6 +111,21 @@ option-shift-2 = "move-to-space 2 --stay"
 option-shift-3 = "move-to-space 3 --stay"
 ```
 
+### Go back and forth
+
+Two built-in shortcuts take you back to where you were. Press them again to return.
+
+- <kbd>option</kbd>+<kbd>tab</kbd> runs `focus recent`: back to the window you were in before.
+- <kbd>option</kbd>+<kbd>shift</kbd>+<kbd>tab</kbd> runs `space recent`: back to the desktop you
+  were on before.
+
+To take the focused window with you to that desktop, bind `move-to-space recent`:
+
+```toml title="iguana.toml"
+[bindings]
+option-ctrl-tab = "move-to-space recent"
+```
+
 ### Use the arrow keys
 
 ```toml title="iguana.toml"

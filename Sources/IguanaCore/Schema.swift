@@ -124,9 +124,10 @@ extension Config {
                 { "const": "" },
                 { "const": false },
                 { "type": "string", "pattern": "^(focus|move|join) (left|right|up|down)$" },
+                { "const": "focus recent" },
                 { "type": "string", "pattern": "^resize( (width|height))? (grow|shrink)( (width|height))?$" },
-                { "type": "string", "pattern": "^space ([1-9]|1[0-6]|next|prev|previous)$" },
-                { "type": "string", "pattern": "^move-to-space( (--stay|--follow))? ([1-9]|1[0-6]|next|prev|previous)( (--stay|--follow))?$" },
+                { "type": "string", "pattern": "^space ([1-9]|1[0-6]|next|prev|previous|recent)$" },
+                { "type": "string", "pattern": "^move-to-space( (--stay|--follow))? ([1-9]|1[0-6]|next|prev|previous|recent)( (--stay|--follow))?$" },
                 { "enum": ["flip", "stack", "balance", "float", "zoom", "close", "pause", "reload", "settings", "tour", "update", "list-windows", "list-spaces", "tree", "status", "quit"] }
               ]
             }

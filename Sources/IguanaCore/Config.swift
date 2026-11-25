@@ -184,6 +184,7 @@ public struct Config: Equatable {
     option-j = "focus down"
     option-k = "focus up"
     option-l = "focus right"
+    option-tab = "focus recent"
     option-shift-h = "move left"
     option-shift-j = "move down"
     option-shift-k = "move up"
@@ -210,6 +211,7 @@ public struct Config: Equatable {
     option-9 = "space 9"
     option-leftbracket = "space prev"
     option-rightbracket = "space next"
+    option-shift-tab = "space recent"
     # Add --stay (for example "move-to-space 1 --stay") to send the window away and stay where you are.
     option-shift-1 = "move-to-space 1"
     option-shift-2 = "move-to-space 2"

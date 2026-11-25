@@ -655,6 +655,8 @@ final class TourModel: ObservableObject {
         case .index(let n): return (1...Self.desktopCount).contains(n) ? n - 1 : nil
         case .next: return current + 1 < Self.desktopCount ? current + 1 : nil
         case .prev: return current > 0 ? current - 1 : nil
+        // The tour does not teach it, and its practice desktops keep no history.
+        case .recent: return nil
         }
     }
 

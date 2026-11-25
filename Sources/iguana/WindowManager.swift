@@ -82,7 +82,13 @@ final class WindowManager {
     private var allDirty = true
     private(set) var paused = false
     private var refreshPending = false
-    private(set) var focusedWindow: CGWindowID?
+    private(set) var focusedWindow: CGWindowID? {
+        didSet { if let id = focusedWindow, id != oldValue { focusHistory.record(id) } }
+    }
+    /// The windows that had the focus, for `focus recent`.
+    private var focusHistory = FocusHistory()
+    /// The desktops each display showed, for `space recent`.
+    private var desktopHistory = DesktopHistory()
     private var focusIntent: CGWindowID?
     /// `carried` is set once the window has been seen somewhere else at its own size: it is
     /// being moved, not resized, and stays a move whatever happens to its size afterwards.
@@ -328,6 +334,7 @@ final class WindowManager {
         let snap = ScreenSnapshot.take()
         prune(existing: snap.all)
         displays = DisplayInfo.current()
+        noteDesktops()
         updateFocus(snap)
 
         guard !paused else {
@@ -465,6 +472,7 @@ final class WindowManager {
         for (key, id) in zoomed where !existing.contains(id) { zoomed[key] = nil }
         if let waiting = focusIntent, !existing.contains(waiting) { focusIntent = nil }
         if let f = focusedWindow, !existing.contains(f) { focusedWindow = nil }
+        for id in focusHistory.windows where !existing.contains(id) { focusHistory.forget(id) }
     }
 
     private func isShowing(_ id: CGWindowID, _ snap: ScreenSnapshot) -> Bool {
@@ -695,6 +703,7 @@ final class WindowManager {
         }
         switch command {
         case .focus(let dir): return focus(dir)
+        case .focusRecent: return focusRecent()
         case .move(let dir): return move(dir)
         case .join(let dir):
             return withFocusedTile { id, tree, _ in
@@ -793,6 +802,20 @@ final class WindowManager {
         return "ok"
     }
 
+    /// Back to the window that had the focus before this one. Only a standard window on a
+    /// desktop being shown counts, so this never switches desktop.
+    private func focusRecent() -> String {
+        let snap = ScreenSnapshot.take()
+        guard let id = focusHistory.previous(current: focusedWindow, eligible: { id in
+            // Dialogs and sheets do not count. A window that can be tiled is a standard one; one
+            // that cannot may be a standard window of a fixed size, so it is asked what it is.
+            guard let w = windows[id], isShowing(id, snap) else { return false }
+            return w.tileable || w.element.string(kAXSubroleAttribute) == kAXStandardWindowSubrole
+        }) else { return "ok: no other recent window" }
+        focus(window: id)
+        return "ok"
+    }
+
     private func focus(window id: CGWindowID, attempt: Int = 0, warp: Bool = true) {
         guard let w = windows[id] else {
             // The window closed while its focus was being confirmed: stop waiting for it.
@@ -867,6 +890,9 @@ final class WindowManager {
         switch target {
         case .next: return (Private.SystemShortcut.spaceRight, "ok")
         case .prev: return (Private.SystemShortcut.spaceLeft, "ok")
+        case .recent:
+            guard let desktop = recentDesktop(on: d) else { return (nil, "ok: no previous desktop") }
+            return (Private.SystemShortcut.desktop(desktop.number), "ok")
         case .index(let n):
             // Desktops are numbered across all displays, exactly as Mission Control names them.
             let total = d.totalDesktops
@@ -874,6 +900,20 @@ final class WindowManager {
             if let i = d.spaceIndex, d.desktopOffset + i == n { return (nil, "ok: already on desktop \(n)") }
             return (Private.SystemShortcut.desktop(n), "ok")
         }
+    }
+
+    /// Remembered for `space recent`, however the desktop changed. A fullscreen Space is not a
+    /// desktop and is left out.
+    private func noteDesktops() {
+        for d in displays where d.isDesktop { desktopHistory.record(display: d.uuid, space: d.spaceID) }
+    }
+
+    /// The desktop `display` showed before the one it shows now, while that desktop still exists.
+    /// It is found by its Space id and gets its number now, as numbers shift when desktops come and go.
+    private func recentDesktop(on display: DisplayInfo) -> Desktop? {
+        noteDesktops()
+        guard let id = desktopHistory.previous(display: display.uuid, showing: display.spaceID) else { return nil }
+        return Desktop.all().first { $0.id == id }
     }
 
     private func switchSpace(_ target: SpaceTarget) -> String {
@@ -903,6 +943,9 @@ final class WindowManager {
             let j = target == .next ? i + 1 : i - 1
             guard onThisDisplay.indices.contains(j) else { return "ok: no desktop in that direction" }
             destination = onThisDisplay[j]
+        case .recent:
+            guard let previous = recentDesktop(on: here) else { return "ok: no previous desktop" }
+            destination = previous
         }
         guard destination.id != here.spaceID else { return "ok: already on desktop \(destination.number)" }
 

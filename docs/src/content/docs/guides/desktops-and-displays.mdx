@@ -48,11 +48,19 @@ The display names and numbers above are an example. Yours will differ.
 | <kbd>option</kbd>+<kbd>1</kbd> to <kbd>option</kbd>+<kbd>9</kbd> | `space 1` to `space 9` | Go to that desktop. |
 | <kbd>option</kbd>+<kbd>]</kbd> | `space next` | Go to the next desktop. |
 | <kbd>option</kbd>+<kbd>[</kbd> | `space prev` | Go to the previous desktop. |
+| <kbd>option</kbd>+<kbd>shift</kbd>+<kbd>tab</kbd> | `space recent` | Go back to the desktop you were on before. |
 
 `space` accepts numbers from 1 to 16.
 
+`space recent` goes back to the desktop the display showed before, however you left it:
+with a shortcut, a swipe or Mission Control. Press it again to return, so two desktops you
+use together are one key apart. Iguana remembers each display's desktops by the desktop
+itself, not its number, so adding or removing desktops does not confuse it. Fullscreen Spaces
+are skipped.
+
 Iguana switches by pressing Mission Control's own shortcut for you: "Switch to Desktop N", or
-"Move left a space" and "Move right a space" for `prev` and `next`. That has three effects:
+"Move left a space" and "Move right a space" for `prev` and `next`. `recent` presses "Switch
+to Desktop N" for the desktop it goes back to. That has three effects:
 
 - It works whatever keys you gave those shortcuts in System Settings, and also when they are
   switched off there. Iguana switches a disabled shortcut on just long enough to fire it.
@@ -71,6 +79,7 @@ If you ask for a desktop that does not exist, Iguana answers, for example,
 | <kbd>option</kbd>+<kbd>shift</kbd>+<kbd>1</kbd> to <kbd>option</kbd>+<kbd>shift</kbd>+<kbd>9</kbd> | `move-to-space 1` to `move-to-space 9` | Take the focused window to that desktop and go with it. |
 | not bound | `move-to-space N --stay` | Send the window there and stay where you are. |
 | <kbd>option</kbd>+<kbd>shift</kbd>+<kbd>]</kbd>, <kbd>option</kbd>+<kbd>shift</kbd>+<kbd>[</kbd> | `move-to-space next`, `move-to-space prev` | Take it to the next or previous desktop on the same display. `--stay` works here too. |
+| not bound | `move-to-space recent` | Take it to the desktop you were on before. `--stay` works here too. |
 
 With `--stay`, the focus goes to the window nearest to where the sent window was.
 
@@ -157,7 +166,9 @@ Each display has its own layout for each of its desktops.
 
 `move-to-space next` and `move-to-space prev` count along the desktops of the current
 display. That is the display holding the focused tiled window, or the display under the
-pointer when the focused window is not tiled.
+pointer when the focused window is not tiled. Each display remembers its own desktops, and
+`space recent` and `move-to-space recent` go back to the one the current display showed
+before.
 
 ### Displays that share desktops
 
@@ -174,4 +185,4 @@ it does not tile a display while that display is showing a fullscreen Space. See
 ## Related
 
 - [Commands](/reference/commands/#space): exact syntax and replies for `space` and `move-to-space`.
-- [Customising shortcuts](/guides/shortcuts/): bind `--stay`, `next` and `prev`.
+- [Customising shortcuts](/guides/shortcuts/): bind `--stay`, `next`, `prev` and `recent`.
