@@ -83,6 +83,8 @@ final class WindowManager {
     /// What was actually applied (differs from `slots` for a zoomed window).
     private var lastFrames: [CGWindowID: CGRect] = [:]
     private var lastVisible = Set<CGWindowID>()
+    /// Every window the system had at the last refresh, on any Space.
+    private var lastExisting = Set<CGWindowID>()
     private(set) var displays: [DisplayInfo] = []
     private var dirtyApps = Set<pid_t>()
     private var allDirty = true
@@ -359,6 +361,7 @@ final class WindowManager {
 
         let snap = ScreenSnapshot.take()
         prune(existing: snap.all)
+        lastExisting = snap.all
         displays = DisplayInfo.current()
         noteDesktops()
         updateFocus(snap)
@@ -1798,6 +1801,10 @@ final class WindowManager {
         let tiled: Set<CGWindowID>
         let visible: Set<CGWindowID>
         let activeDisplay: DisplayInfo?
+        /// Every window the system has, on any Space: on screen, minimised or hidden.
+        let existing: Set<CGWindowID>
+        /// The window that fills its desktop, by tree.
+        let zoomed: [String: CGWindowID]
     }
 
     /// `fresh` looks at the displays and the focus again first, as running a command does.
@@ -1807,7 +1814,7 @@ final class WindowManager {
             if started, AXIsProcessTrusted() { updateFocus(ScreenSnapshot.take()) }
         }
         return Facts(windows: windows, apps: apps, trees: trees, tiled: Set(lastFrames.keys), visible: lastVisible,
-                     activeDisplay: activeDisplay)
+                     activeDisplay: activeDisplay, existing: lastExisting, zoomed: zoomed)
     }
 
     /// Where Iguana is sending a window right now, and whether it glides there or is placed

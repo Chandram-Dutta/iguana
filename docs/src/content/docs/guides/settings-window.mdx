@@ -1,6 +1,6 @@
 ---
 title: The settings window
-description: Change Iguana's gaps, animation, shortcuts and the rules for floating windows and desktops in a window that edits the same config file you can edit by hand.
+description: Change Iguana's gaps, animation, shortcuts, hooks and the rules for floating windows and desktops in a window that edits the same config file you can edit by hand.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
@@ -32,13 +32,10 @@ by hand, `~/.config/iguana/iguana.toml`.
 
 You can use the window, the file or both. Neither gets out of step with the other.
 
-A few things are set in the file only. [`[hooks]`](/reference/configuration/#hooks), the
-commands Iguana runs for a status bar or a script, has no pane. The window leaves that
-section exactly as you wrote it.
+One thing is set in the file only. [`[[display]]`](/reference/configuration/#display), the
+settings for one display, has no pane. The window leaves those sections as you wrote them.
+Its gap sliders set `[gaps]`, so they do not change a gap that a display sets for itself.
 
-[`[[display]]`](/reference/configuration/#display), the settings for one display, has no pane
-either. The window leaves those sections as you wrote them. Its gap sliders set `[gaps]`, so
-they do not change a gap that a display sets for itself.
 
 <Aside title="Sliders and the file">
 The sliders cover the commonly useful part of each range. The file accepts the full range
@@ -65,7 +62,7 @@ The sidebar has three parts:
 
 - **The app name with a status line under it.** The status reads "Tiling 3 windows" (with the
   real count), "Paused" or "Needs permission".
-- **The five panes:** General, Layout, Animation, Shortcuts and Window Rules.
+- **The six panes:** General, Layout, Animation, Shortcuts, Window Rules and Hooks.
 - **A button at the bottom that pauses or resumes tiling.** It reads "Tiling is on" or
   "Tiling is paused". Click it to switch. This is the same as the
   [`pause`](/reference/commands/#pause) command: while tiling is paused, Iguana leaves every
@@ -228,6 +225,24 @@ them is not kept.
 - **Removing the last rule** leaves no rules at all: every standard window is tiled. The pane
   writes `rule = []` to say so. Without that line, a file with no rules would fall back to the
   three built-in ones.
+
+## Hooks
+
+One row for each event Iguana can run a command for, with its name, a line on what it means
+and a field for the shell command. The events are those of
+[`[hooks]`](/reference/configuration/#hooks), such as `desktop-changed` and `window-created`.
+
+- **Type a command, then press <kbd>return</kbd> or click elsewhere.** The command is written
+  when you leave the field, not while you type, so a half-typed command never runs.
+- **Empty the field** to switch the hook off. The pane writes `""`.
+- **A note at the top** says that each command runs with `/bin/sh` and gets the facts as
+  environment variables. Write `"$IGUANA_TITLE"` with the double quotes, and never pass it to
+  `eval`.
+
+These edit the [`[hooks]`](/reference/configuration/#hooks) section, one value at a time, and
+your comments are kept. The pane writes a command in double quotes, so a `"` in it appears in
+the file as `\"`. [Status bars and scripts](/guides/status-bars-and-scripts/) has commands to
+start from.
 
 ## Related
 

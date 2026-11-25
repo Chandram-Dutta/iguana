@@ -560,10 +560,14 @@ worked example.
 [hooks]
 desktop-changed = ""   # the desktop a display is showing changed
 focus-changed = ""     # a different window has the focus
+window-created = ""    # a window opened
+window-closed = ""     # a window closed (minimising or hiding is not closing)
+layout-changed = ""    # the windows of a desktop on screen were arranged differently
+pause-changed = ""     # tiling was paused or resumed
 ```
 
-Hooks are set in the file only. The [settings window](/guides/settings-window/) has no pane
-for them, and leaves a `[hooks]` section exactly as you wrote it.
+You can also set them in the [Hooks pane](/guides/settings-window/#hooks) of the settings
+window. It rewrites only the value you change, and keeps your comments.
 
 ### `desktop-changed`
 
@@ -587,6 +591,54 @@ and no window has it any more. A window that only changes its title does not run
 | Type | string, a shell command |
 | Default | `""` |
 
+### `window-created`
+
+Runs when a standard window opens, tiled or floating. It runs once for each window. Dialogs,
+sheets and windows that cannot be resized do not run it, and neither do the windows that were
+already open when Iguana started, on any desktop. A tab of an app that uses the system's tab
+bar is a window of its own, so opening one runs it too.
+
+| | |
+| --- | --- |
+| Type | string, a shell command |
+| Default | `""` |
+
+### `window-closed`
+
+Runs when a standard window that Iguana knew goes away, including the windows of an app that
+quits. Minimising a window, hiding its app or moving it to another desktop is not closing it.
+
+| | |
+| --- | --- |
+| Type | string, a shell command |
+| Default | `""` |
+
+### `layout-changed`
+
+Runs when the windows of a desktop on screen are arranged differently: a window joins or
+leaves its layout, the layout changes shape or proportions, a stack is made or undone, a
+window fills the desktop or stops filling it, or tiling resumes. Minimising a window or
+hiding its app runs it too, because the other windows take the room it leaves.
+
+It never runs for the frames of an animation, or when only the focus moves. Each desktop is
+compared with how it was when you last saw it, so going to another desktop and back runs
+[`desktop-changed`](#desktop-changed) and not this. It does not run while tiling is paused.
+
+| | |
+| --- | --- |
+| Type | string, a shell command |
+| Default | `""` |
+
+### `pause-changed`
+
+Runs when tiling is paused or resumed, with the [`pause`](/reference/commands/#pause)
+command, its shortcut, the settings window or the menu bar item.
+
+| | |
+| --- | --- |
+| Type | string, a shell command |
+| Default | `""` |
+
 An empty string, or a key you leave out, runs nothing.
 
 ### What the command is given
@@ -595,12 +647,16 @@ The facts arrive as environment variables.
 
 | Variable | Value | Set for |
 | --- | --- | --- |
-| `IGUANA_EVENT` | `desktop-changed` or `focus-changed`. | both |
-| `IGUANA_DESKTOP` | The number of the desktop, counted as Mission Control counts them. For `focus-changed` it is the desktop of the focused window. Empty for a fullscreen Space. | both |
-| `IGUANA_DISPLAY` | The name of the display, such as `Built-in Retina Display`. | both |
-| `IGUANA_WINDOW_ID` | The window's number, the `id` of [`list-windows --json`](/reference/commands/#list-windows). Empty when no window has the focus. | `focus-changed` |
-| `IGUANA_APP` | The name of the window's app. | `focus-changed` |
-| `IGUANA_TITLE` | The window's title at that moment. | `focus-changed` |
+| `IGUANA_EVENT` | The name of the event, such as `desktop-changed`. | every event |
+| `IGUANA_DESKTOP` | The number of the desktop, counted as Mission Control counts them. For an event about a window it is the window's desktop. Empty for a fullscreen Space, and when it cannot be told. | every event but `pause-changed` |
+| `IGUANA_DISPLAY` | The name of the display, such as `Built-in Retina Display`. | every event but `pause-changed` |
+| `IGUANA_WINDOW_ID` | The window's number, the `id` of [`list-windows --json`](/reference/commands/#list-windows). Empty when no window has the focus. | `focus-changed`, `window-created`, `window-closed` |
+| `IGUANA_APP` | The name of the window's app. | `focus-changed`, `window-created`, `window-closed` |
+| `IGUANA_TITLE` | The window's title at that moment. For `window-closed`, the last title Iguana saw. A window can open before its app has given it a title. | `focus-changed`, `window-created`, `window-closed` |
+| `IGUANA_PAUSED` | `true` when tiling was paused, `false` when it resumed. | `pause-changed` |
+
+For `window-closed`, the desktop and the display are where the window was when Iguana last
+looked at it.
 
 <Aside type="caution" title="Quote the variables">
 A window title can be any text at all: a web page chooses the title of its browser window.
@@ -624,8 +680,8 @@ A value longer than 4096 bytes is cut off there.
 - **One run of each hook at a time.** If a hook is still running when its event happens
   again, the newest event waits for the run to end and then runs once. Events in between are
   skipped, so a slow command cannot pile up, and what it hears last is always the latest
-  state. With two displays that change at the same moment, that can mean a slow hook hears
-  about only one of them.
+  state. With two displays that change at the same moment, or several windows that open at
+  once, that can mean a slow hook hears about only some of them.
 - **Only on a real change.** The first look Iguana takes when it starts is not a change.
 - **Not before tiling starts.** Nothing runs until the Accessibility permission is granted,
   or while the welcome tour of a first start is still on screen. Pausing tiling does not stop
@@ -1004,10 +1060,15 @@ check = true
 
 # Shell commands that Iguana runs when something changes, for status bars and scripts.
 # "" runs nothing. The command gets the facts in environment variables: IGUANA_EVENT,
-# IGUANA_DESKTOP, IGUANA_DISPLAY and, for the focus, IGUANA_WINDOW_ID, IGUANA_APP, IGUANA_TITLE.
+# IGUANA_DESKTOP, IGUANA_DISPLAY, for a window IGUANA_WINDOW_ID, IGUANA_APP, IGUANA_TITLE,
+# and for a pause IGUANA_PAUSED.
 [hooks]
 desktop-changed = ""   # the desktop a display is showing changed
 focus-changed = ""     # a different window has the focus
+window-created = ""    # a window opened
+window-closed = ""     # a window closed (minimising or hiding is not closing)
+layout-changed = ""    # the windows of a desktop on screen were arranged differently
+pause-changed = ""     # tiling was paused or resumed
 
 # Keys: letters, digits, minus, equal, comma, period, slash, semicolon, quote, backslash,
 # backtick, leftbracket, rightbracket, space, tab, return, delete, esc, left, right, up, down,

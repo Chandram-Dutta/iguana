@@ -108,7 +108,7 @@ final class HookRunnerTests: XCTestCase {
     }
 }
 
-/// Hooks have no pane in the settings window. What the window must do is leave them alone.
+/// Whatever else the settings window writes, it leaves the hooks alone.
 final class SettingsKeepHooksTests: XCTestCase {
     func testTheSettingsWindowKeepsAHooksSection() throws {
         let backend = SettingsModelTests.FakeBackend()

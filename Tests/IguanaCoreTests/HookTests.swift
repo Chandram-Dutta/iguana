@@ -75,8 +75,9 @@ final class HookTests: XCTestCase {
         let none = HookEnvironment.variables(event: .focusChanged, desktop: 1, display: nil)
         XCTAssertEqual(none["IGUANA_WINDOW_ID"], "", "set and empty when no window has the focus, so a script can test for it")
         XCTAssertEqual(none["IGUANA_TITLE"], "")
-        XCTAssertEqual(Set(focus.keys), Set(HookEnvironment.allVariables))
-        XCTAssertEqual(Set(HookEvent.allCases.map(\.rawValue)), ["desktop-changed", "focus-changed"])
+        XCTAssertEqual(Set(focus.keys), Set(HookEnvironment.allVariables).subtracting(["IGUANA_PAUSED"]))
+        XCTAssertEqual(Set(HookEvent.allCases.map(\.rawValue)),
+                       ["desktop-changed", "focus-changed", "window-created", "window-closed", "layout-changed", "pause-changed"])
     }
 
     func testATitleTravelsAsItIs() {
@@ -180,9 +181,9 @@ final class HookTests: XCTestCase {
         }
     }
 
-    func testTheDefaultFileShowsBothHooksSwitchedOff() throws {
+    func testTheDefaultFileShowsEveryHookSwitchedOff() throws {
         let hooks = try XCTUnwrap(try TOML.parse(Config.defaultText)["hooks"]?.tableValue)
-        XCTAssertEqual(hooks, ["desktop-changed": .string(""), "focus-changed": .string("")])
+        XCTAssertTrue(hooks.values.allSatisfy { $0 == .string("") })
         XCTAssertEqual(Set(hooks.keys), Set(HookEvent.allCases.map(\.rawValue)), "every event has a line to fill in")
     }
 }

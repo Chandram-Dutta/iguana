@@ -1,6 +1,6 @@
 ---
 title: Status bars and scripts
-description: Read what Iguana knows as JSON, and have Iguana run a command of yours when the desktop or the focused window changes, with a SketchyBar example.
+description: Read what Iguana knows as JSON, and have Iguana run a command of yours when the desktop, the focus, the windows or the layout change, with a SketchyBar example.
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
@@ -108,11 +108,20 @@ focus-changed = ""
 | --- | --- |
 | `desktop-changed` | The desktop a display is showing changed, however you switched: a shortcut, a swipe, Mission Control. |
 | `focus-changed` | A different window has the focus. |
+| `window-created` | A window opened. |
+| `window-closed` | A window closed. Minimising or hiding one does not count. |
+| `layout-changed` | The windows of a desktop on screen were arranged differently: a window joined or left, a size or a stack changed, or tiling resumed. |
+| `pause-changed` | Tiling was paused or resumed. |
 
-The command is told what happened in environment variables: `IGUANA_EVENT`, `IGUANA_DESKTOP`
-and `IGUANA_DISPLAY`, and for the focus also `IGUANA_WINDOW_ID`, `IGUANA_APP` and
-`IGUANA_TITLE`. The [configuration reference](/reference/configuration/#hooks) has the full
-table and the rules a hook runs by.
+The command is told what happened in environment variables. `IGUANA_EVENT` is the name of
+the event, and `IGUANA_DESKTOP` and `IGUANA_DISPLAY` say where it happened. The events about a
+window also get `IGUANA_WINDOW_ID`, `IGUANA_APP` and `IGUANA_TITLE`. `pause-changed` is about
+all of Iguana: in place of a desktop and a display it gets `IGUANA_PAUSED`, `true` or `false`.
+The [configuration reference](/reference/configuration/#hooks) has the full table and the
+rules a hook runs by.
+
+You can also type the commands into the [Hooks pane](/guides/settings-window/#hooks) of the
+settings window.
 
 Try one without a status bar. This keeps a list of the windows you focus:
 

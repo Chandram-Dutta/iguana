@@ -197,10 +197,15 @@ public struct Config: Equatable {
 
     # Shell commands that Iguana runs when something changes, for status bars and scripts.
     # "" runs nothing. The command gets the facts in environment variables: IGUANA_EVENT,
-    # IGUANA_DESKTOP, IGUANA_DISPLAY and, for the focus, IGUANA_WINDOW_ID, IGUANA_APP, IGUANA_TITLE.
+    # IGUANA_DESKTOP, IGUANA_DISPLAY, for a window IGUANA_WINDOW_ID, IGUANA_APP, IGUANA_TITLE,
+    # and for a pause IGUANA_PAUSED.
     [hooks]
     desktop-changed = ""   # the desktop a display is showing changed
     focus-changed = ""     # a different window has the focus
+    window-created = ""    # a window opened
+    window-closed = ""     # a window closed (minimising or hiding is not closing)
+    layout-changed = ""    # the windows of a desktop on screen were arranged differently
+    pause-changed = ""     # tiling was paused or resumed
 
     # Keys: letters, digits, minus, equal, comma, period, slash, semicolon, quote, backslash,
     # backtick, leftbracket, rightbracket, space, tab, return, delete, esc, left, right, up, down,
@@ -432,7 +437,7 @@ public struct Config: Equatable {
         }
 
         if let hooks = doc["hooks"]?.tableValue {
-            checkKeys(hooks, ["desktop-changed", "focus-changed"], "[hooks]")
+            checkKeys(hooks, ["desktop-changed", "focus-changed", "window-created", "window-closed", "layout-changed", "pause-changed"], "[hooks]")
             for event in HookEvent.allCases {
                 guard let value = hooks[event.rawValue] else { continue }
                 guard let command = value.stringValue else {

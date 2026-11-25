@@ -60,7 +60,7 @@ struct DesktopPreviewData {
 }
 
 enum Pane: String, CaseIterable, Identifiable {
-    case general, layout, animation, shortcuts, rules
+    case general, layout, animation, shortcuts, rules, hooks
 
     var id: String { rawValue }
 
@@ -71,6 +71,7 @@ enum Pane: String, CaseIterable, Identifiable {
         case .animation: return "Animation"
         case .shortcuts: return "Shortcuts"
         case .rules: return "Window Rules"
+        case .hooks: return "Hooks"
         }
     }
 
@@ -81,6 +82,7 @@ enum Pane: String, CaseIterable, Identifiable {
         case .animation: return "wand.and.rays"
         case .shortcuts: return "keyboard"
         case .rules: return "macwindow.on.rectangle"
+        case .hooks: return "terminal"
         }
     }
 }
@@ -388,6 +390,20 @@ final class SettingsModel: ObservableObject {
             recording = nil
             backend.suspendShortcuts(false)
         }
+    }
+
+    // MARK: Hooks
+
+    /// A hook's command as the settings window shows it: "" when it runs nothing.
+    func hookCommand(_ event: HookEvent) -> String { config.hooks[event] ?? "" }
+
+    /// Write a hook's command, or "" to run nothing. Only that value changes in the file. A
+    /// command that is what the file says already is left as it was written, spaces and all,
+    /// so that looking at the pane never rewrites the file.
+    func setHook(_ event: HookEvent, _ command: String) {
+        let command = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard command != hookCommand(event).trimmingCharacters(in: .whitespacesAndNewlines) else { return }
+        set(["hooks", event.rawValue], .string(command))
     }
 
     // MARK: Rules
