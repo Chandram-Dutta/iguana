@@ -53,6 +53,7 @@ error: Iguana needs Accessibility permission (System Settings > Privacy & Securi
 | [`float`](#float) | Toggle tiling for the focused window. |
 | [`zoom`](#zoom) | Toggle the focused window filling the desktop. |
 | [`close`](#close) | Close the focused window. |
+| [`switcher`](#switcher) | Find a window by typing part of its name, and focus it. |
 | [`space`](#space) | Switch to a desktop. |
 | [`move-to-space`](#move-to-space) | Take or send the focused window to a desktop. |
 | [`pause`](#pause) | Toggle tiling on or off. |
@@ -253,6 +254,50 @@ floating windows too.
 | `ok` | |
 | `error: no focused window` | |
 | `error: this window has no close button` | |
+
+### `switcher`
+
+```text
+switcher
+```
+
+Opens the window switcher in the middle of the display you are using: a search field above a
+list of your windows. Type part of a window's title or of its app's name, then press
+<kbd>return</kbd> to focus the window. The focus moves the way a click on a window in the
+menu bar item's drawing moves it.
+[Find a window](/guides/shortcuts/#find-a-window) shows it in use.
+
+The list holds every standard window Iguana knows about, tiled or floating. The window you
+used last comes first and the focused window comes last, so opening the switcher and pressing
+<kbd>return</kbd> takes you back to the window you were on before.
+
+Windows that are not on screen are listed too. A row says when its window is minimised, when
+its app is hidden, or when it is in another Stage Manager stage. When your windows are on
+more than one desktop, each row also gives its desktop's number. Picking a minimised window
+brings it out of the Dock, picking a window of a hidden app shows the app again, and picking
+a window on another desktop takes you there.
+
+| Key | What it does |
+| --- | --- |
+| Letters and digits | Narrow the list. |
+| <kbd>up</kbd> and <kbd>down</kbd>, or <kbd>ctrl</kbd>+<kbd>p</kbd> and <kbd>ctrl</kbd>+<kbd>n</kbd> | Move the selection. It goes round from the last row to the first. |
+| <kbd>return</kbd> | Focus the selected window. |
+| <kbd>esc</kbd> | Close the switcher. The focus stays where it was. |
+
+A click on a row focuses that window, and a click outside the switcher closes it.
+
+What you type matches the letters of the app's name and the title in order, ignoring case,
+accents and spaces: `gc` finds Google Chrome. Windows whose app's name starts with what you
+typed come first, then windows where it starts words, then the rest. Windows that match
+equally well stay in the order you last used them.
+
+While the switcher is open, Iguana's other shortcuts keep working, and running `switcher`
+again moves the selection down one row.
+
+| Reply | When |
+| --- | --- |
+| `ok` | The switcher opened, or its selection moved down one row. |
+| `ok: no windows to switch to` | Iguana knows no window to list. |
 
 ## Desktops
 

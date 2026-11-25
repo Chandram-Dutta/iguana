@@ -199,6 +199,7 @@ public struct Config: Equatable {
     option-f = "zoom"
     option-shift-space = "float"
     option-shift-b = "balance"
+    option-w = "switcher"
     option-1 = "space 1"
     option-2 = "space 2"
     option-3 = "space 3"

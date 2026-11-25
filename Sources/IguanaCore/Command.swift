@@ -23,6 +23,8 @@ public enum Command: Equatable {
     case float
     case zoom
     case close
+    /// Open the window switcher, or move its selection down a row while it is open.
+    case switcher
     case space(SpaceTarget)
     /// `follow` switches to the target Space along with the window.
     case moveToSpace(SpaceTarget, follow: Bool)
@@ -49,6 +51,7 @@ public enum Command: Equatable {
     float                           toggle tiling for the focused window
     zoom                            toggle the focused window filling the Space
     close                           close the focused window
+    switcher                        find a window by typing part of its name, and focus it
     space N|next|prev               switch to a native Space
     move-to-space N|next|prev       take the focused window to a native Space and go with it
     move-to-space N|next|prev --stay    send it there and stay where you are
@@ -114,6 +117,7 @@ public enum Command: Equatable {
         case "float": return try noArgs(.float)
         case "zoom": return try noArgs(.zoom)
         case "close": return try noArgs(.close)
+        case "switcher": return try noArgs(.switcher)
         case "space": return .space(try spaceTarget())
         case "move-to-space": return .moveToSpace(try spaceTarget(allowFlags: true), follow: try {
                 if args.contains("--stay") && args.contains("--follow") { throw CommandError("move-to-space: use --stay or --follow, not both") }

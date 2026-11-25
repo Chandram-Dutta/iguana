@@ -64,6 +64,12 @@ case "debug-desk":
         exit(2)
     }
     DeskSnapshot.run(folder: arguments[1])
+case "debug-switcher":
+    guard arguments.count > 1 else {
+        print("usage: iguana debug-switcher <folder>")
+        exit(2)
+    }
+    SwitcherSnapshot.run(folder: arguments[1])
 case "debug-tour":
     guard arguments.count > 1 else {
         print("usage: iguana debug-tour <folder> [scene]")

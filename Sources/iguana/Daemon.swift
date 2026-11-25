@@ -16,6 +16,8 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var registeredShortcuts = 0
     private var lastShortcut: (keys: String, reply: String, at: Date)?
     private var tour: TourWindowController?
+    /// The window switcher (`switcher`).
+    private let switcher = SwitcherController()
     /// The commands of `[hooks]`, run when the desktop or the focused window changes.
     private let hooks = Hooks()
     /// Looks once a day whether a newer Iguana has been released.
@@ -83,6 +85,8 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         wm.onOpenSettings = { [weak self] in self?.openSettings() }
         wm.onOpenTour = { [weak self] in self?.showTour() }
+        wm.onOpenSwitcher = { [weak self] in self?.openSwitcher() ?? "error: shutting down" }
+        switcher.onChoose = { [weak self] id in self?.wm.bringForward(id) }
         wm.onCheckForUpdate = { [weak self] in self?.updates.checkNow() }
         updates.onChange = { [weak self] in self?.settings?.model.refresh() }
         updates.start { [weak self] in self?.wm.config.checkForUpdates ?? false }
@@ -212,6 +216,23 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func openSettings() {
         if settings == nil { settings = SettingsWindowController(backend: self) }
         settings?.show()
+    }
+
+    /// Open the window switcher, or move its selection down a row when it is open already.
+    private func openSwitcher() -> String {
+        if switcher.isShowing {
+            switcher.step()
+            return "ok"
+        }
+        let (windows, owners) = wm.switcherWindows()
+        guard !windows.isEmpty else { return "ok: no windows to switch to" }
+        var icons: [WindowID: NSImage] = [:]
+        for (id, pid) in owners {
+            if iconCache[pid] == nil { iconCache[pid] = NSRunningApplication(processIdentifier: pid)?.icon }
+            icons[id] = iconCache[pid]
+        }
+        switcher.show(windows, icons: icons, on: wm.facts().activeDisplay?.frame)
+        return "ok"
     }
 
     /// An app without a Dock icon still needs a menu bar for Copy, Paste, Close and Quit to work

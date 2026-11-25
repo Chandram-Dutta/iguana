@@ -61,6 +61,8 @@ final class WindowManager {
     var onConfigChange: (() -> Void)?
     var onOpenSettings: (() -> Void)?
     var onOpenTour: (() -> Void)?
+    /// Opens the window switcher and answers the command, supplied by the app shell.
+    var onOpenSwitcher: (() -> String)?
     var onCheckForUpdate: (() -> Void)?
     /// Extra lines for `status`, supplied by the app shell.
     var statusExtras: (() -> [String])?
@@ -82,7 +84,11 @@ final class WindowManager {
     private var allDirty = true
     private(set) var paused = false
     private var refreshPending = false
-    private(set) var focusedWindow: CGWindowID?
+    private(set) var focusedWindow: CGWindowID? {
+        didSet { if let focusedWindow { lastFocused[focusedWindow] = Date() } }
+    }
+    /// When each window last had the focus, for the order of the window switcher.
+    private(set) var lastFocused: [CGWindowID: Date] = [:]
     private var focusIntent: CGWindowID?
     /// `carried` is set once the window has been seen somewhere else at its own size: it is
     /// being moved, not resized, and stays a move whatever happens to its size afterwards.
@@ -458,6 +464,7 @@ final class WindowManager {
         for id in windows.keys where !existing.contains(id) {
             animator.cancel(id)
             windows[id] = nil
+            lastFocused[id] = nil
             lastFrames[id] = nil
             slots[id] = nil
         }
@@ -737,6 +744,7 @@ final class WindowManager {
             if w.floating { for tree in trees.values { tree.remove(id) } }
             refresh()
             return w.floating ? "ok: floating" : "ok: tiled"
+        case .switcher: return onOpenSwitcher?() ?? "ok"
         case .close:
             guard let id = focusedWindow, let w = windows[id] else { return "error: no focused window" }
             guard let button = w.element.element(kAXCloseButtonAttribute) else { return "error: this window has no close button" }
