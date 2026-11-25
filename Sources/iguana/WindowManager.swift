@@ -749,6 +749,7 @@ final class WindowManager {
             return paused ? "ok: paused" : "ok: tiling"
         case .reload: return reloadConfig()
         case .settings, .tour, .update: return "ok"
+        case .subscribe: return "error: subscribe only works from the command line"
         case .listWindows: return listWindows()
         case .listSpaces: return listSpaces()
         case .tree: return describeTrees()

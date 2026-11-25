@@ -92,7 +92,8 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Pick up the config file as soon as it is saved, whatever saved it.
         Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in self?.checkConfigFile() }
 
-        if !IPC.listen({ [weak self] line, reply in self?.handle(line, reply: reply) ?? reply("error: shutting down") }) {
+        if !IPC.listen({ [weak self] line, reply in self?.handle(line, reply: reply) ?? reply("error: shutting down") },
+                       subscribed: { [weak self] subscriber in if let self { self.hooks.greet(subscriber, self.wm) } }) {
             Log.write("could not open the command socket at \(IPC.socketPath)")
         }
 

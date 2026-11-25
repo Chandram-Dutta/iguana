@@ -2,33 +2,59 @@ import AppKit
 import ApplicationServices
 import IguanaCore
 
-/// Runs the commands of `[hooks]` when the desktop being shown or the focused window changes.
+/// Runs the commands of `[hooks]` when the desktop being shown or the focused window changes,
+/// and tells the clients of `iguana subscribe`.
 ///
-/// `changed` is the one place hooks are fired from. It is called after every refresh of the
+/// `changed` is the one place events come from. It is called after every refresh of the
 /// window manager, by the same `onChange` that redraws the menu bar item, so it hears about a
 /// change however it came about: a shortcut, a gesture, Mission Control, a click. Whether
 /// anything really changed is decided by `HookTracker` in IguanaCore.
 final class Hooks {
     private var tracker = HookTracker()
     private let runner = HookRunner()
+    /// Set at the first look, once tiling has started. A subscriber that came before that is
+    /// sent the current state then.
+    private var started = false
 
     func changed(_ wm: WindowManager) {
         let showing = wm.displays.map { HookTracker.Showing(display: $0.uuid, space: $0.spaceKey, desktop: $0.desktopNumber) }
         // The tracker is kept up to date even while no hook is set, so that one added later
         // starts from what is on screen and not from what was there when Iguana started.
         let changes = tracker.observe(showing: showing, focused: wm.focusedWindow)
+        if !started {
+            started = true
+            for subscriber in IPC.subscribers { greet(subscriber, wm) }
+        }
         for change in changes {
             switch change {
             case .desktop(let uuid):
-                guard let command = wm.config.hooks[.desktopChanged], let display = wm.displays.first(where: { $0.uuid == uuid }) else { continue }
-                runner.fire(.desktopChanged, command: command, variables: HookEnvironment.variables(
-                    event: .desktopChanged, desktop: display.desktopNumber, display: display.name))
+                announce(.desktopChanged, wm) { wm.displays.first { $0.uuid == uuid }.map(desktopVariables) }
             case .focus(let id):
-                // The title is only asked for when there is a command to hand it to.
-                guard let command = wm.config.hooks[.focusChanged] else { continue }
-                runner.fire(.focusChanged, command: command, variables: focusVariables(id, wm))
+                announce(.focusChanged, wm) { focusVariables(id, wm) }
             }
         }
+    }
+
+    /// Every event passes here: its hook runs, if one is set, and the subscribers that asked
+    /// for it are told. The variables are worked out only when someone is there to hear them,
+    /// since a window's title is a question to its app.
+    private func announce(_ event: HookEvent, _ wm: WindowManager, _ variables: () -> [String: String]?) {
+        let command = wm.config.hooks[event]
+        guard command != nil || IPC.wants(event), let variables = variables() else { return }
+        if let command { runner.fire(event, command: command, variables: variables) }
+        IPC.broadcast(event, variables)
+    }
+
+    /// A new subscriber is first told what is true now, as if it had just happened, so that a
+    /// status bar can draw at once: what each display shows, then the focus.
+    func greet(_ subscriber: IPC.Subscriber, _ wm: WindowManager) {
+        guard started else { return }
+        for display in wm.displays { subscriber.send(.desktopChanged, desktopVariables(display)) }
+        if subscriber.events.contains(.focusChanged) { subscriber.send(.focusChanged, focusVariables(wm.focusedWindow, wm)) }
+    }
+
+    private func desktopVariables(_ display: DisplayInfo) -> [String: String] {
+        HookEnvironment.variables(event: .desktopChanged, desktop: display.desktopNumber, display: display.name)
     }
 
     private func focusVariables(_ id: CGWindowID?, _ wm: WindowManager) -> [String: String] {

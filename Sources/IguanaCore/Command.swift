@@ -36,6 +36,8 @@ public enum Command: Equatable {
     case tour
     /// Ask now whether a newer Iguana has been released.
     case update
+    /// Stay connected and be sent a line of JSON for each of these events, as they happen.
+    case subscribe(Set<HookEvent>)
     case quit
 
     public static let usage = """
@@ -55,6 +57,7 @@ public enum Command: Equatable {
     pause                           toggle tiling on or off
     reload                          reload the config file
     list-windows | list-spaces | tree | status    reports; add --json for a JSON document
+    subscribe [event ...]           print each event as a line of JSON, until Iguana quits
     settings                        open the settings window
     tour                            show the welcome tour again
     update                          ask now whether a newer Iguana has been released
@@ -84,6 +87,16 @@ public enum Command: Equatable {
                 }
                 return .index(n)
             }
+        }
+        /// None named means every event.
+        func events() throws -> Set<HookEvent> {
+            guard !args.isEmpty else { return Set(HookEvent.allCases) }
+            return Set(try args.map { word in
+                guard let event = HookEvent(rawValue: word) else {
+                    throw CommandError("subscribe: unknown event '\(word)' (use \(HookEvent.allCases.map(\.rawValue).joined(separator: ", ")))")
+                }
+                return event
+            })
         }
         func noArgs(_ c: Command) throws -> Command {
             guard args.isEmpty else { throw CommandError("'\(name)' takes no arguments") }
@@ -128,6 +141,7 @@ public enum Command: Equatable {
         case "settings": return try noArgs(.settings)
         case "tour": return try noArgs(.tour)
         case "update": return try noArgs(.update)
+        case "subscribe": return .subscribe(try events())
         case "quit": return try noArgs(.quit)
         default: throw CommandError("unknown command '\(name)'")
         }
