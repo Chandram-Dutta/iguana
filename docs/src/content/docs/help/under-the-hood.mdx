@@ -103,7 +103,7 @@ whether a newer version of Iguana has been released.
 
 **The request carries nothing about you or your Mac: no identifier, no cookie and no stored
 credentials. It is made in a session that starts empty and is thrown away with the answer, it
-gives up after ten seconds, and it names itself `Iguana/0.2.1`, with the version you are
+gives up after ten seconds, and it names itself `Iguana/0.3.0`, with the version you are
 running, and nothing else of note.**
 
 In detail:
@@ -111,7 +111,7 @@ In detail:
 | | |
 | --- | --- |
 | What is asked | `GET https://api.github.com/repos/Chandram-Dutta/iguana/releases/latest`, GitHub's public description of the latest release. The address is the same for everyone and needs no account. |
-| What is sent | Three things, beyond what every web request carries: `User-Agent: Iguana/0.2.1`, `Accept: application/vnd.github+json` and `Accept-Language: en`. The last is fixed so that the languages chosen in System Settings are not sent. Nothing about your windows, apps, settings or Mac is in the request. |
+| What is sent | Three things, beyond what every web request carries: `User-Agent: Iguana/0.3.0`, `Accept: application/vnd.github+json` and `Accept-Language: en`. The last is fixed so that the languages chosen in System Settings are not sent. Nothing about your windows, apps, settings or Mac is in the request. |
 | What GitHub sees | What any server sees: the internet address the request comes from, and the three lines above. |
 | What is read | Four fields of the answer: the release's tag, the address of its page, and whether it is a draft or a prerelease. |
 | What counts as newer | A release that is neither a draft nor a prerelease, with a tag that is a version greater than yours. Versions are compared number by number, so `0.1.10` is newer than `0.1.9`. A tag that is not a version is ignored. |
