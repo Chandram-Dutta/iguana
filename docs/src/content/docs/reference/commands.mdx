@@ -57,6 +57,7 @@ error: Iguana needs Accessibility permission (System Settings > Privacy & Securi
 | [`close`](#close) | Close the focused window. |
 | [`undo`](#undo) | Take back the last change to the layout of the desktop. |
 | [`redo`](#redo) | Make the last change that was taken back again. |
+| [`focus-app`](#focus-app) | Focus an app's window, or open the app. |
 | [`space`](#space) | Switch to a desktop, or back to the one you were on before. |
 | [`move-to-space`](#move-to-space) | Take or send the focused window to a desktop. |
 | [`focus-display`](#focus-display) | Focus a window on another display. |
@@ -399,6 +400,50 @@ there is to redo.
 | --- | --- |
 | `ok: redone` | |
 | `ok: nothing to redo` | Nothing has been undone since the last change. |
+
+## Apps
+
+### `focus-app`
+
+```text
+focus-app NAME|BUNDLE-ID
+```
+
+Brings an app forward, or opens it. Iguana never hides a window, so there is no scratchpad to
+keep one in. Instead, give each app you call up often a shortcut of its own. See
+[Customising shortcuts](/guides/shortcuts/#bring-an-app-forward-or-open-it).
+
+`NAME` is part of an app's name and `BUNDLE-ID` is its bundle identifier, matched exactly, as
+in a rule's [`app`](/reference/configuration/#app). Case is ignored. A name can be several
+words: `focus-app visual studio code`.
+
+When more than one running app matches, the best match wins: the bundle id, then the whole
+name, then a name that starts with the text, then a name that contains it. So `focus-app code`
+is Visual Studio Code, which calls itself Code, and not Xcode. Of two apps that match equally
+well, the one you used last wins.
+
+- **The app is running.** Its window that had the focus last gets the focus again, if that
+  window is on a desktop being shown, on any display. Otherwise its frontmost window on screen
+  does.
+- **The app has the focus already.** Its next window on screen gets the focus, so pressing the
+  key again goes through the app's windows one by one. With one window, nothing changes.
+- **None of its windows is on screen.** They are on another desktop or minimised, or the app is
+  hidden. The app is brought forward and macOS shows one of its windows, which can take you
+  to another desktop.
+- **The app is not running.** It is opened. A bundle id is looked up by macOS. A name has to be
+  the whole name of the app, as its file is called without `.app`, in `/Applications`,
+  `/Applications/Utilities`, `/System/Applications`, `/System/Applications/Utilities` or
+  `~/Applications`.
+
+With [`mouse-follows-focus`](/reference/configuration/#mouse-follows-focus) on, the pointer
+moves to the centre of the window that gets the focus.
+
+| Reply | When |
+| --- | --- |
+| `ok` | A window of the app has the focus. |
+| `ok: activated NAME` | None of its windows was on screen, so the app was brought forward. |
+| `ok: opening NAME` | The app was not running, and is being opened. |
+| `error: no app called 'NAME'` | No running app matches, and no app of that name was found. |
 
 ## Desktops
 

@@ -168,6 +168,23 @@ option-shift-equal = "resize grow height"
 option-shift-minus = "resize shrink height"
 ```
 
+### Bring an app forward, or open it
+
+Iguana never hides a window, so it has no scratchpad. Give the apps you call up often a key
+each instead. [`focus-app`](/reference/commands/#focus-app) focuses the app's window, or opens
+the app when it is not running:
+
+```toml title="iguana.toml"
+[bindings]
+option-b = "focus-app safari"
+option-t = "focus-app terminal"
+option-c = "focus-app com.microsoft.vscode"
+```
+
+`safari` and `terminal` are matched against the names of the running apps, like `app` in a
+rule. A bundle id, as in the last line, names exactly one app. Pressing the key again while
+the app has the focus goes on to its next window.
+
 ### Bind the minus key
 
 Write the key as `minus`. Because dashes separate the parts of a shortcut, Iguana also reads

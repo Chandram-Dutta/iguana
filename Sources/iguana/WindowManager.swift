@@ -85,12 +85,19 @@ final class WindowManager {
     private(set) var paused = false
     private var refreshPending = false
     private(set) var focusedWindow: CGWindowID? {
-        didSet { if let id = focusedWindow, id != oldValue { focusHistory.record(id) } }
+        didSet {
+            if let id = focusedWindow {
+                if id != oldValue { focusHistory.record(id) }
+                if let w = windows[id] { appFocus[w.pid] = (id, ProcessInfo.processInfo.systemUptime) }
+            }
+        }
     }
     /// The windows that had the focus, for `focus recent`.
     private var focusHistory = FocusHistory()
     /// The desktops each display showed, for `space recent`.
     private var desktopHistory = DesktopHistory()
+    /// Each app's window that had the focus last, and when, for `focus-app`.
+    private var appFocus: [pid_t: (window: CGWindowID, at: TimeInterval)] = [:]
     private var focusIntent: CGWindowID?
     /// `carried` is set once the window has been seen somewhere else at its own size: it is
     /// being moved, not resized, and stays a move whatever happens to its size afterwards.
@@ -188,6 +195,7 @@ final class WindowManager {
     private func untrack(_ pid: pid_t) {
         guard let state = apps.removeValue(forKey: pid) else { return }
         animator.forget(pid: pid)
+        appFocus[pid] = nil
         if let o = state.observer {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(o), .defaultMode)
         }
@@ -798,6 +806,7 @@ final class WindowManager {
             return "ok"
         case .undo: return undo(redoing: false)
         case .redo: return undo(redoing: true)
+        case .focusApp(let text): return focusApp(text)
         case .space(let target): return switchSpace(target)
         case .moveToSpace(let target, let follow): return moveToSpace(target, follow: follow, window: window)
         case .focusDisplay(let target): return focusDisplay(target)
@@ -938,6 +947,50 @@ final class WindowManager {
                 self.focus(window: id, attempt: attempt + 1)
             }
         }
+    }
+
+    private func focusApp(_ text: String) -> String {
+        let running = apps.keys.sorted().compactMap { pid -> FocusApp.App? in
+            guard let a = apps[pid]?.app, !a.isTerminated else { return nil }
+            let names = [a.localizedName, a.bundleURL?.deletingPathExtension().lastPathComponent].compactMap { $0 }
+            return FocusApp.App(pid: pid, bundleID: a.bundleIdentifier, names: names, lastActive: appFocus[pid]?.at ?? 0)
+        }
+        guard let chosen = FocusApp.choose(text, among: running), let app = apps[chosen.pid]?.app else { return openApp(text) }
+        let snap = ScreenSnapshot.take()
+        let showing = snap.order.filter { windows[$0]?.pid == chosen.pid && isShowing($0, snap) }
+        switch FocusApp.pick(showing: showing, remembered: appFocus[chosen.pid]?.window, focused: focusedWindow) {
+        case .window(let id):
+            focus(window: id)
+            scheduleRefresh()
+            return "ok"
+        case .stay:
+            return "ok"
+        case .activate:
+            // On another desktop, minimised or hidden: macOS knows best which window to show.
+            if app.isHidden { app.unhide() }
+            app.activate()
+            return "ok: activated \(app.localizedName ?? text)"
+        }
+    }
+
+    /// An app that is not running: found by its bundle id, or by the name of its bundle in
+    /// the folders apps are kept in.
+    private func openApp(_ text: String) -> String {
+        let files = FileManager.default
+        let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: text) ?? {
+            let paths = FocusApp.folders(home: files.homeDirectoryForCurrentUser.path).flatMap { folder in
+                ((try? files.contentsOfDirectory(atPath: folder)) ?? []).map { "\(folder)/\($0)" }
+            }
+            return FocusApp.bundle(named: text, among: paths).map { URL(fileURLWithPath: $0) }
+        }()
+        guard let url else { return "error: no app called '\(text)'" }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.openApplication(at: url, configuration: configuration) { _, error in
+            guard let error else { return }
+            DispatchQueue.main.async { Log.write("focus-app: could not open \(url.path): \(error.localizedDescription)") }
+        }
+        return "ok: opening \(url.deletingPathExtension().lastPathComponent)"
     }
 
     private func systemFocusedWindow() -> CGWindowID? {
