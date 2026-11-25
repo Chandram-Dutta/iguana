@@ -36,6 +36,8 @@ public enum Command: Equatable {
     case space(SpaceTarget)
     /// `follow` switches to the target Space along with the window.
     case moveToSpace(SpaceTarget, follow: Bool)
+    case focusDisplay(DisplayTarget)
+    case moveToDisplay(DisplayTarget)
     case pause
     case reload
     case listWindows
@@ -65,6 +67,8 @@ public enum Command: Equatable {
     space N|next|prev|recent        switch to a native Space, or back to the one before
     move-to-space N|next|prev|recent  take the focused window to a native Space and go with it
     move-to-space N|next|prev|recent --stay  send it there and stay where you are
+    focus-display next|prev|N       focus a window on another display
+    move-to-display next|prev|N     take the focused window to another display
     pause                           toggle tiling on or off
     reload                          reload the config file
     list-windows | list-spaces | tree | status    reports; add --json for a JSON document
@@ -135,6 +139,8 @@ public enum Command: Equatable {
                 if args.contains("--stay") && args.contains("--follow") { throw CommandError("move-to-space: use --stay or --follow, not both") }
                 return !args.contains("--stay")
             }())
+        case "focus-display": return .focusDisplay(try DisplayTarget.parse(args, command: name))
+        case "move-to-display": return .moveToDisplay(try DisplayTarget.parse(args, command: name))
         case "pause": return try noArgs(.pause)
         case "reload": return try noArgs(.reload)
         case "list-windows": return try noArgs(.listWindows)

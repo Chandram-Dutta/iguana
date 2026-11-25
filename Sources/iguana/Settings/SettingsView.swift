@@ -507,6 +507,7 @@ private struct ShortcutsPane: View {
 
     private let directions = [("left", "Left", "arrow.left"), ("down", "Down", "arrow.down"), ("up", "Up", "arrow.up"), ("right", "Right", "arrow.right")]
     private let desktops = (1...9).map { ("\($0)", "Desktop \($0)") } + [("next", "Next desktop"), ("prev", "Previous desktop"), ("recent", "Recent desktop")]
+    private let displays = [("next", "Next display"), ("prev", "Previous display")]
     private let windowCommands = [
         ("focus recent", "Back to the window before"),
         ("resize grow", "Grow"), ("resize shrink", "Shrink"), ("balance", "Even out all sizes"), ("zoom", "Fill the desktop"),
@@ -539,6 +540,10 @@ private struct ShortcutsPane: View {
 
             matrix(title: "Desktops", columns: ["Go to", "Take the window to"], rows: desktops.map { d in
                 (AnyView(Text(d.1)), ["space \(d.0)", "move-to-space \(d.0)"])
+            })
+
+            matrix(title: "Displays", columns: ["Focus", "Take the window to"], rows: displays.map { d in
+                (AnyView(Text(d.1)), ["focus-display \(d.0)", "move-to-display \(d.0)"])
             })
 
             SettingSection(title: "Other commands", footer: "Any command Iguana understands can have a shortcut. Type it, then record the keys.") {

@@ -81,8 +81,8 @@ Open the settings window from the menu bar item, or with `iguana settings`, and 
 
 <Steps>
 
-1. Find the command. Directions, the focused window and desktops each have a table. Any
-   other command goes under **Other commands**, where you type it first.
+1. Find the command. Directions, the focused window, desktops and displays each have a
+   table. Any other command goes under **Other commands**, where you type it first.
 2. Click its shortcut, or the empty slot if it has none, and type the new keys.
 3. To switch a shortcut off, click it and press <kbd>delete</kbd>. To cancel, press
    <kbd>esc</kbd>.
@@ -125,6 +125,22 @@ To take the focused window with you to that desktop, bind `move-to-space recent`
 [bindings]
 option-ctrl-tab = "move-to-space recent"
 ```
+
+### Go to a display by its number
+
+The built-in <kbd>option</kbd>+<kbd>,</kbd> and <kbd>option</kbd>+<kbd>.</kbd> step through
+the displays one at a time. To give each display a key of its own:
+
+```toml title="iguana.toml"
+[bindings]
+option-ctrl-1 = "focus-display 1"
+option-ctrl-2 = "focus-display 2"
+option-ctrl-shift-1 = "move-to-display 1"
+option-ctrl-shift-2 = "move-to-display 2"
+```
+
+`iguana list-spaces` shows the number of each display. See
+[How displays are numbered](/guides/desktops-and-displays/#how-displays-are-numbered).
 
 ### Use the arrow keys
 

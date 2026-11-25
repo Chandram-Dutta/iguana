@@ -57,6 +57,8 @@ error: Iguana needs Accessibility permission (System Settings > Privacy & Securi
 | [`redo`](#redo) | Make the last change that was taken back again. |
 | [`space`](#space) | Switch to a desktop, or back to the one you were on before. |
 | [`move-to-space`](#move-to-space) | Take or send the focused window to a desktop. |
+| [`focus-display`](#focus-display) | Focus a window on another display. |
+| [`move-to-display`](#move-to-display) | Take the focused window to another display. |
 | [`pause`](#pause) | Toggle tiling on or off. |
 | [`reload`](#reload) | Reload the config file. |
 | [`settings`](#settings) | Open the settings window. |
@@ -409,6 +411,66 @@ follows the window. See
 | `error: the system did not move the window` | The quick route is not available, and the window named with `--window` is not on screen to be carried. |
 | `error: no display` | |
 
+## Displays
+
+These two commands go to the next or the previous display, or to a display by its number.
+Displays are numbered from 1, left to right by their left edge, and top to bottom where two
+displays share a left edge. [`list-spaces`](#list-spaces) shows the number of each display.
+
+### `focus-display`
+
+```text
+focus-display next|prev|N
+```
+
+Focuses a window on another display. `N` is a display number from 1 to 16. `next` and `prev`
+go to the next and previous display in that order, counted from the display that holds the
+focused window, and wrap around at the ends. `previous` is accepted for `prev`.
+
+The window that gets the focus is the first of these:
+
+1. The window that last had the focus in the layout of that display, if it is on screen.
+2. The tiled window nearest the centre of the display.
+3. The frontmost window on the display that is not tiled, such as a floating one.
+
+With [`mouse-follows-focus`](/reference/configuration/#mouse-follows-focus) on, the pointer
+moves to the centre of the newly focused window. When the display has no window, the pointer
+moves to the centre of the display instead, so a click lands there.
+
+| Reply | When |
+| --- | --- |
+| `ok` | A window was focused. |
+| `ok: no window on that display` | |
+| `ok: only one display` | |
+| `error: there is no display N (there are M)` | The number is higher than the number of displays. |
+
+### `move-to-display`
+
+```text
+move-to-display next|prev|N
+```
+
+Takes the focused window to another display. The focus stays with the window. `N`, `next`
+and `prev` mean the same as for [`focus-display`](#focus-display), counted from the display
+the window is on. The window does not have to be tiled.
+
+A tiled window joins the layout of the desktop that display is showing, beside the window
+last focused there, as when [`move`](#move) carries a window across at the edge of the
+layout. A floating window stays floating. It keeps its size, made smaller if the display has
+not got the room, and its place in proportion: a window against the right edge lands against
+the right edge, a window in the middle lands in the middle.
+
+| Reply | When |
+| --- | --- |
+| `ok` | The window was moved. |
+| `ok: already on display N` | The window is on that display. |
+| `ok: only one display` | |
+| `error: no focused window` | |
+| `error: there is no display N (there are M)` | The number is higher than the number of displays. |
+| `error: display N is showing a fullscreen app` | Iguana leaves fullscreen Spaces alone. |
+| `error: a fullscreen window cannot be sent to another display` | |
+| `error: cannot read the window's position` | |
+
 ## Iguana itself
 
 ### `pause`
@@ -618,11 +680,13 @@ list-spaces
 list-spaces --json
 ```
 
-Shows, for each display, which desktop it is showing and how many desktops it has.
+Shows, for each display, its number, which desktop it is showing and how many desktops it
+has. The displays are listed in the order they are numbered, the order
+[`focus-display`](#focus-display) and [`move-to-display`](#move-to-display) count in.
 
 ```text
-Built-in Retina Display: showing desktop 2 of 5; this display has 3 desktop(s)
-Studio Display: showing desktop 4 of 5; this display has 2 desktop(s)
+Display 1, Built-in Retina Display: showing desktop 2 of 5; this display has 3 desktop(s)
+Display 2, Studio Display: showing desktop 4 of 5; this display has 2 desktop(s)
 ```
 
 A display showing a native fullscreen app reads `showing a fullscreen Space`.
@@ -666,13 +730,15 @@ With `--json`, the document also lists every desktop, in Mission Control order:
       "desktop" : 1,
       "desktopCount" : 2,
       "main" : true,
-      "name" : "Built-in Retina Display"
+      "name" : "Built-in Retina Display",
+      "number" : 1
     },
     {
       "desktop" : 3,
       "desktopCount" : 1,
       "main" : false,
-      "name" : "Studio Display"
+      "name" : "Studio Display",
+      "number" : 2
     }
   ]
 }
@@ -686,6 +752,7 @@ With `--json`, the document also lists every desktop, in Mission Control order:
 | `desktops[].active` | `true` for the desktop you are on: the one being shown on the display that has the focus. |
 | `desktops[].windows` | The `id` of each window Iguana has seen on this desktop. Iguana learns of a window when its desktop is on screen, so a desktop you have not visited since Iguana started can read as empty. |
 | `displays[].name` | The display's name. |
+| `displays[].number` | The display's number, as [`focus-display`](#focus-display) and [`move-to-display`](#move-to-display) take it. The displays are listed in this order. |
 | `displays[].desktop` | The number of the desktop the display is showing, or `null` while it shows a fullscreen Space. |
 | `displays[].desktopCount` | How many desktops the display has. |
 | `displays[].main` | `true` for the main display. |
@@ -797,8 +864,8 @@ Iguana 0.2.1: tiling
 config: /Users/you/.config/iguana/iguana.toml
 windows: 3 tiled on screen, 7 known, 5 apps watched
 stage manager: off
-Built-in Retina Display: showing desktop 1 of 3; this display has 3 desktop(s)
-shortcuts: 41 active
+Display 1, Built-in Retina Display: showing desktop 1 of 3; this display has 3 desktop(s)
+shortcuts: 45 active
 last shortcut: option-l, 4 s ago, answered "ok"
 ```
 
@@ -829,7 +896,8 @@ With `--json`:
       "desktop" : 1,
       "desktopCount" : 3,
       "main" : true,
-      "name" : "Built-in Retina Display"
+      "name" : "Built-in Retina Display",
+      "number" : 1
     }
   ],
   "lastShortcut" : {

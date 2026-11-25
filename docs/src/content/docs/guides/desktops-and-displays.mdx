@@ -6,8 +6,8 @@ description: How Iguana tiles each macOS desktop, how to switch between desktops
 import { Aside } from '@astrojs/starlight/components';
 
 After this page you will be able to switch desktops, send windows between desktops and
-displays, have an app's windows open on a desktop you choose, and know how desktops are
-numbered when you have more than one display.
+displays, move the focus from one display to another, have an app's windows open on a desktop
+you choose, and know how desktops and displays are numbered.
 
 ## Each desktop has its own layout
 
@@ -35,11 +35,22 @@ iguana list-spaces
 ```
 
 ```text
-Built-in Retina Display: showing desktop 2 of 5; this display has 3 desktop(s)
-Studio Display: showing desktop 4 of 5; this display has 2 desktop(s)
+Display 1, Built-in Retina Display: showing desktop 2 of 5; this display has 3 desktop(s)
+Display 2, Studio Display: showing desktop 4 of 5; this display has 2 desktop(s)
 ```
 
 The display names and numbers above are an example. Yours will differ.
+
+## How displays are numbered
+
+Displays have numbers of their own, which `focus-display` and `move-to-display` take. They are
+counted from 1, left to right by the left edge of each display, the way you have arranged them
+under Displays in System Settings. Where two displays share a left edge, the upper one comes
+first.
+
+The main display, the one with the menu bar, is not always display 1. With a monitor on the
+left of a laptop, the monitor is display 1 and the laptop display 2. `iguana list-spaces`
+starts each line with the number, as above.
 
 ## Switch desktop
 
@@ -153,6 +164,40 @@ naming a desktop on another display does move the window there.
 
 Each display has its own layout for each of its desktops.
 
+`move-to-space next` and `move-to-space prev` count along the desktops of the current
+display. That is the display holding the focused tiled window, or the display under the
+pointer when the focused window is not tiled.
+
+### Move the focus and windows between displays
+
+| Keys | Command | What it does |
+| --- | --- | --- |
+| <kbd>option</kbd>+<kbd>.</kbd> | `focus-display next` | Focus a window on the next display. |
+| <kbd>option</kbd>+<kbd>,</kbd> | `focus-display prev` | Focus a window on the previous display. |
+| <kbd>option</kbd>+<kbd>shift</kbd>+<kbd>.</kbd> | `move-to-display next` | Take the focused window to the next display. |
+| <kbd>option</kbd>+<kbd>shift</kbd>+<kbd>,</kbd> | `move-to-display prev` | Take the focused window to the previous display. |
+| not bound | `focus-display N`, `move-to-display N` | The same, for display `N`. |
+
+`next` and `prev` follow the [display numbers](#how-displays-are-numbered), counted from the
+display that holds the focused window, and wrap around: after the last display comes the
+first.
+
+`focus-display` focuses the window that last had the focus on that display. If that window is
+gone, it focuses the tiled window nearest the middle of the display, or else a floating one.
+On a display with no window, nothing gets the focus. With
+[`mouse-follows-focus`](/reference/configuration/#mouse-follows-focus) on, the pointer moves to
+the middle of that display, so a click lands there.
+
+`move-to-display` keeps the focus on the window it takes. A tiled window joins the layout of
+the desktop the other display is showing, beside the window last focused there. A floating
+window stays floating, keeps its size where it fits, and lands in the same place in
+proportion: against the same edge, or in the middle.
+
+A display that is showing a native fullscreen app takes no windows. `move-to-display` answers,
+for example, `error: display 2 is showing a fullscreen app`.
+
+### Other ways across
+
 - **Move a window to another display** with `move` in that direction. When the window is
   already at the edge of its layout, the next `move` carries it onto the display on that
   side. <kbd>option</kbd>+<kbd>shift</kbd>+<kbd>l</kbd> on the rightmost window sends it to the
@@ -170,6 +215,7 @@ pointer when the focused window is not tiled. Each display remembers its own des
 `space recent` and `move-to-space recent` go back to the one the current display showed
 before.
 
+
 ### Displays that share desktops
 
 macOS has a setting called "Displays have separate Spaces". When it is off, all displays
@@ -185,4 +231,5 @@ it does not tile a display while that display is showing a fullscreen Space. See
 ## Related
 
 - [Commands](/reference/commands/#space): exact syntax and replies for `space` and `move-to-space`.
+- [Commands](/reference/commands/#displays): exact syntax and replies for `focus-display` and `move-to-display`.
 - [Customising shortcuts](/guides/shortcuts/): bind `--stay`, `next`, `prev` and `recent`.

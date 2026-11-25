@@ -226,6 +226,11 @@ public struct Config: Equatable {
     option-shift-9 = "move-to-space 9"
     option-shift-leftbracket = "move-to-space prev"
     option-shift-rightbracket = "move-to-space next"
+    # Displays are numbered from 1, left to right. "focus-display 2" goes to display 2.
+    option-comma = "focus-display prev"
+    option-period = "focus-display next"
+    option-shift-comma = "move-to-display prev"
+    option-shift-period = "move-to-display next"
 
     # Rules for the windows of an app. `app` is a bundle id or part of the app name, `title` is a
     # regular expression. `float = true` keeps matching windows floating; dialogs, sheets and

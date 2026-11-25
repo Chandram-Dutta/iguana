@@ -131,6 +131,12 @@ struct CommandGroup: Identifiable {
                 CommandInfo(title: "Previous Desktop", text: "move-to-space prev"),
                 CommandInfo(title: "Recent Desktop", text: "move-to-space recent"),
             ]),
+            CommandGroup(title: "Displays", commands: [
+                CommandInfo(title: "Focus Next Display", text: "focus-display next"),
+                CommandInfo(title: "Focus Previous Display", text: "focus-display prev"),
+                CommandInfo(title: "Take Window to Next Display", text: "move-to-display next"),
+                CommandInfo(title: "Take Window to Previous Display", text: "move-to-display prev"),
+            ]),
         ]
     }()
 }

@@ -128,6 +128,7 @@ extension Config {
                 { "type": "string", "pattern": "^resize( (width|height))? (grow|shrink)( (width|height))?$" },
                 { "type": "string", "pattern": "^space ([1-9]|1[0-6]|next|prev|previous|recent)$" },
                 { "type": "string", "pattern": "^move-to-space( (--stay|--follow))? ([1-9]|1[0-6]|next|prev|previous|recent)( (--stay|--follow))?$" },
+                { "type": "string", "pattern": "^(focus-display|move-to-display) ([1-9]|1[0-6]|next|prev|previous)$" },
                 { "enum": ["flip", "stack", "balance", "float", "zoom", "close", "undo", "redo", "pause", "reload", "settings", "tour", "update", "list-windows", "list-spaces", "tree", "status", "quit"] }
               ]
             }
