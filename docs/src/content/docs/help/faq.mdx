@@ -58,7 +58,11 @@ so there is nothing to put back. The same is true if Iguana crashes.
 ### Do my layouts survive a restart?
 
 A restart of Iguana, yes, together with the windows you floated by hand and the minimum
-window sizes Iguana has learned. A restart of the Mac, no: windows are tiled afresh.
+window sizes Iguana has learned. A restart of the Mac, mostly: as your apps reopen their
+windows, each desktop takes its saved layout again. Iguana recognises the windows by their
+app and title, and by where they were. This works for the first three minutes after tiling
+starts. Windows it does not recognise are tiled as new windows. See
+[Limitations](/help/limitations/#limits-of-the-current-design).
 
 ### Why did my shortcut do nothing?
 

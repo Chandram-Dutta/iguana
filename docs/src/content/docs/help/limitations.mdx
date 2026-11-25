@@ -79,9 +79,15 @@ runs. Unbound combinations are untouched.
 
 ## Limits of the current design
 
-- **Layouts last until the Mac restarts.** Layouts, hand-floated windows and the minimum
-  window sizes Iguana has learned survive quitting and restarting Iguana. They do not survive a restart of the Mac, because macOS gives
-  every window a new identity then. After a restart of the Mac, windows are tiled afresh.
+- **After a restart of the Mac, only the windows Iguana recognises get their place back.**
+  Layouts, hand-floated windows and learned minimum sizes survive quitting and restarting
+  Iguana. A restart of the Mac gives every window a new identity, so Iguana recognises
+  windows by their app and title, and by where they were. For the first three minutes after
+  tiling starts, each desktop takes its saved layout again as your apps reopen their
+  windows, and hand-floated windows float again. A window that is not recognised in that
+  time is tiled as a new window, and so is every window on a desktop you do not visit in it.
+  Once you change a desktop's layout, it stays as you made it. Minimum sizes are learned
+  again.
 - **Only regular apps are watched.** Apps without a Dock icon are ignored.
 - **A rule's desktop is where a window starts, not where it is kept.** A rule sends a standard
   window to its desktop once, when the window opens while Iguana is running. Windows that
