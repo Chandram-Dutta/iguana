@@ -16,7 +16,7 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var registeredShortcuts = 0
     private var lastShortcut: (keys: String, reply: String, at: Date)?
     private var tour: TourWindowController?
-    /// The commands of `[hooks]`, run when the desktop or the focused window changes.
+    /// The commands of `[hooks]`, run when something changes.
     private let hooks = Hooks()
     /// Looks once a day whether a newer Iguana has been released.
     private let updates = UpdateChecker()

@@ -2,33 +2,82 @@ import AppKit
 import ApplicationServices
 import IguanaCore
 
-/// Runs the commands of `[hooks]` when the desktop being shown or the focused window changes.
+/// Runs the commands of `[hooks]` when something changes: the desktop being shown, the focused
+/// window, a window opening or closing, the arrangement of a desktop, or the pause.
 ///
 /// `changed` is the one place hooks are fired from. It is called after every refresh of the
 /// window manager, by the same `onChange` that redraws the menu bar item, so it hears about a
 /// change however it came about: a shortcut, a gesture, Mission Control, a click. Whether
-/// anything really changed is decided by `HookTracker` in IguanaCore.
+/// anything really changed is decided by `HookTracker` in IguanaCore, and every event goes out
+/// through `emit`.
 final class Hooks {
     private var tracker = HookTracker()
     private let runner = HookRunner()
 
     func changed(_ wm: WindowManager) {
-        let showing = wm.displays.map { HookTracker.Showing(display: $0.uuid, space: $0.spaceKey, desktop: $0.desktopNumber) }
+        let facts = wm.facts()
+        var places: (desktops: [Desktop], onScreen: [CGWindowID: CGRect])?
+        /// What a hook is told about a window. Asked once for each window, when it is first seen.
+        func describe(_ id: CGWindowID) -> HookTracker.Window {
+            if places == nil { places = (Desktop.all(), ScreenSnapshot.take().onScreen) }
+            let w = facts.windows[id]
+            let place = wm.place(of: id, frame: places?.onScreen[id], desktops: places?.desktops ?? [])
+            return HookTracker.Window(id: id, app: w.flatMap { facts.apps[$0.pid]?.app.localizedName } ?? "",
+                                      title: w?.element.string(kAXTitleAttribute) ?? "", desktop: place.desktop, display: place.display)
+        }
+        // A title changes while the window is in use. The window in front is looked at again,
+        // so that one that closes is described as the user last saw it.
+        if wants(.windowClosed, wm), let id = wm.focusedWindow, facts.windows[id]?.tileable == true {
+            tracker.remember(describe(id))
+        }
+        var arrangements: [String: HookTracker.Arrangement] = [:]
+        for d in wm.displays where d.isDesktop {
+            guard let tree = facts.trees[d.treeKey] else { continue }
+            arrangements[d.uuid] = HookTracker.Arrangement(layout: tree.snapshot, visible: facts.visible.intersection(tree.windows),
+                                                           zoomed: facts.zoomed[d.treeKey])
+        }
+        let look = HookTracker.Look(
+            showing: wm.displays.map { HookTracker.Showing(display: $0.uuid, space: $0.spaceKey, desktop: $0.desktopNumber) },
+            focused: wm.focusedWindow, paused: wm.paused, existing: facts.existing,
+            standard: Set(facts.windows.values.filter(\.tileable).map(\.id)), arrangements: arrangements)
         // The tracker is kept up to date even while no hook is set, so that one added later
         // starts from what is on screen and not from what was there when Iguana started.
-        let changes = tracker.observe(showing: showing, focused: wm.focusedWindow)
-        for change in changes {
+        for change in tracker.observe(look, describe: describe) {
             switch change {
             case .desktop(let uuid):
-                guard let command = wm.config.hooks[.desktopChanged], let display = wm.displays.first(where: { $0.uuid == uuid }) else { continue }
-                runner.fire(.desktopChanged, command: command, variables: HookEnvironment.variables(
-                    event: .desktopChanged, desktop: display.desktopNumber, display: display.name))
+                shown(.desktopChanged, on: uuid, wm)
+            case .layout(let uuid):
+                shown(.layoutChanged, on: uuid, wm)
+            case .paused(let paused):
+                emit(.pauseChanged, wm) { HookEnvironment.variables(event: .pauseChanged, paused: paused) }
+            case .created(let window):
+                emit(.windowCreated, wm) { HookEnvironment.variables(event: .windowCreated, window: window) }
+            case .closed(let window):
+                emit(.windowClosed, wm) { HookEnvironment.variables(event: .windowClosed, window: window) }
             case .focus(let id):
                 // The title is only asked for when there is a command to hand it to.
-                guard let command = wm.config.hooks[.focusChanged] else { continue }
-                runner.fire(.focusChanged, command: command, variables: focusVariables(id, wm))
+                emit(.focusChanged, wm) { focusVariables(id, wm) }
             }
         }
+    }
+
+    /// Whether anything listens for this event. What only such a listener needs is not worked out otherwise.
+    private func wants(_ event: HookEvent, _ wm: WindowManager) -> Bool {
+        wm.config.hooks[event] != nil
+    }
+
+    /// The one place an event goes out: it happened, and these are its variables. They are
+    /// only worked out when something listens.
+    private func emit(_ event: HookEvent, _ wm: WindowManager, _ variables: () -> [String: String]) {
+        guard wants(event, wm) else { return }
+        let variables = variables()
+        if let command = wm.config.hooks[event] { runner.fire(event, command: command, variables: variables) }
+    }
+
+    /// An event about what one display is showing.
+    private func shown(_ event: HookEvent, on uuid: String, _ wm: WindowManager) {
+        guard let display = wm.displays.first(where: { $0.uuid == uuid }) else { return }
+        emit(event, wm) { HookEnvironment.variables(event: event, desktop: display.desktopNumber, display: display.name) }
     }
 
     private func focusVariables(_ id: CGWindowID?, _ wm: WindowManager) -> [String: String] {

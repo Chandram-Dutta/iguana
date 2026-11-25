@@ -91,11 +91,15 @@
     },
     "hooks": {
       "type": "object",
-      "description": "Shell commands Iguana runs when something changes, for status bars and scripts. Each is run with /bin/sh -c and gets the facts in environment variables: IGUANA_EVENT, IGUANA_DESKTOP, IGUANA_DISPLAY and, for the focus, IGUANA_WINDOW_ID, IGUANA_APP and IGUANA_TITLE.",
+      "description": "Shell commands Iguana runs when something changes, for status bars and scripts. Each is run with /bin/sh -c and gets the facts in environment variables: IGUANA_EVENT, IGUANA_DESKTOP, IGUANA_DISPLAY, for a window IGUANA_WINDOW_ID, IGUANA_APP and IGUANA_TITLE, and for a pause IGUANA_PAUSED.",
       "additionalProperties": false,
       "properties": {
         "desktop-changed": { "type": "string", "default": "", "description": "Run when the desktop a display is showing changed. An empty string runs nothing." },
-        "focus-changed": { "type": "string", "default": "", "description": "Run when a different window has the focus. An empty string runs nothing. In a script, write \"$IGUANA_TITLE\" with the quotes: a window title can be any text." }
+        "focus-changed": { "type": "string", "default": "", "description": "Run when a different window has the focus. An empty string runs nothing. In a script, write \"$IGUANA_TITLE\" with the quotes: a window title can be any text." },
+        "window-created": { "type": "string", "default": "", "description": "Run when a standard window opened, tiled or floating. The windows that were open when Iguana started do not count. An empty string runs nothing." },
+        "window-closed": { "type": "string", "default": "", "description": "Run when a standard window closed. Minimising or hiding a window is not closing it. An empty string runs nothing." },
+        "layout-changed": { "type": "string", "default": "", "description": "Run when the windows of a desktop on screen were arranged differently: a window joined or left the layout, a size or a stack changed, a window was zoomed, or tiling resumed. An empty string runs nothing." },
+        "pause-changed": { "type": "string", "default": "", "description": "Run when tiling was paused or resumed. IGUANA_PAUSED is true or false. An empty string runs nothing." }
       }
     },
     "bindings": {
