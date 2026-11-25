@@ -25,6 +25,10 @@ final class FocusFollowsMouse {
     /// Whether the pointer is being listened to. Never while the setting is off.
     var isListening: Bool { !monitors.isEmpty }
 
+    /// While the window switcher is open, a window the pointer rests on must not take the
+    /// focus: resting on one outside the panel would look like leaving the switcher.
+    var suspended = false
+
     /// Called after every refresh of the window manager, which is also how a changed setting
     /// arrives.
     func changed(_ wm: WindowManager) {
@@ -80,7 +84,7 @@ final class FocusFollowsMouse {
     }
 
     private func rested() {
-        guard let wm, let pointer = CGEvent(source: nil)?.location else { return }
+        guard let wm, !suspended, let pointer = CGEvent(source: nil)?.location else { return }
         // The quick look, which usually settles it: the window a click here would land on is
         // not one Iguana knows, or it is the one that has the focus already.
         guard let hit = Self.windowUnderPointer(), hit != wm.focusedWindow, wm.facts().windows[hit] != nil else {

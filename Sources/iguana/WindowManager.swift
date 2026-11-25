@@ -61,6 +61,8 @@ final class WindowManager {
     var onConfigChange: (() -> Void)?
     var onOpenSettings: (() -> Void)?
     var onOpenTour: (() -> Void)?
+    /// Opens the window switcher and answers the command, supplied by the app shell.
+    var onOpenSwitcher: (() -> String)?
     var onCheckForUpdate: (() -> Void)?
     /// The shortcuts in use: `default` for `[bindings]`, or the name of a `[mode.NAME]` table.
     private(set) var mode = Config.defaultMode
@@ -93,8 +95,8 @@ final class WindowManager {
     private(set) var focusedWindow: CGWindowID? {
         didSet { if let id = focusedWindow, id != oldValue { focusHistory.record(id) } }
     }
-    /// The windows that had the focus, for `focus recent` and `focus-app`.
-    private var focusHistory = FocusHistory()
+    /// The windows that had the focus, for `focus recent`, `focus-app` and the switcher.
+    private(set) var focusHistory = FocusHistory()
     /// The desktops each display showed, for `space recent`.
     private var desktopHistory = DesktopHistory()
     private var focusIntent: CGWindowID?
@@ -849,6 +851,7 @@ final class WindowManager {
             refresh()
             return w.floating ? "ok: floating" : "ok: tiled"
         case .place(let placement): return place(placement, window)
+        case .switcher: return onOpenSwitcher?() ?? "ok"
         case .close:
             guard let w = targetWindow(window) else { return "error: no focused window" }
             guard let button = w.element.element(kAXCloseButtonAttribute) else { return "error: this window has no close button" }

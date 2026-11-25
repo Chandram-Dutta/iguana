@@ -162,6 +162,34 @@ A key in a mode can switch to another mode, and a chain can switch too:
 `return = "balance; mode default"` evens out the windows and leaves the mode.
 [`[mode.NAME]`](/reference/configuration/#modename) lists the rules for names and keys.
 
+## Find a window
+
+<kbd>option</kbd>+<kbd>w</kbd> opens the window switcher: a search field above a list of
+your windows, the one you used last at the top.
+
+<Steps>
+
+1. Type part of the window's title or of its app's name. `term` finds Terminal, and
+   `gc` finds Google Chrome.
+2. Move to the window with <kbd>up</kbd> and <kbd>down</kbd>, or with <kbd>ctrl</kbd>+<kbd>p</kbd>
+   and <kbd>ctrl</kbd>+<kbd>n</kbd>.
+3. Press <kbd>return</kbd> to focus it, or <kbd>esc</kbd> to leave the focus where it was.
+
+</Steps>
+
+To go back to the window you were on before, press <kbd>option</kbd>+<kbd>w</kbd> and then
+<kbd>return</kbd>. Each further <kbd>option</kbd>+<kbd>w</kbd> while the switcher is open
+moves one row down. Minimised windows, windows of hidden apps and windows on other desktops
+are listed too. [`switcher`](/reference/commands/#switcher) has the details.
+
+To open it with other keys:
+
+```toml title="iguana.toml"
+[bindings]
+option-tab = "switcher"
+option-w = ""
+```
+
 ## Recipes
 
 ### Send a window away without following it

@@ -136,7 +136,7 @@ extension Config {
                 { "type": "string", "pattern": "^place (center|left|right|top|bottom|top-left|top-right|bottom-left|bottom-right|full)$" },
                 { "type": "string", "pattern": "^mode [a-z0-9-]+$" },
                 { "type": "string", "pattern": ";" },
-                { "enum": ["flip", "stack", "balance", "float", "zoom", "close", "undo", "redo", "pause", "reload", "apply-rules", "settings", "tour", "update", "list-windows", "list-spaces", "tree", "status", "quit"] }
+                { "enum": ["flip", "stack", "balance", "float", "zoom", "close", "undo", "redo", "switcher", "pause", "reload", "apply-rules", "settings", "tour", "update", "list-windows", "list-spaces", "tree", "status", "quit"] }
               ]
             }
           }

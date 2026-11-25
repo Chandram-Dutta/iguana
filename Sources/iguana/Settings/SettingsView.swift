@@ -510,6 +510,7 @@ private struct ShortcutsPane: View {
     private let desktops = (1...9).map { ("\($0)", "Desktop \($0)") } + [("next", "Next desktop"), ("prev", "Previous desktop"), ("recent", "Recent desktop")]
     private let displays = [("next", "Next display"), ("prev", "Previous display")]
     private let windowCommands = [
+        ("switcher", "Find a window"),
         ("focus recent", "Back to the window before"),
         ("resize grow", "Grow"), ("resize shrink", "Shrink"), ("balance", "Even out all sizes"), ("zoom", "Fill the desktop"),
         ("flip", "Switch between side by side and top to bottom"), ("stack", "Stack or unstack"), ("float", "Float or tile"), ("close", "Close"), ("pause", "Pause tiling"),

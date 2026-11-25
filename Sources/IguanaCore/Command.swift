@@ -42,6 +42,8 @@ public enum Command: Equatable {
     /// An app by bundle id or by part of its name, as in rules: its window gets the focus, or
     /// the app is opened.
     case focusApp(String)
+    /// Open the window switcher, or move its selection down a row while it is open.
+    case switcher
     case space(SpaceTarget)
     /// `follow` switches to the target Space along with the window.
     case moveToSpace(SpaceTarget, follow: Bool)
@@ -85,6 +87,7 @@ public enum Command: Equatable {
     undo                            take back the last change to the layout of this desktop
     redo                            make the last change that was undone again
     focus-app NAME|BUNDLE-ID        focus that app's window, or open the app
+    switcher                        find a window by typing part of its name, and focus it
     space N|next|prev|recent        switch to a native Space, or back to the one before
     move-to-space N|next|prev|recent  take the focused window to a native Space and go with it
     move-to-space N|next|prev|recent --stay  send it there and stay where you are
@@ -190,6 +193,7 @@ public enum Command: Equatable {
                 guard !args.isEmpty else { throw CommandError("'focus-app' needs the name or bundle id of an app") }
                 return args.joined(separator: " ")
             }())
+        case "switcher": return try noArgs(.switcher)
         case "space": return .space(try spaceTarget())
         case "move-to-space": return .moveToSpace(try spaceTarget(allowFlags: true), follow: try {
                 if args.contains("--stay") && args.contains("--follow") { throw CommandError("move-to-space: use --stay or --follow, not both") }

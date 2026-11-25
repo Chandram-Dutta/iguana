@@ -103,6 +103,7 @@ struct CommandGroup: Identifiable {
         let directions = [("left", "Left"), ("down", "Down"), ("up", "Up"), ("right", "Right")]
         return [
             CommandGroup(title: "Focus", commands: directions.map { CommandInfo(title: "Focus \($0.1)", text: "focus \($0.0)") } + [
+                CommandInfo(title: "Find a Window", text: "switcher"),
                 CommandInfo(title: "Back to the Window Before", text: "focus recent"),
             ]),
             CommandGroup(title: "Move Window", commands: directions.map { CommandInfo(title: "Move \($0.1)", text: "move \($0.0)") }),
