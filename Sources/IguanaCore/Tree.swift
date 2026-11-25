@@ -515,7 +515,14 @@ public final class Tree {
     }
 
     public convenience init(snapshot: NodeSnapshot) {
-        self.init(orientation: snapshot.orientation ?? .horizontal)
+        self.init()
+        restore(snapshot)
+    }
+
+    /// Put an arrangement taken earlier back in place of the current one, in this same tree.
+    /// The focus stays on its window if that window is in the arrangement.
+    public func restore(_ snapshot: NodeSnapshot) {
+        root = Node(container: snapshot.orientation ?? .horizontal)
         func build(_ s: NodeSnapshot) -> Node? {
             if let id = s.window { return Node(window: id, weight: s.weight > 0 ? s.weight : 1) }
             guard let o = s.orientation else { return nil }
@@ -534,6 +541,7 @@ public final class Tree {
             if !seen.insert(id).inserted, let n = node(id) { n.detach() }
         }
         normalize()
+        if let f = focused, !contains(f) { focused = nil }
     }
 
     public func describe(label: (WindowID) -> String = { "window \($0)" }) -> String {

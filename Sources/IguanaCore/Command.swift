@@ -26,6 +26,9 @@ public enum Command: Equatable {
     case float
     case zoom
     case close
+    /// Take back the last change to the layout of the active desktop, or make it again.
+    case undo
+    case redo
     case space(SpaceTarget)
     /// `follow` switches to the target Space along with the window.
     case moveToSpace(SpaceTarget, follow: Bool)
@@ -53,6 +56,8 @@ public enum Command: Equatable {
     float                           toggle tiling for the focused window
     zoom                            toggle the focused window filling the Space
     close                           close the focused window
+    undo                            take back the last change to the layout of this desktop
+    redo                            make the last change that was undone again
     space N|next|prev               switch to a native Space
     move-to-space N|next|prev       take the focused window to a native Space and go with it
     move-to-space N|next|prev --stay    send it there and stay where you are
@@ -118,6 +123,8 @@ public enum Command: Equatable {
         case "float": return try noArgs(.float)
         case "zoom": return try noArgs(.zoom)
         case "close": return try noArgs(.close)
+        case "undo": return try noArgs(.undo)
+        case "redo": return try noArgs(.redo)
         case "space": return .space(try spaceTarget())
         case "move-to-space": return .moveToSpace(try spaceTarget(allowFlags: true), follow: try {
                 if args.contains("--stay") && args.contains("--follow") { throw CommandError("move-to-space: use --stay or --follow, not both") }

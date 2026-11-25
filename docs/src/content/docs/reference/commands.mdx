@@ -53,6 +53,8 @@ error: Iguana needs Accessibility permission (System Settings > Privacy & Securi
 | [`float`](#float) | Toggle tiling for the focused window. |
 | [`zoom`](#zoom) | Toggle the focused window filling the desktop. |
 | [`close`](#close) | Close the focused window. |
+| [`undo`](#undo) | Take back the last change to the layout of the desktop. |
+| [`redo`](#redo) | Make the last change that was taken back again. |
 | [`space`](#space) | Switch to a desktop. |
 | [`move-to-space`](#move-to-space) | Take or send the focused window to a desktop. |
 | [`pause`](#pause) | Toggle tiling on or off. |
@@ -285,6 +287,51 @@ floating windows too.
 | `ok` | |
 | `error: no focused window` | |
 | `error: this window has no close button` | |
+
+### `undo`
+
+```text
+undo
+```
+
+Takes back the last change to the layout of the desktop you are on. That is the desktop of
+the focused window if it is tiled, and otherwise the desktop on the display the pointer is
+on. Run it again to go further back.
+
+A change is one of these:
+
+- `move`, `join`, `resize`, `flip`, `stack` and `balance`,
+- dragging a tile onto another to swap them, take half of one or join a stack,
+- dragging the edge of a tile to resize it.
+
+Windows opening and closing are not changes, and neither are `zoom` and `float`.
+
+The layout comes back without the windows that have closed, floated or left the desktop
+since, and a window that has opened since is placed like a new window. `undo` never moves a
+window to another display or desktop. A `move` or a drag that takes a window to another
+display changes the layouts on both, and each keeps that change as its own.
+
+Each desktop on each display keeps its own last 50 changes. They last until Iguana quits:
+unlike the layouts, they are not kept across a restart.
+
+| Reply | When |
+| --- | --- |
+| `ok: undone` | The layout is back as it was before the change. |
+| `ok: nothing to undo` | There is no change left to take back on this desktop. |
+
+### `redo`
+
+```text
+redo
+```
+
+Makes the last change that `undo` took back on this desktop again. A new change clears what
+there is to redo.
+
+| Reply | When |
+| --- | --- |
+| `ok: redone` | |
+| `ok: nothing to redo` | Nothing has been undone since the last change. |
 
 ## Desktops
 
