@@ -910,7 +910,7 @@ private struct RuleRowView: View {
                         }
                     }
                 }
-                TextField("Title", text: $row.title, prompt: Text("All of its windows. Or type a pattern the title must match."))
+                TextField("Title", text: $row.title, prompt: Text("All windows, or a title pattern"))
                     .textFieldStyle(.plain)
                     .labelsHidden()
                     .font(.system(size: 11.5))
