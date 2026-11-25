@@ -867,6 +867,7 @@ final class WindowManager {
         case .reload: return reloadConfig()
         case .applyRules: return applyRules()
         case .settings, .tour, .update: return "ok"
+        case .subscribe: return "error: subscribe only works from the command line"
         case .listWindows: return listWindows()
         case .listSpaces: return listSpaces()
         case .tree: return describeTrees()

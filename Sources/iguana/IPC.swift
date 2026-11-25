@@ -1,7 +1,9 @@
 import Foundation
+import IguanaCore
 
 /// The command line talks to the running app over a socket in the user's own Library folder:
-/// one line in, one reply out.
+/// one line in, one reply out. `subscribe` is the exception: its connection stays open, and
+/// the app writes a line to it for each event (see Subscribers.swift).
 enum IPC {
     static var socketPath: String { socketPathOverride ?? WindowManager.supportDirectory.appendingPathComponent("iguana.sock").path }
     /// A test listens on a socket of its own, so that it never touches the one a running
@@ -27,14 +29,17 @@ enum IPC {
         }
     }
 
-    private static func writeAll(_ fd: Int32, _ text: String) {
+    /// False when the other end has gone.
+    @discardableResult
+    static func writeAll(_ fd: Int32, _ text: String) -> Bool {
         var bytes = Array(text.utf8)
         var offset = 0
         while offset < bytes.count {
             let n = bytes.withUnsafeMutableBytes { write(fd, $0.baseAddress! + offset, $0.count - offset) }
-            if n <= 0 { return }
+            if n <= 0 { return false }
             offset += n
         }
+        return true
     }
 
     private static func readAll(_ fd: Int32, untilNewline: Bool) -> String {
@@ -51,15 +56,46 @@ enum IPC {
 
     // MARK: Client
 
-    /// Send one command to the running app. Returns nil when nothing is listening.
-    static func send(_ command: String) -> String? {
+    /// A connection to the running app, or nil when nothing is listening.
+    static func connection() -> Int32? {
         guard let addr = address() else { return nil }
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { return nil }
+        guard withSockaddr(addr, { connect(fd, $0, $1) }) == 0 else {
+            close(fd)
+            return nil
+        }
+        return fd
+    }
+
+    /// Send one command to the running app. Returns nil when nothing is listening.
+    static func send(_ command: String) -> String? {
+        guard let fd = connection() else { return nil }
         defer { close(fd) }
-        guard withSockaddr(addr, { connect(fd, $0, $1) }) == 0 else { return nil }
         writeAll(fd, command + "\n")
         return readAll(fd, untilNewline: false)
+    }
+
+    /// Send `subscribe` and hand over each line the app writes back, as it arrives, until the
+    /// app closes the connection. Returns false when nothing is listening.
+    static func stream(_ command: String, _ each: (String) -> Void) -> Bool {
+        guard let fd = connection() else { return false }
+        defer { close(fd) }
+        writeAll(fd, command + "\n")
+        var pending = Data()
+        var buffer = [UInt8](repeating: 0, count: 4096)
+        while true {
+            let n = read(fd, &buffer, buffer.count)
+            if n < 0, errno == EINTR { continue }
+            if n <= 0 { break }
+            pending.append(buffer, count: n)
+            while let end = pending.firstIndex(of: 0x0a) {
+                each(String(decoding: pending[pending.startIndex..<end], as: UTF8.self))
+                pending.removeSubrange(pending.startIndex...end)
+            }
+        }
+        if !pending.isEmpty { each(String(decoding: pending, as: UTF8.self)) }
+        return true
     }
 
     // MARK: Server
@@ -92,8 +128,10 @@ enum IPC {
     }
 
     /// `handler` runs on the main queue. It answers by calling what it is given, once, at once
-    /// or later, from any thread.
-    static func listen(_ handler: @escaping (String, @escaping (String) -> Void) -> Void) -> Bool {
+    /// or later, from any thread. A `subscribe` request is not handed to it: its connection
+    /// becomes a subscriber, given to `subscribed` on the main queue to be sent the current state.
+    static func listen(_ handler: @escaping (String, @escaping (String) -> Void) -> Void,
+                       subscribed: @escaping (Subscriber) -> Void = { _ in }) -> Bool {
         guard let addr = address() else { return false }
         try? FileManager.default.createDirectory(at: URL(fileURLWithPath: socketPath).deletingLastPathComponent(), withIntermediateDirectories: true)
         unlink(socketPath)
@@ -112,6 +150,17 @@ enum IPC {
             setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
             DispatchQueue.global(qos: .userInitiated).async {
                 let line = readAll(client, untilNewline: true).trimmingCharacters(in: .whitespacesAndNewlines)
+                if case .subscribe(let events)? = try? Command.parse(line) {
+                    DispatchQueue.main.async {
+                        // Iguana stopped listening while the request was read.
+                        guard source != nil else {
+                            close(client)
+                            return
+                        }
+                        subscribed(subscribe(client, to: events))
+                    }
+                    return
+                }
                 let answer = Answer()
                 DispatchQueue.main.async { handler(line, answer.give) }
                 writeAll(client, answer.wait() + "\n")
@@ -124,6 +173,7 @@ enum IPC {
     }
 
     static func stop() {
+        endSubscriptions()
         source?.cancel()
         source = nil
         unlink(socketPath)

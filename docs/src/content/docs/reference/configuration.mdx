@@ -554,7 +554,8 @@ is sent and what is read.
 
 Shell commands that Iguana runs when something changes, so that a status bar or a script of
 your own can follow along. [Status bars and scripts](/guides/status-bars-and-scripts/) has a
-worked example.
+worked example. A status bar that only needs the facts, and no command of its own, can listen
+to [`iguana subscribe`](/reference/commands/#subscribe) instead.
 
 ```toml title="iguana.toml"
 [hooks]

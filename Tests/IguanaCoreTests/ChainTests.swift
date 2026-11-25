@@ -35,7 +35,7 @@ final class ChainTests: XCTestCase {
     }
 
     func testReportsQuitAndJSONCannotBeChained() {
-        for name in ["list-windows", "list-spaces", "tree", "status", "quit"] {
+        for name in ["list-windows", "list-spaces", "tree", "status", "quit", "subscribe"] {
             XCTAssertEqual(error("flip; \(name)"), "'\(name)' cannot be part of a chain")
             XCTAssertEqual(error("\(name.uppercased()); flip"), "'\(name)' cannot be part of a chain", "first or last")
         }

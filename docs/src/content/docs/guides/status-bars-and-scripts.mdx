@@ -1,6 +1,6 @@
 ---
 title: Status bars and scripts
-description: Read what Iguana knows as JSON, and have Iguana run a command of yours when the desktop, the focus, the windows or the layout change, with a SketchyBar example.
+description: Read what Iguana knows as JSON, follow its events as a stream, or have Iguana run a command of yours when the desktop, the focus, the windows or the layout change, with SketchyBar examples.
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
@@ -13,7 +13,7 @@ There are two halves, and most setups use both:
 - **Ask.** `iguana list-windows`, `list-spaces`, `tree` and `status` answer with JSON when
   you add `--json`.
 - **Be told.** A `[hooks]` entry in the config file runs a command of yours when something
-  changes.
+  changes. Or `iguana subscribe` stays connected and prints a line of JSON for each change.
 
 ## Ask: JSON from the command line
 
@@ -218,8 +218,109 @@ SketchyBar starts, before any event has happened.
 - **Keep it quick.** Iguana never waits for a hook, and runs one copy of each at a time. While
   a slow one runs, later events are folded into one more run with the newest values.
 
+## Be told: a stream of events
+
+`iguana subscribe` stays connected to Iguana and prints one line of JSON for each event, as it
+happens. It starts with what is true now: one `desktop-changed` line for each display, one
+`layout-changed` line for each display showing a desktop, one `pause-changed` line, and one
+`focus-changed` line. `window-created` and `window-closed` are about a change, never about a
+state, so nothing is sent for them first.
+
+The six events are `desktop-changed`, `focus-changed`, `window-created`, `window-closed`,
+`layout-changed` and `pause-changed` — the same six the [hooks](#be-told-hooks) can run for.
+
+```sh
+iguana subscribe desktop-changed focus-changed
+```
+
+```jsonl
+{"desktop":1,"display":"Built-in Retina Display","event":"desktop-changed"}
+{"app":"Terminal","desktop":1,"display":"Built-in Retina Display","event":"focus-changed","title":"zsh","window-id":1187}
+{"desktop":2,"display":"Built-in Retina Display","event":"desktop-changed"}
+```
+
+A line holds the facts a hook is given in its variables, with `IGUANA_WINDOW_ID` as
+`window-id` and so on. Leave out the event names to hear every event. It runs until Iguana
+quits, or until you press Control-C. Every key is listed under
+[`subscribe`](/reference/commands/#subscribe) in the command reference.
+
+### Worked example: SketchyBar from the stream
+
+This shows the desktop and the focused app in [SketchyBar](https://github.com/FelixKratz/SketchyBar),
+from one script that runs for as long as you are logged in.
+
+<Steps>
+
+1. Write the script. It reads the stream a line at a time and hands each fact to SketchyBar.
+   When Iguana is not running it waits, and tries again.
+
+   ```sh title="~/.config/sketchybar/plugins/iguana_stream.sh"
+   #!/bin/sh
+   while :; do
+     iguana subscribe desktop-changed focus-changed | while read -r line; do
+       event=$(printf '%s' "$line" | jq -r '.event')
+       if [ "$event" = desktop-changed ]; then
+         desktop=$(printf '%s' "$line" | jq -r '.desktop // "fullscreen"')
+         sketchybar --set iguana.desktop label="$desktop"
+       else
+         app=$(printf '%s' "$line" | jq -r '.app // ""')
+         sketchybar --set iguana.app label="$app"
+       fi
+     done
+     sleep 2
+   done
+   ```
+
+   ```sh
+   chmod +x ~/.config/sketchybar/plugins/iguana_stream.sh
+   ```
+
+2. In your `sketchybarrc`, add the two items and start the script. A reload runs this file
+   again, so it first stops the copy it started last time.
+
+   ```sh title="~/.config/sketchybar/sketchybarrc"
+   sketchybar --add item iguana.desktop left \
+              --add item iguana.app left
+
+   pkill -f iguana_stream.sh
+   "$CONFIG_DIR/plugins/iguana_stream.sh" &
+   ```
+
+3. Reload SketchyBar. Both items fill in at once, from the current state.
+
+   ```sh
+   sketchybar --reload
+   ```
+
+</Steps>
+
+With more than one display, a `desktop-changed` line is sent for each display that changed,
+and its `display` key says which one.
+
+A `focus-changed` line holds the window's title, which is text a web page can choose. Keep
+`"$line"` in double quotes, as above, and never give it to `eval`.
+
+### Subscribe or hooks?
+
+Use `iguana subscribe` when:
+
+- **You want no shell for each event.** A hook starts a shell every time its event happens.
+  The stream is one connection for the whole session, and your script decides what to run.
+- **You want to draw at once.** The stream starts with the current state, so there is no
+  need to ask Iguana separately when your script starts.
+- **Several scripts want the events.** Any number can subscribe at the same time, and nothing
+  goes in the config file.
+
+Use a hook when you would rather not keep a script running, for example to have SketchyBar
+trigger its own event with `sketchybar --trigger`, as in the
+[worked example above](#worked-example-the-desktop-in-sketchybar).
+
+Both follow the same rules: only a real change counts, and nothing happens before tiling
+starts.
+
 ## Related
 
 - [Commands: Reports](/reference/commands/#reports): every key of the JSON documents.
+- [Commands: `subscribe`](/reference/commands/#subscribe)
 - [Configuration: `[hooks]`](/reference/configuration/#hooks)
 - [Command line](/reference/command-line/)

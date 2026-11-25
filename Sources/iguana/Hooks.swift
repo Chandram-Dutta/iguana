@@ -3,9 +3,10 @@ import ApplicationServices
 import IguanaCore
 
 /// Runs the commands of `[hooks]` when something changes: the desktop being shown, the focused
-/// window, a window opening or closing, the arrangement of a desktop, or the pause.
+/// window, a window opening or closing, the arrangement of a desktop, or the pause — and tells
+/// the clients of `iguana subscribe`.
 ///
-/// `changed` is the one place hooks are fired from. It is called after every refresh of the
+/// `changed` is the one place events come from. It is called after every refresh of the
 /// window manager, by the same `onChange` that redraws the menu bar item, so it hears about a
 /// change however it came about: a shortcut, a gesture, Mission Control, a click. Whether
 /// anything really changed is decided by `HookTracker` in IguanaCore, and every event goes out
@@ -13,6 +14,9 @@ import IguanaCore
 final class Hooks {
     private var tracker = HookTracker()
     private let runner = HookRunner()
+    /// Set at the first look, once tiling has started. A subscriber that came before that is
+    /// sent the current state then.
+    private var started = false
 
     func changed(_ wm: WindowManager) {
         let facts = wm.facts()
@@ -42,7 +46,12 @@ final class Hooks {
             standard: Set(facts.windows.values.filter(\.tileable).map(\.id)), arrangements: arrangements)
         // The tracker is kept up to date even while no hook is set, so that one added later
         // starts from what is on screen and not from what was there when Iguana started.
-        for change in tracker.observe(look, describe: describe) {
+        let changes = tracker.observe(look, describe: describe)
+        if !started {
+            started = true
+            for subscriber in IPC.subscribers { greet(subscriber, wm) }
+        }
+        for change in changes {
             switch change {
             case .desktop(let uuid):
                 shown(.desktopChanged, on: uuid, wm)
@@ -55,29 +64,48 @@ final class Hooks {
             case .closed(let window):
                 emit(.windowClosed, wm) { HookEnvironment.variables(event: .windowClosed, window: window) }
             case .focus(let id):
-                // The title is only asked for when there is a command to hand it to.
+                // The title is only asked for when someone is there to hand it to.
                 emit(.focusChanged, wm) { focusVariables(id, wm) }
             }
         }
     }
 
-    /// Whether anything listens for this event. What only such a listener needs is not worked out otherwise.
+    /// Whether anything listens for this event. What only such a listener needs is not worked
+    /// out otherwise: a `[hooks]` command, or a subscriber that asked for it.
     private func wants(_ event: HookEvent, _ wm: WindowManager) -> Bool {
-        wm.config.hooks[event] != nil
+        wm.config.hooks[event] != nil || IPC.wants(event)
     }
 
     /// The one place an event goes out: it happened, and these are its variables. They are
-    /// only worked out when something listens.
+    /// only worked out when something listens. Its hook runs, if one is set, and the
+    /// subscribers that asked for it are told.
     private func emit(_ event: HookEvent, _ wm: WindowManager, _ variables: () -> [String: String]) {
         guard wants(event, wm) else { return }
         let variables = variables()
         if let command = wm.config.hooks[event] { runner.fire(event, command: command, variables: variables) }
+        IPC.broadcast(event, variables)
     }
 
     /// An event about what one display is showing.
     private func shown(_ event: HookEvent, on uuid: String, _ wm: WindowManager) {
         guard let display = wm.displays.first(where: { $0.uuid == uuid }) else { return }
         emit(event, wm) { HookEnvironment.variables(event: event, desktop: display.desktopNumber, display: display.name) }
+    }
+
+    /// A new subscriber is first told what is true now, as if it had just happened, so that a
+    /// status bar can draw at once: what each display shows and how it is laid out, whether
+    /// tiling is paused, then the focus. `send` itself sends nothing the client did not ask
+    /// for, and the two events about a window coming or going are never state to be greeted with.
+    func greet(_ subscriber: IPC.Subscriber, _ wm: WindowManager) {
+        guard started else { return }
+        for display in wm.displays {
+            subscriber.send(.desktopChanged, HookEnvironment.variables(event: .desktopChanged, desktop: display.desktopNumber, display: display.name))
+        }
+        for display in wm.displays where display.isDesktop {
+            subscriber.send(.layoutChanged, HookEnvironment.variables(event: .layoutChanged, desktop: display.desktopNumber, display: display.name))
+        }
+        subscriber.send(.pauseChanged, HookEnvironment.variables(event: .pauseChanged, paused: wm.paused))
+        subscriber.send(.focusChanged, focusVariables(wm.focusedWindow, wm))
     }
 
     private func focusVariables(_ id: CGWindowID?, _ wm: WindowManager) -> [String: String] {

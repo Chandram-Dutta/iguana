@@ -170,6 +170,7 @@ struct SettingSection<Content: View>: View {
         } footer: {
             if let footer {
                 Text(footer)
+                    .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }

@@ -16,7 +16,8 @@ extension Command {
             let last = i == parts.count - 1
             switch command {
             // A report has nowhere to go in the middle of a chain, and nothing runs after `quit`.
-            case .listWindows, .listSpaces, .tree, .status, .quit:
+            // `subscribe` is a stream of its own, with no reply a chain could give.
+            case .listWindows, .listSpaces, .tree, .status, .quit, .subscribe:
                 throw CommandError("'\(words[0])' cannot be part of a chain")
             // macOS finishes switching desktops after the command has returned, so the next
             // command would act on the desktop being left.

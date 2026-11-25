@@ -73,16 +73,30 @@ case "debug-tour":
     TourSnapshot.run(folder: arguments[1], only: arguments.count > 2 ? arguments[2] : nil)
 default:
     let line = arguments.joined(separator: " ")
+    let command: Command
     do {
-        _ = try Command.parseRequest(line)
+        command = try Command.parseRequest(line).command
     } catch {
         FileHandle.standardError.write(Data("iguana: \(error)\nRun `iguana help` for the list of commands.\n".utf8))
         exit(2)
     }
-    guard let reply = IPC.send(line) else {
+    func notRunning() -> Never {
         FileHandle.standardError.write(Data("iguana: the window manager is not running (open Iguana.app or run `iguana daemon`)\n".utf8))
         exit(1)
     }
+    if case .subscribe = command {
+        // Each line as it comes, until Iguana quits. An Iguana too old to know the command
+        // answers with one line that is an error and not JSON.
+        var failed = false
+        let connected = IPC.stream(line) { text in
+            if text.hasPrefix("error") { failed = true }
+            print(text)
+            fflush(stdout)
+        }
+        guard connected else { notRunning() }
+        exit(failed ? 1 : 0)
+    }
+    guard let reply = IPC.send(line) else { notRunning() }
     print(reply, terminator: reply.hasSuffix("\n") ? "" : "\n")
     exit(reply.hasPrefix("error") ? 1 : 0)
 }
