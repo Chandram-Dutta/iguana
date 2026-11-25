@@ -30,6 +30,12 @@ extension Config {
         !name.isEmpty && name.allSatisfy { ("a"..."z").contains($0) || ("0"..."9").contains($0) || $0 == "-" }
     }
 
+    /// Whether a set of live shortcuts still has a way out of the mode: a binding whose command
+    /// is `mode`, or a chain that holds one, can switch back to `[bindings]`.
+    public static func hasWayOut(_ bindings: [Binding]) -> Bool {
+        bindings.contains { !$0.command.modeNames.isEmpty }
+    }
+
     /// The shortcuts that are live in a mode, nil when there is no such mode. A mode that does
     /// not bind esc itself gets esc for `mode default`, so that there is always a way out.
     public func bindings(inMode name: String) -> [Binding]? {
@@ -75,7 +81,12 @@ extension Config {
                         warnings.append("binding '\(key)' in [mode.\(name)]: the command must be a string (or \"\" to leave the key unbound)")
                         continue
                     }
-                    list.append(Binding(combo: combo, command: try Command.parse(text), source: key, commandText: text))
+                    let command = try Command.parse(text)
+                    if case .subscribe = command {
+                        warnings.append("binding '\(key)' in [mode.\(name)]: subscribe only works from the command line")
+                        continue
+                    }
+                    list.append(Binding(combo: combo, command: command, source: key, commandText: text))
                 } catch {
                     warnings.append("binding '\(key)' in [mode.\(name)]: \(error)")
                 }

@@ -196,8 +196,8 @@ final class PlacementTests: XCTestCase {
         size = [1, 1]
         """)
         XCTAssertEqual(warnings, [
-            "rule 1: size and position are only for windows the rule floats; ignoring them",
-            "rule 2: position is only for windows the rule floats; ignoring it",
+            "rule 1: size and position are only for windows the rule floats, so they have no effect here",
+            "rule 2: position is only for windows the rule floats, so it has no effect here",
             "rule 3: size must be two numbers from 100 to 10000, such as [400, 600]; ignoring it",
         ])
         // They do nothing, but stay in the rule, so the settings window can write them back.

@@ -149,4 +149,34 @@ final class ModeTests: XCTestCase {
         status.mode = "resize"
         XCTAssertTrue(Report.encode(status).contains("\"mode\" : \"resize\""))
     }
+
+    /// `subscribe` keeps its connection open, so it cannot live in a shortcut: like any other
+    /// invalid binding value it is a warning, and the binding is not kept.
+    func testSubscribeIsNotABinding() throws {
+        let (c, warnings) = try Config.load("""
+        [bindings]
+        ctrl-option-9 = "subscribe"
+        option-f = "flip"
+        [mode.resize]
+        s = "subscribe focus-changed"
+        """)
+        XCTAssertEqual(warnings, [
+            "binding 'ctrl-option-9': subscribe only works from the command line",
+            "binding 's' in [mode.resize]: subscribe only works from the command line",
+        ])
+        XCTAssertEqual(c.bindings.first { $0.source == "option-f" }?.command, .flip, "a real binding still lands")
+        XCTAssertFalse(c.bindings.contains { $0.source == "ctrl-option-9" })
+        XCTAssertEqual(c.modes["resize"]?.map(\.source), [])
+    }
+
+    /// A way out of a mode is any binding that can switch to another, `mode` on its own or in a chain.
+    func testHasWayOut() throws {
+        func mode(_ entries: String) throws -> [Binding] {
+            try Config.load("[mode.x]\n\(entries)\n").config.bindings(inMode: "x") ?? []
+        }
+        XCTAssertTrue(Config.hasWayOut(try mode("h = \"mode default\"")))
+        XCTAssertTrue(Config.hasWayOut(try mode("h = \"flip; mode resize\"")))
+        XCTAssertTrue(Config.hasWayOut(try mode("h = \"flip\"")), "esc is added when the mode leaves it free")
+        XCTAssertFalse(Config.hasWayOut(try mode("esc = \"flip\"\nh = \"resize grow\"")))
+    }
 }

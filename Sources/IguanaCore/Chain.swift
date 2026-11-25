@@ -20,8 +20,9 @@ extension Command {
             case .listWindows, .listSpaces, .tree, .status, .quit, .subscribe:
                 throw CommandError("'\(words[0])' cannot be part of a chain")
             // macOS finishes switching desktops after the command has returned, so the next
-            // command would act on the desktop being left.
-            case .space where !last, .moveToSpace where !last:
+            // command would act on the desktop being left. `move-to-space --stay` switches
+            // nothing, so it may go anywhere.
+            case .space where !last, .moveToSpace(_, follow: true) where !last:
                 throw CommandError("'\(words[0])' must come last in a chain")
             default:
                 commands.append(command)

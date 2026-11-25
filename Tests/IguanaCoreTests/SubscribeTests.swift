@@ -30,26 +30,33 @@ final class SubscribeTests: XCTestCase {
         XCTAssertEqual(EventStream.key("IGUANA_PAUSED"), "paused")
         XCTAssertEqual(EventStream.key("IGUANA_EVENT"), "event")
         XCTAssertEqual(EventStream.line(["IGUANA_PAUSED": "true", "IGUANA_EVENT": "pause-changed", "IGUANA_SOME_COUNT": "0"]),
-                       #"{"event":"pause-changed","paused":true,"some-count":0}"#)
+                       #"{"event":"pause-changed","paused":true,"some-count":"0"}"#, "a variable the hooks gain later stays a string")
         XCTAssertEqual(EventStream.line([:]), "{}")
     }
 
-    func testTheTypeIsReadOffTheText() {
-        XCTAssertEqual(EventStream.value("2"), "2")
-        XCTAssertEqual(EventStream.value("0"), "0")
-        XCTAssertEqual(EventStream.value("4294967295"), "4294967295")
-        XCTAssertEqual(EventStream.value("true"), "true")
-        XCTAssertEqual(EventStream.value("false"), "false")
-        XCTAssertEqual(EventStream.value(""), "null")
+    func testOnlyTheKeysThatAreNumbersOrBooleansGetThoseTypes() {
+        // `desktop` and `window-id` may be numbers, `paused` a boolean.
+        XCTAssertEqual(EventStream.value("desktop", "2"), "2")
+        XCTAssertEqual(EventStream.value("window-id", "0"), "0")
+        XCTAssertEqual(EventStream.value("desktop", "4294967295"), "4294967295")
+        XCTAssertEqual(EventStream.value("paused", "true"), "true")
+        XCTAssertEqual(EventStream.value("paused", "false"), "false")
+        // An empty value is null for every key, typed or not.
+        XCTAssertEqual(EventStream.value("desktop", ""), "null")
+        XCTAssertEqual(EventStream.value("title", ""), "null")
+        // Every other key is always a string: a window titled 42, an app called true.
+        XCTAssertEqual(EventStream.value("title", "42"), #""42""#)
+        XCTAssertEqual(EventStream.value("app", "true"), #""true""#)
+        XCTAssertEqual(EventStream.value("display", "2"), #""2""#, "only the listed keys are typed")
         // Not numbers JSON can carry as they are, and not booleans.
-        XCTAssertEqual(EventStream.value("007"), #""007""#, "JSON has no leading zeros")
-        XCTAssertEqual(EventStream.value("12345678901234567890"), #""12345678901234567890""#, "more than a double holds exactly")
-        XCTAssertEqual(EventStream.value("-1"), #""-1""#)
-        XCTAssertEqual(EventStream.value("1.5"), #""1.5""#)
-        XCTAssertEqual(EventStream.value("2 "), #""2 ""#)
-        XCTAssertEqual(EventStream.value("١٢"), #""١٢""#, "only the digits 0 to 9")
-        XCTAssertEqual(EventStream.value("True"), #""True""#)
-        XCTAssertEqual(EventStream.value("null"), #""null""#)
+        XCTAssertEqual(EventStream.value("desktop", "007"), #""007""#, "JSON has no leading zeros")
+        XCTAssertEqual(EventStream.value("window-id", "12345678901234567890"), #""12345678901234567890""#, "more than a double holds exactly")
+        XCTAssertEqual(EventStream.value("desktop", "-1"), #""-1""#)
+        XCTAssertEqual(EventStream.value("desktop", "1.5"), #""1.5""#)
+        XCTAssertEqual(EventStream.value("desktop", "2 "), #""2 ""#)
+        XCTAssertEqual(EventStream.value("desktop", "١٢"), #""١٢""#, "only the digits 0 to 9")
+        XCTAssertEqual(EventStream.value("paused", "True"), #""True""#)
+        XCTAssertEqual(EventStream.value("paused", "null"), #""null""#)
     }
 
     func testAnyTitleStaysOneLineAndReadsBackAsItWas() throws {

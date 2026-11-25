@@ -37,10 +37,12 @@ final class DisplayTargetTests: XCTestCase {
         XCTAssertEqual(reply(.index(0), count: 2), "error: there is no display 0 (there are 2)")
     }
 
-    func testOneDisplayHasNowhereToGo() {
-        for target in [DisplayTarget.next, .prev, .index(1), .index(2)] {
+    func testOneDisplayCanStillBeNamedByNumber() {
+        for target in [DisplayTarget.next, .prev] {
             XCTAssertEqual(reply(target, count: 1), "ok: only one display", "\(target)")
         }
+        XCTAssertEqual(position(.index(1), active: 0, count: 1), 0, "display 1 is the one display")
+        XCTAssertEqual(reply(.index(2), count: 1), "error: there is no display 2 (there is 1)")
         XCTAssertEqual(reply(.next, active: nil, count: 0), "error: no display")
     }
 

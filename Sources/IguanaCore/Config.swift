@@ -470,7 +470,13 @@ public struct Config: Equatable {
                         warnings.append("binding '\(key)': the command must be a string (or \"\" to switch the shortcut off)")
                         continue
                     }
-                    merged[combo] = Binding(combo: combo, command: try Command.parse(text), source: key, commandText: text)
+                    let command = try Command.parse(text)
+                    // A stream cannot be a shortcut: it would never answer, and never end.
+                    if case .subscribe = command {
+                        warnings.append("binding '\(key)': subscribe only works from the command line")
+                        continue
+                    }
+                    merged[combo] = Binding(combo: combo, command: command, source: key, commandText: text)
                 } catch {
                     warnings.append("binding '\(key)': \(error)")
                 }
@@ -539,7 +545,7 @@ public struct Config: Equatable {
                 let given = [("size", rule.size != nil), ("position", rule.position != nil)].filter(\.1).map(\.0)
                 if !rule.floats, !given.isEmpty {
                     let one = given.count == 1
-                    warnings.append("rule \(i + 1): \(given.joined(separator: " and ")) \(one ? "is" : "are") only for windows the rule floats; ignoring \(one ? "it" : "them")")
+                    warnings.append("rule \(i + 1): \(given.joined(separator: " and ")) \(one ? "is" : "are") only for windows the rule floats, so \(one ? "it has" : "they have") no effect here")
                 }
                 c.rules.append(rule)
             }

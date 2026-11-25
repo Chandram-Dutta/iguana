@@ -56,6 +56,10 @@ final class ChainTests: XCTestCase {
         XCTAssertEqual(try Command.parse("float; move-to-space next --stay"), .sequence([.float, .moveToSpace(.next, follow: false)]))
         XCTAssertEqual(error("space 2; balance"), "'space' must come last in a chain")
         XCTAssertEqual(error("move-to-space 3; focus left"), "'move-to-space' must come last in a chain")
+        XCTAssertEqual(error("move-to-space 3 --follow; focus left"), "'move-to-space' must come last in a chain")
+        XCTAssertEqual(try Command.parse("move-to-space 3 --stay; balance"), .sequence([.moveToSpace(.index(3), follow: false), .balance]),
+                       "--stay goes nowhere, so it need not come last")
+        XCTAssertEqual(try Command.parse("move-to-space next --stay; move left"), .sequence([.moveToSpace(.next, follow: false), .move(.left)]))
         XCTAssertEqual(error("space next; space prev"), "'space' must come last in a chain")
         XCTAssertEqual(try Command.parse("space 2;"), .space(.index(2)), "alone, with a trailing ;")
     }

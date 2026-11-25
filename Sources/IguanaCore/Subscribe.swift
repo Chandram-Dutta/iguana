@@ -6,7 +6,7 @@ public enum EventStream {
     /// One event as one line of JSON, with the keys sorted. It says what the hook of the event
     /// is told: each variable becomes a key, so a variable the hooks gain reaches the stream too.
     public static func line(_ variables: [String: String]) -> String {
-        let pairs = variables.map { (key($0.key), value($0.value)) }.sorted { $0.0 < $1.0 }
+        let pairs = variables.map { v -> (String, String) in let k = key(v.key); return (k, value(k, v.value)) }.sorted { $0.0 < $1.0 }
         return "{" + pairs.map { quoted($0.0) + ":" + $0.1 }.joined(separator: ",") + "}"
     }
 
@@ -17,12 +17,19 @@ public enum EventStream {
     }
 
     /// A variable is only ever text, so its JSON type is read off it: a whole number is a
-    /// number, `true` and `false` are booleans, and an empty value is `null`.
-    public static func value(_ text: String) -> String {
+    /// number — but only the keys that are one get that type: `desktop` and `window-id` may be
+    /// numbers, `paused` may be a boolean, and an empty value is `null` for every key. Anything
+    /// else is always a string, so a window titled `42` or an app called `true` stays text.
+    public static func value(_ key: String, _ text: String) -> String {
         if text.isEmpty { return "null" }
-        if text == "true" || text == "false" || isNumber(text) { return text }
+        if numberKeys.contains(key), isNumber(text) { return text }
+        if booleanKeys.contains(key), text == "true" || text == "false" { return text }
         return quoted(text)
     }
+
+    /// The keys whose value is a JSON number when it is all digits, and the one that is a boolean.
+    private static let numberKeys: Set<String> = [key("IGUANA_DESKTOP"), key("IGUANA_WINDOW_ID")]
+    private static let booleanKeys: Set<String> = [key("IGUANA_PAUSED")]
 
     /// Digits that every JSON reader takes back as the same number: without a leading zero,
     /// which JSON does not allow, and few enough for a double to hold exactly.

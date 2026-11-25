@@ -23,13 +23,22 @@ public enum DisplayTarget: Equatable {
     /// around at the ends.
     public func resolve(active: Int?, count: Int) -> Result<Int, Refusal> {
         guard count > 0 else { return .failure(Refusal("error: no display")) }
-        guard count > 1 else { return .failure(Refusal("ok: only one display")) }
+        // A display can always be named by number, so `focus-display 1` works with one display.
+        guard count > 1 else {
+            if case .index(let n) = self {
+                guard n == 1 else { return .failure(Refusal("error: there is no display \(n) (there is 1)")) }
+                return .success(0)
+            }
+            return .failure(Refusal("ok: only one display"))
+        }
         let active = active.flatMap { (0..<count).contains($0) ? $0 : nil }
         switch self {
         case .next: return .success(active.map { ($0 + 1) % count } ?? 0)
         case .prev: return .success(active.map { ($0 + count - 1) % count } ?? count - 1)
         case .index(let n):
-            guard n >= 1, n <= count else { return .failure(Refusal("error: there is no display \(n) (there are \(count))")) }
+            guard n >= 1, n <= count else {
+                return .failure(Refusal("error: there is no display \(n) (there \(count == 1 ? "is 1" : "are \(count)"))"))
+            }
             return .success(n - 1)
         }
     }

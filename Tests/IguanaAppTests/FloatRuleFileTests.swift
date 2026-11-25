@@ -77,7 +77,7 @@ final class FloatRuleFileTests: XCTestCase {
         var edited = rows
         edited[0].float = false
         save(edited)
-        XCTAssertEqual(model.problems, ["rule 1: size and position are only for windows the rule floats; ignoring them"])
+        XCTAssertEqual(model.problems, ["rule 1: size and position are only for windows the rule floats, so they have no effect here"])
         XCTAssertTrue(fileText.contains("size = [400, 600]\nposition = \"center\"\n"), "a tiled rule keeps them in the file, where they do nothing")
 
         // The pane reads the rules again after every change, and the switch goes back on.
