@@ -30,7 +30,7 @@ final class ChainTests: XCTestCase {
     }
 
     func testAMistakeInOnePartIsTheErrorOfTheWhole() {
-        XCTAssertEqual(error("flip; focus north"), "'focus' needs one of: left, right, up, down")
+        XCTAssertEqual(error("flip; focus north"), "'focus' needs one of: left, right, up, down, recent")
         XCTAssertEqual(error("explode; flip"), "unknown command 'explode'")
     }
 

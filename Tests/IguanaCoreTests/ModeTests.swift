@@ -40,7 +40,7 @@ final class ModeTests: XCTestCase {
         XCTAssertEqual(h.command, .resize(axis: .horizontal, grow: -1))
         XCTAssertEqual(c.modes["resize"]?.first { $0.source == "shift-h" }?.combo.modifiers, [.shift])
         // [bindings] is merged over the built-in shortcuts as before, and keeps none of the mode's.
-        XCTAssertEqual(c.bindings.count, 42)
+        XCTAssertEqual(c.bindings.count, 50)
         XCTAssertEqual(c.bindings.first { $0.source == "option-r" }?.command, .mode("resize"))
         XCTAssertFalse(c.bindings.contains { $0.source == "h" })
         // An inline table is the same table.

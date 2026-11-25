@@ -378,7 +378,9 @@ extension Command {
         let name = words.first?.lowercased() ?? ""
         // `focus` alone is not a command; with a window named it means that window.
         let command: Command = try window != nil && words.count == 1 && name == "focus" ? .focusWindow : parse(words.joined(separator: " "))
-        if json, !command.hasJSONForm {
+        if case .sequence = command {
+            if json { throw CommandError("'--json' cannot be used in a chain") }
+        } else if json, !command.hasJSONForm {
             throw CommandError("'\(name)' has no --json form (list-windows, list-spaces, tree and status have one)")
         }
         if window != nil, !command.acceptsWindow {
