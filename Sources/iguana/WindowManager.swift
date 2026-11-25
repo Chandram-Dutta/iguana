@@ -85,19 +85,12 @@ final class WindowManager {
     private(set) var paused = false
     private var refreshPending = false
     private(set) var focusedWindow: CGWindowID? {
-        didSet {
-            if let id = focusedWindow {
-                if id != oldValue { focusHistory.record(id) }
-                if let w = windows[id] { appFocus[w.pid] = (id, ProcessInfo.processInfo.systemUptime) }
-            }
-        }
+        didSet { if let id = focusedWindow, id != oldValue { focusHistory.record(id) } }
     }
-    /// The windows that had the focus, for `focus recent`.
+    /// The windows that had the focus, for `focus recent` and `focus-app`.
     private var focusHistory = FocusHistory()
     /// The desktops each display showed, for `space recent`.
     private var desktopHistory = DesktopHistory()
-    /// Each app's window that had the focus last, and when, for `focus-app`.
-    private var appFocus: [pid_t: (window: CGWindowID, at: TimeInterval)] = [:]
     private var focusIntent: CGWindowID?
     /// `carried` is set once the window has been seen somewhere else at its own size: it is
     /// being moved, not resized, and stays a move whatever happens to its size afterwards.
@@ -199,7 +192,6 @@ final class WindowManager {
     private func untrack(_ pid: pid_t) {
         guard let state = apps.removeValue(forKey: pid) else { return }
         animator.forget(pid: pid)
-        appFocus[pid] = nil
         if let o = state.observer {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(o), .defaultMode)
         }
@@ -1038,15 +1030,23 @@ final class WindowManager {
     }
 
     private func focusApp(_ text: String) -> String {
+        // An app's window that had the focus last is the earliest in the focus history, and
+        // its recency there stands in for when it was last active.
+        func lastFocused(_ pid: pid_t) -> (window: CGWindowID, at: Double)? {
+            for (i, id) in focusHistory.windows.enumerated() where windows[id]?.pid == pid {
+                return (id, Double(FocusHistory.limit - i))
+            }
+            return nil
+        }
         let running = apps.keys.sorted().compactMap { pid -> FocusApp.App? in
             guard let a = apps[pid]?.app, !a.isTerminated else { return nil }
             let names = [a.localizedName, a.bundleURL?.deletingPathExtension().lastPathComponent].compactMap { $0 }
-            return FocusApp.App(pid: pid, bundleID: a.bundleIdentifier, names: names, lastActive: appFocus[pid]?.at ?? 0)
+            return FocusApp.App(pid: pid, bundleID: a.bundleIdentifier, names: names, lastActive: lastFocused(pid)?.at ?? 0)
         }
         guard let chosen = FocusApp.choose(text, among: running), let app = apps[chosen.pid]?.app else { return openApp(text) }
         let snap = ScreenSnapshot.take()
         let showing = snap.order.filter { windows[$0]?.pid == chosen.pid && isShowing($0, snap) }
-        switch FocusApp.pick(showing: showing, remembered: appFocus[chosen.pid]?.window, focused: focusedWindow) {
+        switch FocusApp.pick(showing: showing, remembered: lastFocused(chosen.pid)?.window, focused: focusedWindow) {
         case .window(let id):
             focus(window: id)
             scheduleRefresh()
