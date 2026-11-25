@@ -400,9 +400,10 @@ final class SettingsModel: ObservableObject {
                 var entry: [(String, TOMLValue)] = []
                 if let app = rule.app, !app.isEmpty { entry.append(("app", .string(app))) }
                 if let title = rule.title, !title.isEmpty { entry.append(("title", .string(title))) }
-                // A rule that only names a desktop says nothing about floating, and is written that way.
+                // A rule that only names a desktop or a display says nothing about floating, and is written that way.
                 if let float = rule.float { entry.append(("float", .bool(float))) }
                 if let desktop = rule.desktop { entry.append(("desktop", .int(desktop))) }
+                if let display = rule.display { entry.append(("display", display.toml)) }
                 if let size = rule.size {
                     entry.append(("size", .array([size.width, size.height].map { $0 == $0.rounded() ? .int(Int($0)) : .double(Double($0)) })))
                 }
@@ -411,6 +412,29 @@ final class SettingsModel: ObservableObject {
             })
             if rules.isEmpty { editor.set(["rule"], to: .array([])) }
         }
+    }
+}
+
+/// One entry in the menu of displays a rule can send its windows to.
+struct DisplayChoice: Hashable {
+    let display: DisplayRef
+    let title: String
+
+    /// The connected displays by number, left to right, and the one the rule names if it is not
+    /// one of them: a name, kept as it was written, or a number that is not there now.
+    static func menu(for current: DisplayRef?, names: [String], frames: [CGRect]) -> [DisplayChoice] {
+        let order = DisplayOrder.order(frames)
+        var choices = order.enumerated().map { n, i in DisplayChoice(display: .number(n + 1), title: "Display \(n + 1): \(names[i])") }
+        switch current {
+        case .name(let name)?:
+            let there = DisplayRef.name(name).resolve(names: names, frames: frames) != nil
+            choices.insert(DisplayChoice(display: .name(name), title: "“\(name)”" + (there ? "" : " (not there now)")), at: 0)
+        case .number(let n)? where n > order.count:
+            choices.append(DisplayChoice(display: .number(n), title: "Display \(n) (not there now)"))
+        default:
+            break
+        }
+        return choices
     }
 }
 

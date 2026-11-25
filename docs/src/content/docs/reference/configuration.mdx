@@ -669,13 +669,13 @@ A shortcut that cannot be used is a warning, and the others still work:
 ## `[[rule]]`
 
 What to do with the windows of an app: keep them floating, give the floating ones a size and
-a position, send them to a desktop when they first appear, or all of these. Each rule is its
-own `[[rule]]` section. Dialogs, sheets and fixed-size
+a position, send them to a desktop or a display when they first appear, or all of these.
+Each rule is its own `[[rule]]` section. Dialogs, sheets and fixed-size
 windows float on their own and need no rule.
 
 **The first rule that matches a window decides.** Rules are tried in the order they appear in
-the file, so order matters. That one rule answers for floating and for the desktop: the rules
-below it are not asked.
+the file, so order matters. That one rule answers for floating and for where the window goes:
+the rules below it are not asked.
 [Floating windows and rules](/guides/floating-windows/) explains matching in detail.
 
 ```toml title="iguana.toml"
@@ -721,11 +721,11 @@ Whether matching windows float.
 | | |
 | --- | --- |
 | Type | boolean |
-| Default | `true` in a rule without `desktop`. A rule with `desktop` and no `float` says nothing about floating. |
+| Default | `true` in a rule without `desktop` or `display`. A rule with one of them and no `float` says nothing about floating. |
 
-A rule that only has `desktop` does not float its windows. They are tiled, or float on
-their own if they are dialogs, as they would with no rule at all. Write `float = true` beside
-`desktop` to do both.
+A rule that only has `desktop` or `display` does not float its windows. They are tiled, or
+float on their own if they are dialogs, as they would with no rule at all. Write
+`float = true` beside `desktop` or `display` to do both.
 
 `float = false` makes the rule an exception: windows that match it are tiled, even if a
 rule further down would float them. Because the first matching rule decides, an exception
@@ -772,7 +772,7 @@ desktop = 2
 - **It happens once for each window,** when the window opens while Iguana is running. A
   window you move somewhere else afterwards stays where you put it.
 - **Windows that are already open are not moved,** neither when Iguana starts nor when the
-  config is reloaded.
+  config is reloaded. Run [`apply-rules`](/reference/commands/#apply-rules) to send them too.
 - **Only standard windows are sent:** the ones Iguana could tile. Dialogs, sheets and
   fixed-size windows stay with their app. A new tab stays with its window.
 - **A desktop that does not exist** leaves the window where it is and writes a line to the log.
@@ -845,6 +845,52 @@ For both `size` and `position`:
 
 A `size` that is not two numbers from 100 to 10000, or a `position` that is not one of the
 names above, is ignored with a warning. The rest of the rule still applies.
+
+### `display`
+
+The display a matching window is moved to when it first appears. The window goes onto the
+desktop that display is showing, and you stay where you are.
+
+| | |
+| --- | --- |
+| Type | string or whole number |
+| Default | none: the window stays on the display it opens on |
+| Allowed | part of a display's name, or a display number from 1 to 16 |
+
+In a name, case is ignored and part of the display's name is enough. A name that is a
+display's whole name means that display. Otherwise the first display from the left whose name
+contains it is used. `iguana list-spaces` shows the names of your displays.
+
+A number counts the displays from 1, left to right by their left edge. Where two displays
+share a left edge, the upper one comes first.
+
+```toml title="iguana.toml"
+# Slack's windows open on the Studio Display.
+[[rule]]
+app = "com.tinyspeck.slackmacgap"
+display = "Studio Display"
+
+# Music floats, on the second display from the left.
+[[rule]]
+app = "com.apple.Music"
+float = true
+display = 2
+```
+
+- **It happens once for each window,** when the window opens while Iguana is running, as with
+  `desktop`. Windows that are already open stay where they are until you run
+  [`apply-rules`](/reference/commands/#apply-rules).
+- **A tiled window joins the layout** of that display's desktop, beside the window focused
+  there. A floating window keeps its size, made smaller if the display is too small, and is
+  centred on the display.
+- **A display that is not connected,** or a number higher than the number of displays, leaves
+  the window where it is. The log says so once for each rule.
+- **With `desktop` as well, the desktop decides,** because a desktop belongs to one display.
+  The `display` is left out with a warning.
+
+A `display` that is not a string or a whole number from 1 to 16, or is an empty string, is
+left out with a warning. The rest of the rule still applies, and it still does not float its
+windows unless it says `float = true`.
 
 ### Built-in rules
 
@@ -979,8 +1025,10 @@ option-shift-period = "move-to-display next"
 # Rules for the windows of an app. `app` is a bundle id or part of the app name, `title` is a
 # regular expression. `float = true` keeps matching windows floating; dialogs, sheets and
 # fixed-size windows float on their own. `desktop = 3` sends a matching window to desktop 3
-# when it first appears, and leaves you where you are. In a rule that floats its windows,
-# `size = [400, 600]` and `position = "center"` (any `place` position) set where a new one opens.
+# when it first appears, and leaves you where you are. `display = "Studio"` (part of the
+# display's name) or `display = 2` (counted from the left) sends it to that display instead.
+# In a rule that floats its windows, `size = [400, 600]` and `position = "center"`
+# (any `place` position) set where a new one opens.
 # Once the file has any [[rule]], the built-in rules below no longer apply by themselves.
 # The first rule that matches a window decides, so an exception (float = false) goes above
 # the general rule it is an exception to.

@@ -719,10 +719,12 @@ struct FloatingPane: View {
         var app: String
         var title: String
         /// False for an exception: windows that match are tiled even if a later rule would float them.
-        /// Nil for a rule that only names a desktop and says nothing about floating.
+        /// Nil for a rule that only names a desktop or a display and says nothing about floating.
         var float: Bool? = true
         /// The desktop the rule sends new windows to.
         var desktop: Int?
+        /// The display the rule sends new windows to, when it names no desktop.
+        var display: DisplayRef?
         /// The size and the position the rule gives the windows it floats. The pane has no
         /// controls for them, and keeps them as the file has them.
         var size: CGSize?
@@ -734,7 +736,8 @@ struct FloatingPane: View {
     var body: some View {
         // Asked once for the pane, not once for every row.
         let desktopCount = Desktop.all().count
-        PaneScaffold(title: "Window Rules", subtitle: "Apps whose windows float instead of being tiled, or open on a desktop of their own.") {
+        let screens = DisplayInfo.current()
+        PaneScaffold(title: "Window Rules", subtitle: "Apps whose windows float instead of being tiled, or open on a desktop or a display of their own.") {
             if !Private.hasMoveBridge, rows.contains(where: { $0.desktop != nil }) {
                 SettingSection {
                     Callout(.attention, "This version of macOS can only take a window to another desktop by going there with it, so the desktops chosen here are not used.")
@@ -747,14 +750,14 @@ struct FloatingPane: View {
                         .foregroundStyle(.secondary)
                 }
                 ForEach($rows) { $row in
-                    RuleRowView(row: $row, desktopCount: desktopCount, commit: commit) {
+                    RuleRowView(row: $row, desktopCount: desktopCount, displayNames: screens.map(\.name), displayFrames: screens.map(\.frame), commit: commit) {
                         rows.removeAll { $0.id == row.id }
                         commit()
                     }
                 }
             }
 
-            SettingSection(footer: "Dialogs, sheets and windows that cannot be resized always float; they need no rule. To float one window for now, focus it and press the Float or tile shortcut. A window goes to the desktop chosen for it once, when it opens, and you stay where you are.") {
+            SettingSection(footer: "Dialogs, sheets and windows that cannot be resized always float; they need no rule. To float one window for now, focus it and press the Float or tile shortcut. A window goes to the desktop or display chosen for it once, when it opens, and you stay where you are.") {
             HStack(spacing: 10) {
                 Menu {
                     ForEach(runningApps, id: \.processIdentifier) { app in
@@ -806,7 +809,7 @@ struct FloatingPane: View {
 extension FloatingPane.RuleRow {
     init(_ rule: Rule) {
         self.init(app: rule.app ?? "", title: rule.title ?? "", float: rule.float, desktop: rule.desktop,
-                  size: rule.size, position: rule.position)
+                  display: rule.display, size: rule.size, position: rule.position)
     }
 
     /// The rule the row stands for. Nil while it has neither an app nor a title.
@@ -814,7 +817,7 @@ extension FloatingPane.RuleRow {
         let app = app.trimmingCharacters(in: .whitespaces), title = title.trimmingCharacters(in: .whitespaces)
         guard !app.isEmpty || !title.isEmpty else { return nil }
         return Rule(app: app.isEmpty ? nil : app, title: title.isEmpty ? nil : title, float: float, desktop: desktop,
-                    size: size, position: position)
+                    display: display, size: size, position: position)
     }
 }
 
@@ -828,22 +831,35 @@ private struct RuleRowView: View {
     @SwiftUI.Binding var row: FloatingPane.RuleRow
     /// How many desktops there are now, 0 when that is not known.
     let desktopCount: Int
+    /// The connected displays, in the same order in both.
+    let displayNames: [String]
+    let displayFrames: [CGRect]
     let commit: () -> Void
     let remove: () -> Void
 
     private var floats: SwiftUI.Binding<Bool> {
         SwiftUI.Binding(get: { row.float ?? false }, set: { on in
-            // Switched off, a rule that names a desktop says nothing about floating. One that
-            // names none has to say `float = false`, or it would mean a floating rule again.
-            row.float = on ? true : (row.desktop == nil ? false : nil)
+            // Switched off, a rule that names a desktop or a display says nothing about floating.
+            // One that names neither has to say `float = false`, or it would mean a floating rule again.
+            row.float = on ? true : (row.desktop == nil && row.display == nil ? false : nil)
             commit()
         })
     }
 
     private var desktop: SwiftUI.Binding<Int?> {
         SwiftUI.Binding(get: { row.desktop }, set: { n in
-            if n == nil, row.float == nil { row.float = false }
+            if n == nil, row.float == nil, row.display == nil { row.float = false }
+            // A desktop belongs to one display, so it decides where the windows go.
+            if n != nil { row.display = nil }
             row.desktop = n
+            commit()
+        })
+    }
+
+    private var display: SwiftUI.Binding<DisplayRef?> {
+        SwiftUI.Binding(get: { row.display }, set: { d in
+            if d == nil, row.float == nil, row.desktop == nil { row.float = false }
+            row.display = d
             commit()
         })
     }
@@ -925,6 +941,20 @@ private struct RuleRowView: View {
             .controlSize(.small)
             .fixedSize()
             .help("Send these windows to a desktop when they open. You stay where you are.")
+            Picker("Display for \(app.name)", selection: display) {
+                Text("Any Display").tag(DisplayRef?.none)
+                Divider()
+                ForEach(DisplayChoice.menu(for: row.display, names: displayNames, frames: displayFrames), id: \.self) { choice in
+                    Text(choice.title).tag(DisplayRef?.some(choice.display))
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .controlSize(.small)
+            .fixedSize()
+            .disabled(row.desktop != nil)
+            .help(row.desktop == nil ? "Send these windows to a display when they open, onto the desktop it is showing. You stay where you are."
+                : "The desktop chosen here decides, because a desktop belongs to one display.")
             Button(role: .destructive, action: remove) {
                 Image(systemName: "minus.circle.fill")
             }

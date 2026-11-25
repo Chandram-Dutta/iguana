@@ -1,13 +1,14 @@
 ---
 title: Desktops and displays
-description: How Iguana tiles each macOS desktop, how to switch between desktops, move windows across desktops and displays, and open an app's windows on a desktop of its own.
+description: How Iguana tiles each macOS desktop, how to switch between desktops, move windows across desktops and displays, and open an app's windows on a desktop or a display of its own.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
 After this page you will be able to switch desktops, send windows between desktops and
 displays, move the focus from one display to another, have an app's windows open on a desktop
-you choose, give one display settings of its own, and know how desktops and displays are numbered.
+or a display you choose, give one display settings of its own, and know how desktops and
+displays are numbered.
 
 ## Each desktop has its own layout
 
@@ -139,7 +140,8 @@ is shown.
 - **Once for each window.** A window is sent when it opens. Move it to another desktop
   afterwards and it stays there.
 - **Nothing moves at launch.** Windows that are already open when Iguana starts, or when the
-  config is reloaded, stay where they are. The rule acts on windows that open after that.
+  config is reloaded, stay where they are. The rule acts on windows that open after that. To
+  send the open windows too, run [`iguana apply-rules`](/reference/commands/#apply-rules).
 - **Only standard windows.** Dialogs, sheets and fixed-size windows are not sent anywhere. A
   new tab stays with the window it is a tab of.
 - **While tiling is paused, nothing is sent,** and a window that opened during the pause is
@@ -157,8 +159,44 @@ it, the fallback always follows the window, so Iguana does not use it for rules:
 stays where it opened, and the log says once that rules with a desktop are not applied.
 </Aside>
 
-A rule cannot send a window to a particular display. A desktop belongs to a display, so
-naming a desktop on another display does move the window there.
+## Open an app's windows on a display
+
+A rule with a `display` moves the windows it matches to that display as they open. They go
+onto the desktop the display is showing, and you stay where you are.
+
+```toml title="iguana.toml"
+[[rule]]
+app = "com.tinyspeck.slackmacgap"
+display = "Studio Display"
+```
+
+The bundle identifier and the display name here are examples. A display is named in one of
+two ways:
+
+- **By name.** Part of the display's name, as `iguana list-spaces` shows it. Case is ignored.
+  If more than one display matches, the first one from the left is used.
+- **By number.** `display = 2` is the second display from the left. Displays are numbered by
+  their left edge; where two share a left edge, the upper one comes first.
+
+A name keeps working when you rearrange your displays. A number follows the arrangement.
+
+A tiled window joins the layout of the display's desktop beside the window focused there, as
+a new window does. A floating window keeps its size, made smaller if the display is too
+small, and is centred on it. In the **Window Rules** pane of the
+[settings window](/guides/settings-window/#window-rules), the display menu of each rule lists
+the displays that are connected, by number and name.
+
+The rule behaves like a rule with a `desktop` in every other way: once for each window, only
+for standard windows, nothing at launch, nothing while tiling is paused. Run
+[`iguana apply-rules`](/reference/commands/#apply-rules) to move the windows that are already
+open.
+
+- **A display that is not connected** leaves the window where it is. The log says so once for
+  each rule, with a line such as
+  `rule 2: window 1187 of Slack was not sent to display "Studio Display": no such display is connected (said once for this rule)`.
+- **A rule with both a `desktop` and a `display`** uses the desktop, because a desktop belongs
+  to one display. A desktop on another display moves the window to that display too. The
+  config gets a warning, and the `display` is left out.
 
 ## More than one display
 
@@ -265,6 +303,7 @@ it does not tile a display while that display is showing a fullscreen Space. See
 
 ## Related
 
-- [Commands](/reference/commands/#space): exact syntax and replies for `space` and `move-to-space`.
+- [Commands](/reference/commands/#space): exact syntax and replies for `space`, `move-to-space`
+  and [`apply-rules`](/reference/commands/#apply-rules).
 - [Commands](/reference/commands/#displays): exact syntax and replies for `focus-display` and `move-to-display`.
 - [Customising shortcuts](/guides/shortcuts/): bind `--stay`, `next`, `prev` and `recent`.

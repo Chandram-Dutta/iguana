@@ -49,6 +49,8 @@ public enum Command: Equatable {
     case moveToDisplay(DisplayTarget)
     case pause
     case reload
+    /// Do what the rules say with the windows that are open now, not only with new ones.
+    case applyRules
     case listWindows
     case listSpaces
     case tree
@@ -84,6 +86,7 @@ public enum Command: Equatable {
     move-to-display next|prev|N     take the focused window to another display
     pause                           toggle tiling on or off
     reload                          reload the config file
+    apply-rules                     do what the rules say with the windows already open
     list-windows | list-spaces | tree | status    reports; add --json for a JSON document
     settings                        open the settings window
     tour                            show the welcome tour again
@@ -176,6 +179,7 @@ public enum Command: Equatable {
         case "move-to-display": return .moveToDisplay(try DisplayTarget.parse(args, command: name))
         case "pause": return try noArgs(.pause)
         case "reload": return try noArgs(.reload)
+        case "apply-rules": return try noArgs(.applyRules)
         case "list-windows": return try noArgs(.listWindows)
         case "list-spaces": return try noArgs(.listSpaces)
         case "tree": return try noArgs(.tree)

@@ -130,14 +130,14 @@ extension Config {
                 { "type": "string", "pattern": "^move-to-space( (--stay|--follow))? ([1-9]|1[0-6]|next|prev|previous|recent)( (--stay|--follow))?$" },
                 { "type": "string", "pattern": "^(focus-display|move-to-display) ([1-9]|1[0-6]|next|prev|previous)$" },
                 { "type": "string", "pattern": "^place (center|left|right|top|bottom|top-left|top-right|bottom-left|bottom-right|full)$" },
-                { "enum": ["flip", "stack", "balance", "float", "zoom", "close", "undo", "redo", "pause", "reload", "settings", "tour", "update", "list-windows", "list-spaces", "tree", "status", "quit"] }
+                { "enum": ["flip", "stack", "balance", "float", "zoom", "close", "undo", "redo", "pause", "reload", "apply-rules", "settings", "tour", "update", "list-windows", "list-spaces", "tree", "status", "quit"] }
               ]
             }
           }
         },
         "rule": {
           "type": "array",
-          "description": "Windows that should stay floating, and where they open, or be sent to a desktop when they first appear. Written as [[rule]] sections. The first rule that matches a window decides.",
+          "description": "Windows that should stay floating, and where they open, or be sent to a desktop or a display when they first appear. Written as [[rule]] sections. The first rule that matches a window decides.",
           "items": {
             "type": "object",
             "additionalProperties": false,
@@ -145,8 +145,12 @@ extension Config {
             "properties": {
               "app": { "type": "string", "description": "A bundle identifier (exact match) or part of the app's name." },
               "title": { "type": "string", "description": "A regular expression matched against the window title, ignoring case." },
-              "float": { "type": "boolean", "description": "Whether matching windows float. A rule with neither float nor desktop floats them; a rule with only desktop leaves floating alone." },
+              "float": { "type": "boolean", "description": "Whether matching windows float. A rule with none of float, desktop and display floats them; a rule with only desktop or display leaves floating alone." },
               "desktop": { "type": "integer", "minimum": 1, "maximum": 16, "description": "Send a matching window to this desktop when it first appears, and stay on the desktop being used. Desktops are numbered as Mission Control numbers them." },
+              "display": {
+                "description": "Send a matching window to this display when it first appears, onto the desktop the display is showing, and stay where you are. Part of the display's name, ignoring case, or the display's number: displays are numbered from 1, left to right. A rule that has desktop does not use display.",
+                "oneOf": [{ "type": "string", "minLength": 1 }, { "type": "integer", "minimum": 1, "maximum": 16 }]
+              },
               "size": { "type": "array", "items": { "type": "number", "minimum": 100, "maximum": 10000 }, "minItems": 2, "maxItems": 2, "description": "Width and height in points, for example [400, 600], that a window the rule floats is given when it first appears. Alone, it keeps the window's top-left corner." },
               "position": { "enum": ["center", "left", "right", "top", "bottom", "top-left", "top-right", "bottom-left", "bottom-right", "full"], "description": "Where a window the rule floats is put when it first appears, as the place command puts it. Halves, quarters and full have a size of their own, so they ignore size." }
             }

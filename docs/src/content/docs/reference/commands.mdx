@@ -65,6 +65,7 @@ error: Iguana needs Accessibility permission (System Settings > Privacy & Securi
 | [`move-to-display`](#move-to-display) | Take the focused window to another display. |
 | [`pause`](#pause) | Toggle tiling on or off. |
 | [`reload`](#reload) | Reload the config file. |
+| [`apply-rules`](#apply-rules) | Do what the rules say with the windows that are already open. |
 | [`settings`](#settings) | Open the settings window. |
 | [`tour`](#tour) | Show the welcome tour again. |
 | [`update`](#update) | Ask now whether a newer Iguana has been released. |
@@ -659,6 +660,36 @@ Reads the config file again. The file is also reloaded by itself when it is save
 | `ok: loaded PATH with warnings:` | Followed by one line for each warning. |
 | `error: PATH: …` | The file has a syntax error. The message includes the line. The previous settings are kept. |
 | `ok: no config file at PATH, using the built-in defaults` | |
+
+### `apply-rules`
+
+```text
+apply-rules
+```
+
+Does what your [rules](/reference/configuration/#rule) say with the windows that are already
+open. Otherwise a rule only sends a window where it belongs as the window opens. You stay on
+the desktop you are on.
+
+- **Floating** is decided again for every window, as when the config is reloaded. A window you
+  floated or tiled by hand with [`float`](#float) keeps your choice.
+- **A rule with a `desktop`** sends each standard window it matches to that desktop, the same
+  way as a new window. This needs the system's window-management bridge: see
+  [Limitations](/help/limitations/#sending-a-window-to-another-desktop-depends-on-the-macos-version).
+- **A rule with a `display`** moves each standard window it matches to that display, onto the
+  desktop the display is showing. Only windows on the desktops being shown are moved.
+
+Dialogs, sheets, minimised windows and windows in native fullscreen are left where they are.
+A window that cannot be moved stays where it is, and the log says why.
+
+Iguana never runs `apply-rules` by itself. Run it after you add a rule, or bind it to a
+shortcut.
+
+| Reply | When |
+| --- | --- |
+| `ok: N window(s) moved` | N windows went to the desktop or the display their rule names. |
+| `ok: nothing to move` | Every window is where its rule says, or no rule names a desktop or a display. |
+| `error: tiling is paused` | While tiling is paused no window is moved. |
 
 ### `settings`
 
