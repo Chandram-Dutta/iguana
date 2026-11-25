@@ -85,6 +85,11 @@ struct DisplayInfo {
         }
     }
 
+    /// The displays in the order they are numbered, each with its number (`DisplayOrder`).
+    static func numbered(_ displays: [DisplayInfo]) -> [(number: Int, display: DisplayInfo)] {
+        DisplayOrder.order(displays.map(\.frame)).enumerated().map { ($0.offset + 1, displays[$0.element]) }
+    }
+
     /// The area windows are tiled into.
     func usableFrame(_ config: Config) -> CGRect {
         var r = visibleFrame

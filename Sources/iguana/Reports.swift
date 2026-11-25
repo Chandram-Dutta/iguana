@@ -7,8 +7,8 @@ extension DisplayInfo {
     /// numbers them. Nil on a fullscreen Space.
     var desktopNumber: Int? { spaceIndex.map { desktopOffset + $0 } }
 
-    var report: Report.Display {
-        Report.Display(name: name, desktop: desktopNumber, desktopCount: spaceCount, main: isMain)
+    func report(number: Int) -> Report.Display {
+        Report.Display(name: name, number: number, desktop: desktopNumber, desktopCount: spaceCount, main: isMain)
     }
 }
 
@@ -32,7 +32,7 @@ extension WindowManager {
                 configWarnings: configWarnings,
                 windows: Report.WindowCounts(tiled: facts.tiled.count, known: facts.windows.count, apps: facts.apps.count),
                 stageManager: Report.StageManager(on: StageManager.isOn, reserved: Double(strip)),
-                displays: displays.map(\.report), shortcuts: shortcuts, tourShowing: tourShowing, lastShortcut: lastShortcut,
+                displays: displayReports, shortcuts: shortcuts, tourShowing: tourShowing, lastShortcut: lastShortcut,
                 update: update))
         }
         guard AXIsProcessTrusted() else {
@@ -45,6 +45,9 @@ extension WindowManager {
         default: return "error: this command has no --json form"
         }
     }
+
+    /// Every display, in the order they are numbered.
+    private var displayReports: [Report.Display] { DisplayInfo.numbered(displays).map { $0.display.report(number: $0.number) } }
 
     private func windowsReport(_ facts: Facts) -> Report.Windows {
         let onScreen = ScreenSnapshot.take().onScreen
@@ -71,7 +74,7 @@ extension WindowManager {
             return Report.Desktop(number: desktop.number, display: owner(of: desktop)?.name, showing: showing,
                                   active: showing && facts.activeDisplay?.spaceID == desktop.id, windows: windowsOn[desktop.id] ?? [])
         }
-        return Report.Spaces(desktops: desktops, displays: displays.map(\.report))
+        return Report.Spaces(desktops: desktops, displays: displayReports)
     }
 
     private func treesReport(_ facts: Facts) -> Report.Trees {

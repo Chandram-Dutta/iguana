@@ -93,10 +93,23 @@ send the window away and stay where you are.
 | <kbd>option</kbd>+<kbd>shift</kbd>+<kbd>[</kbd> | `option-shift-leftbracket` | `move-to-space prev` |
 | <kbd>option</kbd>+<kbd>shift</kbd>+<kbd>]</kbd> | `option-shift-rightbracket` | `move-to-space next` |
 
+## Displays
+
+Displays are numbered from 1, left to right. These go to the next or previous display in that
+order, and wrap around at the ends. With <kbd>shift</kbd>, the focused window goes too.
+
+| Keys | Written as | Command |
+| --- | --- | --- |
+| <kbd>option</kbd>+<kbd>,</kbd> | `option-comma` | `focus-display prev` |
+| <kbd>option</kbd>+<kbd>.</kbd> | `option-period` | `focus-display next` |
+| <kbd>option</kbd>+<kbd>shift</kbd>+<kbd>,</kbd> | `option-shift-comma` | `move-to-display prev` |
+| <kbd>option</kbd>+<kbd>shift</kbd>+<kbd>.</kbd> | `option-shift-period` | `move-to-display next` |
+
 ## Commands with no default shortcut
 
-These commands exist but are not bound to keys: `close`, `pause`, `reload`, `quit`, and
-`resize` with `width` or `height`. [Customising shortcuts](/guides/shortcuts/) shows how to bind them.
+These commands exist but are not bound to keys: `close`, `pause`, `reload`, `quit`,
+`resize` with `width` or `height`, and `focus-display` and `move-to-display` with a display
+number. [Customising shortcuts](/guides/shortcuts/) shows how to bind them.
 
 ## With the mouse
 

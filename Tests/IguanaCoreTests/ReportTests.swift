@@ -21,8 +21,8 @@ final class ReportTests: XCTestCase {
             Report.Desktop(number: 3, display: "Studio Display", showing: true, active: false, windows: []),
         ],
         displays: [
-            Report.Display(name: builtIn, desktop: 1, desktopCount: 2, main: true),
-            Report.Display(name: "Studio Display", desktop: 3, desktopCount: 1, main: false),
+            Report.Display(name: builtIn, number: 1, desktop: 1, desktopCount: 2, main: true),
+            Report.Display(name: "Studio Display", number: 2, desktop: 3, desktopCount: 1, main: false),
         ])
 
     static var trees: Report.Trees {
@@ -42,7 +42,7 @@ final class ReportTests: XCTestCase {
         version: "0.1.2", permission: true, paused: false, configPath: "/Users/you/.config/iguana/iguana.toml", configExists: true,
         configWarnings: [], windows: Report.WindowCounts(tiled: 3, known: 7, apps: 5),
         stageManager: Report.StageManager(on: false, reserved: 0),
-        displays: [Report.Display(name: builtIn, desktop: 1, desktopCount: 3, main: true)],
+        displays: [Report.Display(name: builtIn, number: 1, desktop: 1, desktopCount: 3, main: true)],
         shortcuts: Report.Shortcuts(active: 40, warnings: []), tourShowing: false,
         lastShortcut: Report.LastShortcut(keys: "option-l", secondsAgo: 4, reply: "ok"))
 
@@ -120,13 +120,15 @@ final class ReportTests: XCTestCase {
               "desktop" : 1,
               "desktopCount" : 2,
               "main" : true,
-              "name" : "Built-in Retina Display"
+              "name" : "Built-in Retina Display",
+              "number" : 1
             },
             {
               "desktop" : 3,
               "desktopCount" : 1,
               "main" : false,
-              "name" : "Studio Display"
+              "name" : "Studio Display",
+              "number" : 2
             }
           ]
         }
@@ -209,7 +211,8 @@ final class ReportTests: XCTestCase {
               "desktop" : 1,
               "desktopCount" : 3,
               "main" : true,
-              "name" : "Built-in Retina Display"
+              "name" : "Built-in Retina Display",
+              "number" : 1
             }
           ],
           "lastShortcut" : {
@@ -255,7 +258,7 @@ final class ReportTests: XCTestCase {
         // A display on a fullscreen Space, a desktop with no display of its own, an empty desktop.
         let spaces = try object(Report.encode(Report.Spaces(
             desktops: [Report.Desktop(number: 1, display: nil, showing: false, active: false, windows: [])],
-            displays: [Report.Display(name: "Studio Display", desktop: nil, desktopCount: 1, main: true)])))
+            displays: [Report.Display(name: "Studio Display", number: 1, desktop: nil, desktopCount: 1, main: true)])))
         XCTAssertTrue((spaces["desktops"] as? [[String: Any]])?.first?["display"] is NSNull)
         XCTAssertTrue((spaces["displays"] as? [[String: Any]])?.first?["desktop"] is NSNull)
 

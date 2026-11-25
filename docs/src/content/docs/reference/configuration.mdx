@@ -173,6 +173,8 @@ in front keeps at least half of the stack.
 ### `mouse-follows-focus`
 
 When `true`, Iguana moves the pointer to the centre of a window when a shortcut focuses it.
+[`focus-display`](/reference/commands/#focus-display) on a display with no window moves it to
+the centre of that display.
 
 | | |
 | --- | --- |
@@ -552,7 +554,7 @@ option-f = ""                # switches the built-in shortcut off
 | --- | --- |
 | Key | Modifiers and a key joined by dashes, such as `option-shift-h`. See [Key names](/reference/key-names/). |
 | Value | A [command](/reference/commands/) as a string, or `""` or `false` to switch the shortcut off. |
-| Default | The 41 [default shortcuts](/reference/default-shortcuts/). |
+| Default | The 45 [default shortcuts](/reference/default-shortcuts/). |
 
 Entries are merged over the built-in shortcuts one by one, so you only write the ones you want
 to change. [Customising shortcuts](/guides/shortcuts/) has worked examples.
@@ -797,6 +799,11 @@ option-shift-8 = "move-to-space 8"
 option-shift-9 = "move-to-space 9"
 option-shift-leftbracket = "move-to-space prev"
 option-shift-rightbracket = "move-to-space next"
+# Displays are numbered from 1, left to right. "focus-display 2" goes to display 2.
+option-comma = "focus-display prev"
+option-period = "focus-display next"
+option-shift-comma = "move-to-display prev"
+option-shift-period = "move-to-display next"
 
 # Rules for the windows of an app. `app` is a bundle id or part of the app name, `title` is a
 # regular expression. `float = true` keeps matching windows floating; dialogs, sheets and

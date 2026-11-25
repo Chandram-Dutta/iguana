@@ -744,6 +744,8 @@ final class WindowManager {
             return "ok"
         case .space(let target): return switchSpace(target)
         case .moveToSpace(let target, let follow): return moveToSpace(target, follow: follow)
+        case .focusDisplay(let target): return focusDisplay(target)
+        case .moveToDisplay(let target): return moveToDisplay(target)
         case .pause:
             setPaused(!paused)
             return paused ? "ok: paused" : "ok: tiling"
@@ -838,19 +840,93 @@ final class WindowManager {
         guard let here = displayIndex(for: frame), let there = neighbourDisplay(of: here, dir) else {
             return "ok: already at the edge"
         }
-        let area = displays[there].usableFrame(config)
+        carry(id, w, frame, from: tree, to: there)
+        return "ok"
+    }
+
+    /// Take a tiled window out of its layout and put it on another display. A layout is made of
+    /// the windows on its display, so the next refresh adds it to the layout of the desktop shown
+    /// there, as it adds a window that has just opened: beside the window last focused there.
+    private func carry(_ id: CGWindowID, _ w: WindowState, _ frame: CGRect, from tree: Tree, to display: Int) {
+        let area = displays[display].usableFrame(config)
         w.element.setSize(CGSize(width: min(frame.width, area.width), height: min(frame.height, area.height)))
         w.element.setPosition(area.origin)
         w.lastSetFrame = nil
         tree.remove(id)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in self?.refresh() }
-        return "ok"
     }
 
     private func neighbourDisplay(of index: Int, _ dir: Direction) -> Int? {
         var frames: [WindowID: CGRect] = [:]
         for (i, d) in displays.enumerated() { frames[WindowID(i)] = d.frame }
         return nearestWindow(from: displays[index].frame, direction: dir, among: frames, excluding: WindowID(index)).map(Int.init)
+    }
+
+    // MARK: Displays by number
+
+    /// Where `next` and `prev` count from: the display holding the focused window, floating or
+    /// tiled, so that a display with only floating windows on it cannot hold on to the focus.
+    private var displayWithFocus: Int? {
+        if let id = focusedWindow, let w = windows[id], let f = lastFrames[id] ?? w.element.frame, let i = displayIndex(for: f) { return i }
+        return activeDisplay.flatMap { a in displays.firstIndex { $0.uuid == a.uuid } }
+    }
+
+    /// The display a command names, as an index into `displays`, and its number.
+    private func display(_ target: DisplayTarget, from here: Int?) -> Result<(index: Int, number: Int), DisplayTarget.Refusal> {
+        let order = DisplayOrder.order(displays.map(\.frame))
+        return target.resolve(active: here.flatMap { order.firstIndex(of: $0) }, count: order.count).map { (order[$0], $0 + 1) }
+    }
+
+    private func focusDisplay(_ target: DisplayTarget) -> String {
+        let there: Int
+        switch display(target, from: displayWithFocus) {
+        case .failure(let refusal): return refusal.reply
+        case .success(let found): there = found.index
+        }
+        let d = displays[there]
+        let snap = ScreenSnapshot.take()
+        let tree = trees[d.treeKey]
+        var tiles: [CGWindowID: CGRect] = [:]
+        for id in tree?.windows ?? [] where snap.onScreen[id] != nil { tiles[id] = lastFrames[id] }
+        let others = snap.order.filter { id in
+            guard tiles[id] == nil, windows[id] != nil, isShowing(id, snap), let f = snap.onScreen[id] else { return false }
+            return displayIndex(for: f) == there
+        }
+        let usable = d.usableFrame(config)
+        let centre = CGPoint(x: usable.midX, y: usable.midY)
+        guard let id = DisplayTarget.windowToFocus(remembered: tree?.focused, tiles: tiles, others: others, centre: centre) else {
+            if config.mouseFollowsFocus {
+                CGWarpMouseCursorPosition(centre)
+                onPointerWarp?(centre)
+            }
+            return "ok: no window on that display"
+        }
+        focus(window: id)
+        return "ok"
+    }
+
+    /// The focus stays with the window, wherever it goes.
+    private func moveToDisplay(_ target: DisplayTarget) -> String {
+        guard let id = focusedWindow, let w = windows[id] else { return "error: no focused window" }
+        let tile = lastFrames[id]
+        guard let frame = tile ?? w.element.frame, let here = displayIndex(for: frame) else { return "error: cannot read the window's position" }
+        guard displays[here].isDesktop else { return "error: a fullscreen window cannot be sent to another display" }
+        let there: Int, number: Int
+        switch display(target, from: here) {
+        case .failure(let refusal): return refusal.reply
+        case .success(let found): (there, number) = found
+        }
+        guard there != here else { return "ok: already on display \(number)" }
+        guard displays[there].isDesktop else { return "error: display \(number) is showing a fullscreen app" }
+        if let tile, let (_, tree) = treeEntry(containing: id) {
+            carry(id, w, tile, from: tree, to: there)
+        } else {
+            let f = DisplayTarget.floatingFrame(frame, from: displays[here].usableFrame(config), to: displays[there].usableFrame(config))
+            if f.size != frame.size { w.element.setSize(f.size) }
+            w.element.setPosition(f.origin)
+            scheduleRefresh(after: 0.05)
+        }
+        return "ok"
     }
 
     // MARK: Native Spaces
@@ -1167,9 +1243,9 @@ final class WindowManager {
 
     private func listSpaces() -> String {
         displays = DisplayInfo.current()
-        return displays.map { d in
+        return DisplayInfo.numbered(displays).map { n, d in
             let now = d.spaceIndex.map { "desktop \(d.desktopOffset + $0) of \(d.totalDesktops)" } ?? "a fullscreen Space"
-            return "\(d.name): showing \(now); this display has \(d.spaceCount) desktop(s)"
+            return "Display \(n), \(d.name): showing \(now); this display has \(d.spaceCount) desktop(s)"
         }.joined(separator: "\n")
     }
 

@@ -122,14 +122,17 @@ public enum Report {
 
     public struct Display: Codable, Equatable {
         public var name: String
+        /// The display's number, from 1, as `DisplayOrder` counts them and `focus-display N` names them.
+        public var number: Int
         /// The desktop this display is showing, `null` while it shows a fullscreen Space.
         @Nullable public var desktop: Int?
         /// How many desktops this display has.
         public var desktopCount: Int
         public var main: Bool
 
-        public init(name: String, desktop: Int?, desktopCount: Int, main: Bool) {
+        public init(name: String, number: Int, desktop: Int?, desktopCount: Int, main: Bool) {
             self.name = name
+            self.number = number
             self.desktop = desktop
             self.desktopCount = desktopCount
             self.main = main
