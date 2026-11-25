@@ -124,6 +124,103 @@ table keeps the default.
 outer = { top = 4, left = 8, bottom = 8, right = 8 }
 ```
 
+## `[[display]]`
+
+Settings for one display: gaps of its own, and a maximum width for the layout. Each display
+you want to set is its own `[[display]]` section. A display without one uses
+[`[gaps]`](#gaps).
+
+```toml title="iguana.toml"
+[[display]]
+name = "LG ULTRAWIDE"   # part of the display's name, case-insensitive
+# number = 2            # or the display's number: from 1, left to right
+inner = 12              # space between windows, as inner under [gaps]
+outer = 16              # or a table, as outer under [gaps]
+max-width = 2560        # the layout is at most this wide, centred on the display
+```
+
+**The first section that matches a display decides.** Sections are tried in the order they
+appear in the file. A key that section leaves out keeps its value from `[gaps]`, not from a
+section further down.
+
+A section needs `name` or `number`, not both. A section with neither or with both is skipped
+with a warning, and so is one whose `name` or `number` is not valid. A bad `inner`, `outer` or
+`max-width` is a warning too: that key is ignored and the rest of the section applies.
+
+<Aside>
+The [settings window](/guides/settings-window/) has no pane for this, and leaves your
+`[[display]]` sections exactly as you wrote them. Its gap sliders set `[gaps]`, so they do not
+change a gap that a display sets for itself.
+</Aside>
+
+### `name`
+
+Part of the display's name, as System Settings shows it under Displays. Case is ignored, so
+`"ultrawide"` matches "LG ULTRAWIDE". `iguana list-spaces` prints the names of your displays.
+Two displays of the same model share a name, and the section applies to both. Use `number` to
+tell them apart.
+
+| | |
+| --- | --- |
+| Type | string |
+| Default | none |
+
+### `number`
+
+The display's number. Displays are numbered from 1, left to right, by their left edge in the
+arrangement under Displays in System Settings. Two displays with the same left edge are
+numbered top to bottom. Rearranging your displays can change their numbers.
+
+| | |
+| --- | --- |
+| Type | whole number |
+| Default | none |
+| Allowed | 1 to 16 |
+
+### `inner`
+
+Space between neighbouring windows on this display, as [`inner`](#inner) under `[gaps]`.
+
+| | |
+| --- | --- |
+| Type | number |
+| Default | the value under `[gaps]` |
+| Allowed | 0 to 200 |
+
+### `outer`
+
+Space between the windows and the edge of the area macOS leaves for windows on this display,
+as [`outer`](#outer) under `[gaps]`.
+
+| | |
+| --- | --- |
+| Type | number, or a table with `top`, `left`, `bottom` and `right` |
+| Default | the value under `[gaps]` |
+| Allowed | 0 to 500, for the single number and for each side |
+
+A side you leave out of the table keeps its value from `[gaps]`.
+
+```toml title="iguana.toml"
+[[display]]
+number = 2
+outer = { left = 40, right = 40 }   # top and bottom as under [gaps]
+```
+
+### `max-width`
+
+The widest the layout gets on this display, in points. When the area for windows is wider, the
+layout is narrowed to this width and centred in it, with empty space on each side. On a
+narrower display nothing changes.
+
+| | |
+| --- | --- |
+| Type | number |
+| Default | none: the layout is as wide as the display |
+| Allowed | 400 to 10000 |
+
+The area is what is left after the menu bar, the Dock, the outer gaps and the room kept for
+Stage Manager's strip. A [zoomed](/reference/commands/#zoom) window fills the narrowed area.
+
 ## `[layout]`
 
 ```toml title="iguana.toml"
@@ -705,6 +802,14 @@ This is exactly what `iguana config init` writes, and what Iguana uses when ther
 [gaps]
 inner = 8
 outer = 8            # or: outer = { top = 8, left = 8, bottom = 8, right = 8 }
+
+# Settings for one display. Name it by part of its name (case is ignored), or by its number:
+# displays are numbered from 1, left to right. A key left out keeps its value from [gaps].
+# [[display]]
+# name = "LG ULTRAWIDE"
+# inner = 12
+# outer = 16         # or a table, as under [gaps]
+# max-width = 2560   # points: the layout is at most this wide, centred on the display
 
 [layout]
 auto-split = true    # new windows split the focused window along its longer side

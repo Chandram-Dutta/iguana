@@ -44,6 +44,8 @@ struct DesktopPreviewData {
     /// The part of the screen below the menu bar and above the Dock.
     var usable: CGRect
     var isExample: Bool
+    /// The display it is on, whose `[[display]]` settings it is drawn with. Nil for the example.
+    var display: (name: String, number: Int)?
 
     /// Three windows on a laptop screen, for when the desktop has fewer than two tiled windows.
     static let example: DesktopPreviewData = {

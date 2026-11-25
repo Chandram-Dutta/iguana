@@ -95,6 +95,8 @@ public enum MenuBarDesktops: String, CaseIterable, Equatable {
 public struct Config: Equatable {
     public var gapInner: Double = 8
     public var gapOuter = Edges(all: 8)
+    /// Gaps and a maximum width for single displays, from `[[display]]`. The first that matches wins.
+    public var displays: [DisplaySettings] = []
     /// New windows split the focused window along its longer side instead of widening the row.
     public var autoSplit = true
     public var resizeStep = 0.05
@@ -130,6 +132,14 @@ public struct Config: Equatable {
     [gaps]
     inner = 8
     outer = 8            # or: outer = { top = 8, left = 8, bottom = 8, right = 8 }
+
+    # Settings for one display. Name it by part of its name (case is ignored), or by its number:
+    # displays are numbered from 1, left to right. A key left out keeps its value from [gaps].
+    # [[display]]
+    # name = "LG ULTRAWIDE"
+    # inner = 12
+    # outer = 16         # or a table, as under [gaps]
+    # max-width = 2560   # points: the layout is at most this wide, centred on the display
 
     [layout]
     auto-split = true    # new windows split the focused window along its longer side
@@ -282,7 +292,7 @@ public struct Config: Equatable {
             }
         }
 
-        checkKeys(doc, ["gaps", "layout", "animation", "focus-ring", "stage-manager", "menu-bar", "updates", "hooks", "bindings", "rule"], "the config file")
+        checkKeys(doc, ["gaps", "layout", "animation", "focus-ring", "stage-manager", "menu-bar", "updates", "hooks", "bindings", "rule", "display"], "the config file")
 
         if let gaps = doc["gaps"]?.tableValue {
             checkKeys(gaps, ["inner", "outer"], "[gaps]")
@@ -299,6 +309,8 @@ public struct Config: Equatable {
                 }
             }
         }
+
+        if let v = doc["display"] { c.displays = DisplaySettings.parse(v, gaps: c.gapOuter, warnings: &warnings) }
 
         if let layout = doc["layout"]?.tableValue {
             checkKeys(layout, ["auto-split", "resize-step", "stack-peek", "mouse-follows-focus", "focus-follows-mouse"], "[layout]")

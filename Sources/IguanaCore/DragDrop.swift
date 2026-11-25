@@ -38,10 +38,13 @@ public struct DropScene {
     public struct Desk {
         public var tree: Tree
         public var area: CGRect
+        /// The space between windows on this desktop's display, when it has one of its own.
+        public var gap: CGFloat?
 
-        public init(tree: Tree, area: CGRect) {
+        public init(tree: Tree, area: CGRect, gap: CGFloat? = nil) {
             self.tree = tree
             self.area = area
+            self.gap = gap
         }
     }
 
@@ -182,8 +185,8 @@ public enum DragDrop {
         guard carryOut(drop, of: id, in: [homeAfter, thereAfter], visible: scene.visible) else { return nil }
         func frames(_ a: Tree, _ b: Tree) -> [WindowID: CGRect] {
             var all: [WindowID: CGRect] = [:]
-            for (tree, area) in [(a, home.area), (b, there.area)] {
-                all.merge(computeLayout(tree, in: area, gap: scene.gap, visible: scene.visible, minSizes: scene.minSizes, peek: scene.peek)) { first, _ in first }
+            for (tree, desk) in [(a, home), (b, there)] {
+                all.merge(computeLayout(tree, in: desk.area, gap: desk.gap ?? scene.gap, visible: scene.visible, minSizes: scene.minSizes, peek: scene.peek)) { first, _ in first }
             }
             return all
         }

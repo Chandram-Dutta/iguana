@@ -6,8 +6,8 @@ description: How Iguana tiles each macOS desktop, how to switch between desktops
 import { Aside } from '@astrojs/starlight/components';
 
 After this page you will be able to switch desktops, send windows between desktops and
-displays, have an app's windows open on a desktop you choose, and know how desktops are
-numbered when you have more than one display.
+displays, have an app's windows open on a desktop you choose, give one display settings of
+its own, and know how desktops and displays are numbered.
 
 ## Each desktop has its own layout
 
@@ -164,6 +164,41 @@ pointer when the focused window is not tiled.
 macOS has a setting called "Displays have separate Spaces". When it is off, all displays
 switch desktops together. Iguana still keeps a separate layout for each display on each
 desktop.
+
+## Settings for one display
+
+A display can have gaps of its own and a maximum width for its layout. On an ultrawide monitor
+a window that fills half the screen is very wide. With `max-width` the layout keeps to a
+comfortable width in the middle of the display, with empty desktop on each side:
+
+```toml title="iguana.toml"
+[[display]]
+name = "LG ULTRAWIDE"
+inner = 12
+outer = 16
+max-width = 2560
+```
+
+On a display 5120 points wide, the windows share the middle 2560 points. A narrower display is
+not changed by `max-width`. A [zoomed](/reference/commands/#zoom) window fills the narrowed area.
+
+- **Name a display** by part of its name, as System Settings shows it under Displays. Case is
+  ignored. `iguana list-spaces` prints the names of your displays.
+- **Or by its number:** write `number = 2` in place of `name`.
+- **Anything you leave out** keeps its value from [`[gaps]`](/reference/configuration/#gaps).
+  Every display without a section of its own keeps those gaps too.
+- **The first section that matches a display decides,** when more than one would.
+
+The [settings window](/guides/settings-window/) has no pane for this, and leaves your
+`[[display]]` sections as you wrote them.
+[Configuration](/reference/configuration/#display) lists every key.
+
+### How displays are numbered
+
+Displays are numbered from 1, left to right, by their left edge in the arrangement under
+Displays in System Settings. Two displays with the same left edge are numbered top to bottom.
+Rearranging your displays can change their numbers. To keep a setting with one monitor
+wherever you put it, name the display instead.
 
 ## Fullscreen Spaces are left alone
 

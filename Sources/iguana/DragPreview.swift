@@ -53,13 +53,15 @@ extension WindowManager {
         var minSizes: [CGWindowID: CGSize] = [:]
         for (other, w) in facts.windows { if let size = w.minSize { minSizes[other] = size } }
         let desks = displays.compactMap { display in
-            facts.trees[display.treeKey].map { DropScene.Desk(tree: $0, area: display.usableFrame(config)) }
+            facts.trees[display.treeKey].map { DropScene.Desk(tree: $0, area: display.usableFrame(config), gap: display.settings(config).inner) }
         }
+        let outer = displays.map { $0.settings(config).outer }
         return DragDrop.plan(DropScene(
             dragged: id, pointer: pointer, tiles: tiles, blockers: blockers, frontToBack: onScreen.order, desks: desks,
             visible: facts.visible, gap: config.gapInner, peek: config.stackPeek, minSizes: minSizes,
-            // The margin round the tiles, and a little more for a pointer pressed against the screen's edge.
-            margin: max(config.gapOuter.top, config.gapOuter.left, config.gapOuter.bottom, config.gapOuter.right) + 2))
+            // The margin round the tiles, the widest any display has, and a little more for a
+            // pointer pressed against the screen's edge.
+            margin: (outer.map { max($0.top, $0.left, $0.bottom, $0.right) }.max() ?? 0) + 2))
     }
 }
 
