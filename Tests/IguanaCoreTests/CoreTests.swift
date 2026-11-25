@@ -920,7 +920,8 @@ final class ConfigTests: XCTestCase {
         let schema = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(Config.jsonSchema.utf8)) as? [String: Any])
         let properties = try XCTUnwrap(schema["properties"] as? [String: Any])
         let doc = try TOML.parse(Config.defaultText)
-        XCTAssertEqual(Set(properties.keys), Set(doc.keys), "every top-level section of the default config is in the schema")
+        // The default file shows a mode only in comments: none is built in.
+        XCTAssertEqual(Set(properties.keys).subtracting(["mode"]), Set(doc.keys), "every top-level section of the default config is in the schema")
         for (section, value) in doc {
             guard section != "bindings", let table = value.tableValue else { continue }
             let described = try XCTUnwrap((properties[section] as? [String: Any])?["properties"] as? [String: Any], section)

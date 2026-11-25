@@ -551,7 +551,7 @@ option-f = ""                # switches the built-in shortcut off
 | | |
 | --- | --- |
 | Key | Modifiers and a key joined by dashes, such as `option-shift-h`. See [Key names](/reference/key-names/). |
-| Value | A [command](/reference/commands/) as a string, or `""` or `false` to switch the shortcut off. |
+| Value | A [command](/reference/commands/) as a string, or `""` or `false` to switch the shortcut off. Several commands joined with `;` run in order: see [Chains](/reference/commands/#chains). |
 | Default | The 41 [default shortcuts](/reference/default-shortcuts/). |
 
 Entries are merged over the built-in shortcuts one by one, so you only write the ones you want
@@ -565,6 +565,50 @@ A shortcut that cannot be used is a warning, and the others still work:
 - the same combination is written twice,
 - the key name is not one Iguana knows,
 - macOS refuses to register the combination, usually because another app owns it.
+
+## `[mode.NAME]`
+
+A mode: a second set of shortcuts that takes the place of `[bindings]` while it is on. Each
+mode is a section of its own. The [`mode`](/reference/commands/#mode) command switches to it,
+and `mode default` goes back to `[bindings]`.
+
+```toml title="iguana.toml"
+[bindings]
+option-r = "mode resize"
+
+[mode.resize]
+h = "resize shrink width"
+l = "resize grow width"
+j = "resize grow height"
+k = "resize shrink height"
+shift-h = "move left"
+return = "mode default"
+```
+
+| | |
+| --- | --- |
+| Name | Lower-case letters, digits and `-`. `default` is taken: it stands for `[bindings]`. |
+| Key | A key, with or without modifiers: `h`, `shift-h`, `return`. See [Key names](/reference/key-names/). |
+| Value | A [command](/reference/commands/) as a string, or several joined with `;`. `""` or `false` leaves the key unbound. |
+| Default | none: there are no built-in modes. |
+
+- **A mode has only the shortcuts it lists.** Nothing is merged, and none of `[bindings]` work
+  while it is on.
+- **<kbd>esc</kbd> always leads out.** A mode that does not bind `esc` itself gets
+  `esc = "mode default"`.
+- **The keys are taken from every app** while the mode is on, keys without modifiers included.
+  Leave the mode when you are done.
+- **The settings window does not edit modes.** It leaves these sections as they are.
+
+The warnings of `[bindings]` apply here too, except that a key without a modifier is fine.
+Three more are particular to modes:
+
+- the mode is called `default`: the section is ignored,
+- the name has other characters than lower-case letters, digits and `-`: the section is ignored,
+- a shortcut, in `[bindings]` or in a mode, switches to a mode that has no section. The
+  shortcut stays, and replies `error: no mode 'NAME'`.
+
+[Customising shortcuts](/guides/shortcuts/#modes) shows how a mode is used.
 
 ## `[[rule]]`
 
@@ -797,6 +841,16 @@ option-shift-8 = "move-to-space 8"
 option-shift-9 = "move-to-space 9"
 option-shift-leftbracket = "move-to-space prev"
 option-shift-rightbracket = "move-to-space next"
+
+# A mode is a second set of shortcuts that takes over until you leave it. Bind a key to it
+# above, for example option-r = "mode resize". Inside a mode a key needs no modifier, and
+# esc goes back to [bindings] unless the mode binds esc itself.
+# [mode.resize]
+# h = "resize shrink width"
+# l = "resize grow width"
+# j = "resize grow height"
+# k = "resize shrink height"
+# return = "mode default"
 
 # Rules for the windows of an app. `app` is a bundle id or part of the app name, `title` is a
 # regular expression. `float = true` keeps matching windows floating; dialogs, sheets and

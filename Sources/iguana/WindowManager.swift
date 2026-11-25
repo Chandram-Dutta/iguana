@@ -62,6 +62,10 @@ final class WindowManager {
     var onOpenSettings: (() -> Void)?
     var onOpenTour: (() -> Void)?
     var onCheckForUpdate: (() -> Void)?
+    /// The shortcuts in use: `default` for `[bindings]`, or the name of a `[mode.NAME]` table.
+    private(set) var mode = Config.defaultMode
+    /// The mode changed, so the app shell registers its shortcuts.
+    var onModeChange: (() -> Void)?
     /// Extra lines for `status`, supplied by the app shell.
     var statusExtras: (() -> [String])?
     /// A window says it moved or changed size, for the focus ring. No refresh follows while
@@ -688,6 +692,10 @@ final class WindowManager {
         case .quit:
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { NSApp.terminate(nil) }
             return "ok"
+        // Without the permission there must still be a way out of a mode.
+        case .mode(let name): return switchMode(name)
+        // Each command of a chain asks for the permission itself.
+        case .sequence(let commands): return Command.runChain(commands, run)
         default: break
         }
         guard AXIsProcessTrusted() else {
@@ -756,7 +764,19 @@ final class WindowManager {
         case .quit:
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { NSApp.terminate(nil) }
             return "ok"
+        case .mode(let name): return switchMode(name)
+        case .sequence(let commands): return Command.runChain(commands, run)
         }
+    }
+
+    /// Put the shortcuts of another mode in place of the current ones.
+    @discardableResult
+    func switchMode(_ name: String) -> String {
+        guard config.bindings(inMode: name) != nil else { return "error: no mode '\(name)'" }
+        guard name != mode else { return "ok" }
+        mode = name
+        onModeChange?()
+        return "ok"
     }
 
     func setPaused(_ value: Bool) {
@@ -1085,6 +1105,7 @@ final class WindowManager {
     @discardableResult
     func reloadConfig() -> String {
         let url = Self.configURL
+        let modes = config.modes
         var reply: String
         if let text = try? String(contentsOf: url, encoding: .utf8) {
             do {
@@ -1114,6 +1135,8 @@ final class WindowManager {
             for w in windows.values where w.pid == pid { w.ruleFloat = matchesFloatRule(w, app: state.app) }
         }
         for w in windows.values where w.floating { for tree in trees.values { tree.remove(w.id) } }
+        // A mode that is gone, or whose keys changed, is left rather than half kept.
+        if config.modes[mode] != modes[mode] { switchMode(Config.defaultMode) }
         onConfigChange?()
         if started { refresh() }
         return reply
@@ -1184,6 +1207,7 @@ final class WindowManager {
         let strip = StageManager.reservedWidth(config)
         lines.append("stage manager: \(StageManager.isOn ? "on" : "off")\(strip > 0 ? ", leaving \(Int(strip)) pt for the strip" : "")")
         lines.append(listSpaces())
+        if mode != Config.defaultMode { lines.append("mode: \(mode)") }
         lines.append(contentsOf: statusExtras?() ?? [])
         return lines.joined(separator: "\n")
     }

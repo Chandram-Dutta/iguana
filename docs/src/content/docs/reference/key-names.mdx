@@ -4,7 +4,8 @@ description: The modifier names and key names that can be used in an Iguana shor
 ---
 
 This page lists every name you can use when writing a shortcut in
-[`[bindings]`](/reference/configuration/#bindings).
+[`[bindings]`](/reference/configuration/#bindings) or in a
+[`[mode.NAME]`](/reference/configuration/#modename) table.
 
 ## Syntax
 
@@ -18,7 +19,9 @@ ctrl-option-f5
 
 - Names are not case sensitive. `Alt-H` is read as `option-h`.
 - The order of the modifiers does not matter.
-- At least one modifier is required.
+- At least one modifier is required in `[bindings]`. Inside a
+  [`[mode.NAME]`](/reference/configuration/#modename) table a key needs no modifier: `h`,
+  `shift-h` and `return` are all shortcuts there.
 - A doubled dash at the end means the minus key: `option--` is `option-minus`.
 
 ## Modifiers
@@ -79,7 +82,8 @@ On another layout, `slash` is still the key in that position, whatever is printe
 
 - An unknown modifier is reported as, for example,
   `'hyper-h': unknown modifier 'hyper' (use cmd, ctrl, option, shift)`.
-- A shortcut without a modifier is reported as `a binding needs at least one modifier`.
+- A shortcut in `[bindings]` without a modifier is reported as
+  `a binding needs at least one modifier`.
 - An unknown key is reported as, for example, `binding 'option-foo': unknown key 'foo'`.
 
 Each is a warning for that one shortcut. `iguana status` lists them.

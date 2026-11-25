@@ -12,7 +12,8 @@ This page lists every command Iguana understands, with its arguments and its rep
 A command can be run in two ways:
 
 - **From a shortcut.** The right-hand side of an entry in
-  [`[bindings]`](/reference/configuration/#bindings) is a command.
+  [`[bindings]`](/reference/configuration/#bindings) or in a
+  [`[mode.NAME]`](/reference/configuration/#modename) table is a command.
 - **From a terminal.** Put `iguana` in front of it: `iguana focus left`. See
   [Command line](/reference/command-line/).
 
@@ -30,10 +31,40 @@ Every command answers with one line, or with a report.
 In a terminal the reply is printed. For a shortcut, the last reply is shown by
 [`status`](#status), and replies that start with `error` are written to the log.
 
+### Chains
+
+One shortcut or one line can run several commands. Put `;` between them:
+
+```text
+COMMAND; COMMAND ...
+```
+
+```toml title="iguana.toml"
+[bindings]
+option-shift-r = "flip; balance"
+```
+
+```sh
+iguana "flip; balance"
+```
+
+- **The commands run in order,** each as if it were run alone.
+- **The first error stops the chain.** That error is the reply. Otherwise the reply is the
+  one of the last command.
+- **Empty parts are left out,** so a `;` at the end does no harm.
+- **`space` and `move-to-space` come last.** macOS finishes the switch after the command has
+  returned, so a command after it would act on the desktop you are leaving. Anywhere else
+  they are an error: `'space' must come last in a chain`.
+- **Reports and `quit` cannot be part of a chain,** and neither can `--json`. The error names
+  the command: `'status' cannot be part of a chain`.
+
+In a terminal, put the chain in quotes. Without them the shell reads `;` as the end of the
+`iguana` command.
+
 ### Before the permission is granted
 
 Until Iguana has the Accessibility permission, only `status`, `reload`, `settings`, `tour`,
-`update` and `quit` work. Every other command replies:
+`update`, `mode` and `quit` work. Every other command replies:
 
 ```text
 error: Iguana needs Accessibility permission (System Settings > Privacy & Security > Accessibility)
@@ -60,6 +91,7 @@ error: Iguana needs Accessibility permission (System Settings > Privacy & Securi
 | [`settings`](#settings) | Open the settings window. |
 | [`tour`](#tour) | Show the welcome tour again. |
 | [`update`](#update) | Ask now whether a newer Iguana has been released. |
+| [`mode`](#mode) | Switch the shortcuts to a mode, or back to the usual ones. |
 | [`list-windows`](#list-windows) | List the windows Iguana knows about. |
 | [`list-spaces`](#list-spaces) | Show which desktop each display is showing. |
 | [`tree`](#tree) | Print the layout tree. |
@@ -365,8 +397,9 @@ Shows the [welcome tour](/start/install/#the-welcome-tour) again, the same as ch
 While the tour is in front, commands go to its practice desktop instead of your real
 windows and reply `ok: in the welcome tour`. The tour acts on `focus`, `move`, `resize`,
 `stack`, `space` and `move-to-space` once it has reached the lesson for them, and ignores
-every other command, `settings` and `pause` included. `status`, `reload`, `update`, `list-windows`,
-`list-spaces`, `tree` and `quit` work as usual.
+every other command, `settings`, `pause` and chains included. `status`, `reload`, `update`,
+`list-windows`, `list-spaces`, `tree`, `mode default` and `quit` work as usual. A mode that is
+on when the tour starts is left, so that the keys the tour teaches work.
 
 | Reply | When |
 | --- | --- |
@@ -398,6 +431,29 @@ hand also counts as the day's check, so the next one Iguana makes by itself is a
 A shortcut has nowhere to print an answer. Bound to one, `update` starts the check and
 replies `ok: checking`; a newer version then shows in the menu of the menu bar item, as it
 does after the daily check, provided `updates.check` is on.
+
+### `mode`
+
+```text
+mode NAME|default
+```
+
+Switches the shortcuts to those of a mode, a
+[`[mode.NAME]`](/reference/configuration/#modename) table in the config file. While a mode is
+on, only its shortcuts work: those of `[bindings]` are released. `mode default` brings them
+back. <kbd>esc</kbd> does the same in a mode that does not bind <kbd>esc</kbd> itself.
+[Modes](/guides/shortcuts/#modes) has an example.
+
+The menu bar item shows the name of the mode beside the desktop number, and [`status`](#status)
+has a `mode:` line.
+
+A mode is also left by itself when the config file changes or removes it, when the welcome
+tour starts, and after the settings window has recorded a shortcut.
+
+| Reply | When |
+| --- | --- |
+| `ok` | The mode is on, or already was. |
+| `error: no mode 'NAME'` | The config file has no `[mode.NAME]` table. |
 
 ### `quit`
 
@@ -702,8 +758,9 @@ last shortcut: option-l, 4 s ago, answered "ok"
 ```
 
 Config problems and shortcuts that could not be registered appear as indented `warning:`
-lines. While the welcome tour is on screen, a `welcome tour:` line above the `last shortcut:`
-line says so. Before the permission is granted, `status` says that Iguana is waiting for it.
+lines. While a [mode](#mode) is on, a `mode:` line above the `shortcuts:` line names it. While
+the welcome tour is on screen, a `welcome tour:` line above the `last shortcut:` line says so.
+Before the permission is granted, `status` says that Iguana is waiting for it.
 
 When Iguana knows of a newer version of itself, one more line at the end says so:
 
@@ -736,6 +793,7 @@ With `--json`:
     "reply" : "ok",
     "secondsAgo" : 4
   },
+  "mode" : null,
   "paused" : false,
   "permission" : true,
   "shortcuts" : {
@@ -771,6 +829,7 @@ With `--json`:
 | `stageManager` | `on`, and `reserved`: the points left free for the strip of recent apps. |
 | `displays` | The same list as in [`list-spaces --json`](#list-spaces). |
 | `shortcuts` | `active` is how many shortcuts are registered. `warnings` lists the ones that could not be. |
+| `mode` | The [mode](#mode) whose shortcuts are on, for example `"resize"`. `null` while those of `[bindings]` are. |
 | `tourShowing` | `true` while the welcome tour is on screen. |
 | `lastShortcut` | The last shortcut received: its `keys`, how many `secondsAgo`, and the `reply` it got. `null` when none has been received since Iguana started. |
 | `update` | A newer version of Iguana: its `version`, for example `"0.2.2"`, and the `url` of its page. `null` when none is known: there is none, Iguana has not looked yet, or [`updates.check`](/reference/configuration/#check) is `false`. |

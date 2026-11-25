@@ -35,6 +35,11 @@ enum StatusIcon {
     private static let font = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .medium)
     private static let labelGap: CGFloat = 5
 
+    /// The text after the drawing: the desktop's number, and beside it the mode while one is on.
+    static func label(desktop: String, mode: String) -> String {
+        mode == Config.defaultMode ? desktop : [desktop, mode].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
     private static func labelWidth(_ label: String) -> CGFloat {
         label.isEmpty ? 0 : ceil((label as NSString).size(withAttributes: [.font: font]).width) + labelGap
     }

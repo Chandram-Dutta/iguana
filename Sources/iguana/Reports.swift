@@ -33,7 +33,7 @@ extension WindowManager {
                 windows: Report.WindowCounts(tiled: facts.tiled.count, known: facts.windows.count, apps: facts.apps.count),
                 stageManager: Report.StageManager(on: StageManager.isOn, reserved: Double(strip)),
                 displays: displays.map(\.report), shortcuts: shortcuts, tourShowing: tourShowing, lastShortcut: lastShortcut,
-                update: update))
+                update: update, mode: mode == Config.defaultMode ? nil : mode))
         }
         guard AXIsProcessTrusted() else {
             return "error: Iguana needs Accessibility permission (System Settings > Privacy & Security > Accessibility)"
