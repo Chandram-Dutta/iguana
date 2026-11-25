@@ -209,6 +209,8 @@ them is not kept.
   exception in the file when it has to come before another rule: order matters.
 - **A rule that only names a desktop** is written without a `float` key, the same way you
   would write it by hand.
+- **A size or a position** written in the file has no control here. It is kept as it is when
+  you change the rule.
 - **A desktop you no longer have** stays selected, marked "not there now". The rule does
   nothing until that desktop exists again.
 - **Removing the last rule** leaves no rules at all: every standard window is tiled. The pane

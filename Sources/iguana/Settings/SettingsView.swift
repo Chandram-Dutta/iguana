@@ -702,7 +702,7 @@ private struct RecorderButton<Label: View>: View {
 
 // MARK: - Floating windows
 
-private struct FloatingPane: View {
+struct FloatingPane: View {
     @ObservedObject var model: SettingsModel
     @State private var rows: [RuleRow] = []
     @State private var loadedFrom: [Rule]?
@@ -716,6 +716,10 @@ private struct FloatingPane: View {
         var float: Bool? = true
         /// The desktop the rule sends new windows to.
         var desktop: Int?
+        /// The size and the position the rule gives the windows it floats. The pane has no
+        /// controls for them, and keeps them as the file has them.
+        var size: CGSize?
+        var position: Placement?
         /// A row the user is still typing the app into.
         var isDraft = false
     }
@@ -781,17 +785,29 @@ private struct FloatingPane: View {
         guard model.config.rules != loadedFrom else { return }
         loadedFrom = model.config.rules
         let drafts = rows.filter { $0.isDraft && $0.app.trimmingCharacters(in: .whitespaces).isEmpty }
-        rows = model.config.rules.map { RuleRow(app: $0.app ?? "", title: $0.title ?? "", float: $0.float, desktop: $0.desktop) } + drafts
+        rows = model.config.rules.map(RuleRow.init) + drafts
     }
 
     private func commit() {
-        let rules = rows
-            .map { ($0.app.trimmingCharacters(in: .whitespaces), $0.title.trimmingCharacters(in: .whitespaces), $0.float, $0.desktop) }
-            .filter { !$0.0.isEmpty || !$0.1.isEmpty }
-            .map { Rule(app: $0.0.isEmpty ? nil : $0.0, title: $0.1.isEmpty ? nil : $0.1, float: $0.2, desktop: $0.3) }
+        let rules = rows.compactMap(\.rule)
         for i in rows.indices where !rows[i].app.trimmingCharacters(in: .whitespaces).isEmpty { rows[i].isDraft = false }
         loadedFrom = rules
         model.setRules(rules)
+    }
+}
+
+extension FloatingPane.RuleRow {
+    init(_ rule: Rule) {
+        self.init(app: rule.app ?? "", title: rule.title ?? "", float: rule.float, desktop: rule.desktop,
+                  size: rule.size, position: rule.position)
+    }
+
+    /// The rule the row stands for. Nil while it has neither an app nor a title.
+    var rule: Rule? {
+        let app = app.trimmingCharacters(in: .whitespaces), title = title.trimmingCharacters(in: .whitespaces)
+        guard !app.isEmpty || !title.isEmpty else { return nil }
+        return Rule(app: app.isEmpty ? nil : app, title: title.isEmpty ? nil : title, float: float, desktop: desktop,
+                    size: size, position: position)
     }
 }
 

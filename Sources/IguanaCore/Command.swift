@@ -21,6 +21,8 @@ public enum Command: Equatable {
     case stack
     case balance
     case float
+    /// Put the focused window in a part of its display, floating.
+    case place(Placement)
     case zoom
     case close
     case space(SpaceTarget)
@@ -47,6 +49,7 @@ public enum Command: Equatable {
     stack                           switch the focused container between tiles and a stack of overlapping windows
     balance                         give every window an equal share again
     float                           toggle tiling for the focused window
+    place center|left|right|top|bottom|top-left|top-right|bottom-left|bottom-right|full    float the focused window and put it in that part of its display
     zoom                            toggle the focused window filling the Space
     close                           close the focused window
     space N|next|prev               switch to a native Space
@@ -85,6 +88,12 @@ public enum Command: Equatable {
                 return .index(n)
             }
         }
+        func placement() throws -> Placement {
+            guard args.count == 1, let p = Placement(rawValue: args[0]) else {
+                throw CommandError("'\(name)' needs one of: \(Placement.names)")
+            }
+            return p
+        }
         func noArgs(_ c: Command) throws -> Command {
             guard args.isEmpty else { throw CommandError("'\(name)' takes no arguments") }
             return c
@@ -112,6 +121,7 @@ public enum Command: Equatable {
         case "stack": return try noArgs(.stack)
         case "balance": return try noArgs(.balance)
         case "float": return try noArgs(.float)
+        case "place": return .place(try placement())
         case "zoom": return try noArgs(.zoom)
         case "close": return try noArgs(.close)
         case "space": return .space(try spaceTarget())

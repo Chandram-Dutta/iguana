@@ -1,16 +1,18 @@
 ---
 title: Floating windows and rules
-description: Which windows Iguana tiles, which it leaves alone, how to float a window by hand and how to write rules that float an app's windows or send them to a desktop.
+description: Which windows Iguana tiles, which it leaves alone, how to float a window by hand and place it from the keyboard, and how to write rules that float an app's windows, size and place them, or send them to a desktop.
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
 After this page you will know which windows Iguana tiles, how to take a window out of the
-layout, and how to write a rule so that an app's windows always float or open on a desktop of
-your choice.
+layout, how to put a floating window in a half, a quarter or the middle of the screen from the
+keyboard, and how to write a rule so that an app's windows always float, open at a size and
+place of your choice, or open on a desktop of your choice.
 
-A **floating** window is one Iguana does not place. It stays where you put it, at the size
-you gave it, and the tiled windows ignore it.
+A **floating** window is one Iguana does not tile. It stays where you put it, at the size
+you gave it, and the tiled windows ignore it. Iguana only moves it when you ask: with
+`place`, or with a rule that says where it opens.
 
 ## What gets tiled
 
@@ -48,14 +50,48 @@ its windows, that window is tiled.
 
 Windows you floated by hand are remembered when Iguana restarts.
 
+## Place a floating window from the keyboard
+
+The [`place`](/reference/commands/#place) command puts the focused window in a part of its
+display: a half, a quarter, the middle or all of it. It uses the same area as the tiled
+windows, inside the [gaps](/reference/configuration/#gaps). A tiled window is floated first.
+
+```text
+place center|left|right|top|bottom|top-left|top-right|bottom-left|bottom-right|full
+```
+
+`center` keeps the window's size. `full` fills the area, and the window stays floating:
+[`zoom`](/reference/commands/#zoom) is the command for a tiled window.
+
+There are no default shortcuts for `place`. Add the ones you want to
+[`[bindings]`](/reference/configuration/#bindings), for example:
+
+```toml title="iguana.toml"
+[bindings]
+option-c = "place center"
+option-ctrl-left = "place left"
+option-ctrl-right = "place right"
+option-ctrl-up = "place top"
+option-ctrl-down = "place bottom"
+option-ctrl-u = "place top-left"
+option-ctrl-i = "place top-right"
+option-ctrl-n = "place bottom-left"
+option-ctrl-m = "place bottom-right"
+option-ctrl-return = "place full"
+```
+
+Some apps will not let a window get smaller than a minimum size, or change its size at all.
+Such a window still goes against the same edges: with `place left` its left edge is on the
+left of the screen.
+
 ## Rules
 
-A rule says what happens to the windows that match it: whether they float, and which desktop
-they are sent to when they first appear. Rules live in the
+A rule says what happens to the windows that match it: whether they float, where the floating
+ones open, and which desktop they are sent to when they first appear. Rules live in the
 [config file](/reference/configuration/#rule) as `[[rule]]` sections, and in the
 **Window Rules** pane of the [settings window](/guides/settings-window/#window-rules).
 
-Each rule has up to four keys:
+Each rule has up to six keys:
 
 | Key | Type | Meaning |
 | --- | --- | --- |
@@ -63,6 +99,8 @@ Each rule has up to four keys:
 | `title` | string | A regular expression matched against the window title. Case is ignored. |
 | `float` | boolean | `true` floats matching windows. `false` makes the rule an exception: matching windows are tiled. Defaults to `true` in a rule without `desktop`. |
 | `desktop` | whole number, 1 to 16 | Sends a matching window to that desktop when it first appears. See [Send an app's windows to a desktop](#send-an-apps-windows-to-a-desktop). |
+| `size` | two numbers, 100 to 10000 | The width and height a floating window opens at. See [Size and place an app's windows](#size-and-place-an-apps-windows). |
+| `position` | string | Where a floating window opens: any position `place` takes. |
 
 A rule needs `app`, `title` or both. With both, a window must match both.
 
@@ -187,6 +225,41 @@ The window is sent once, when it opens. After that it is yours to move.
 [Desktops and displays](/guides/desktops-and-displays/#open-an-apps-windows-on-a-desktop)
 says exactly when a window is sent and when it is left alone.
 
+### Size and place an app's windows
+
+A rule that floats its windows can also say where they open, with `size` and `position`.
+
+```toml title="iguana.toml"
+# Calculator opens in the middle of the screen, 400 by 600 points.
+[[rule]]
+app = "com.apple.calculator"
+float = true
+size = [400, 600]
+position = "center"
+
+# Notes opens in the right half.
+[[rule]]
+app = "com.apple.Notes"
+float = true
+position = "right"
+```
+
+- `size` is the width and the height in points, each from 100 to 10000. On its own it keeps
+  the window's top-left corner where the app put it, moved in if the window would not fit.
+- `position` is any position the [`place`](#place-a-floating-window-from-the-keyboard)
+  command takes. On its own, `"center"` keeps the window's size.
+- With both, the window is given the size first and then put in its position. The halves,
+  the quarters and `"full"` have a size of their own, so they ignore `size`.
+
+As with `desktop`, a window is placed once, when it opens while Iguana is running. Windows that
+are already open stay where they are, also when you reload the config, and nothing is placed
+while tiling is paused. Dialogs and sheets are never moved.
+
+`size` and `position` only apply to windows the rule floats. In a rule with `float = false`,
+or with only `desktop`, they do nothing and Iguana warns about them. The Window Rules pane of
+the settings window has no controls for them, and keeps them as they are when you change a
+rule there.
+
 ### No rules at all
 
 Leaving every `[[rule]]` out of the file does not mean "no rules": the built-in ones apply.
@@ -204,12 +277,13 @@ A rule is checked when a window first appears. Whether a window floats is checke
 every window when the config is reloaded. A window whose title changes later is not checked
 again until then.
 
-The desktop is different: it only counts at the moment a window opens. Reloading the config
-never moves a window that is already open.
+The desktop, the size and the position are different: they only count at the moment a window
+opens. Reloading the config never moves a window that is already open.
 
 A rule that has neither `app` nor `title`, whose `title` is not a valid regular expression,
 or whose `desktop` is not a whole number from 1 to 16, is skipped with a warning. The other
-rules still apply.
+rules still apply. A `size` or a `position` that is wrong is ignored with a warning, and the
+rest of its rule still applies.
 
 ## Related
 

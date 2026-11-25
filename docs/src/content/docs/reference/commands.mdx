@@ -51,6 +51,7 @@ error: Iguana needs Accessibility permission (System Settings > Privacy & Securi
 | [`stack`](#stack) | Switch the focused container between tiles and a stack of overlapping windows. |
 | [`balance`](#balance) | Give every window an equal share again. |
 | [`float`](#float) | Toggle tiling for the focused window. |
+| [`place`](#place) | Put the focused window in a part of its display, floating. |
 | [`zoom`](#zoom) | Toggle the focused window filling the desktop. |
 | [`close`](#close) | Close the focused window. |
 | [`space`](#space) | Switch to a desktop. |
@@ -225,6 +226,50 @@ is. Tiling it again adds it to the layout like a newly opened window. See
 | `error: no focused window` | |
 | `error: this window cannot be tiled` | It is a dialog, a sheet or a fixed-size window. |
 
+### `place`
+
+```text
+place center|left|right|top|bottom|top-left|top-right|bottom-left|bottom-right|full
+```
+
+Puts the focused window in a part of its display, and leaves it floating there. The part is
+cut from the area tiled windows use: the display without the menu bar and the Dock, inside
+the [outer gaps](/reference/configuration/#outer).
+
+| Position | Where the window goes |
+| --- | --- |
+| `center` | The middle of the area, at the window's own size. A window bigger than the area is shrunk to fit. |
+| `left`, `right` | The left or the right half. |
+| `top`, `bottom` | The top or the bottom half. |
+| `top-left`, `top-right`, `bottom-left`, `bottom-right` | A quarter. |
+| `full` | The whole area. Unlike [`zoom`](#zoom), the window stays floating. |
+
+Halves and quarters leave the [inner gap](/reference/configuration/#inner) between them, as
+tiled windows do.
+
+A tiled window is floated first, exactly as [`float`](#float) floats it. The window glides to
+its place, following the [`[animation]`](/reference/configuration/#animation) settings.
+
+Some apps will not let a window get smaller than a minimum size, or change its size at all.
+Such a window still goes against the same edges: with `left` its left edge is on the left of
+the area, with `bottom-right` its bottom-right corner is in that corner.
+
+`place` also works while tiling is [paused](#pause). It moves only the window you asked it to.
+
+There are no default shortcuts for `place`.
+[Floating windows](/guides/floating-windows/#place-a-floating-window-from-the-keyboard) suggests
+some.
+
+| Reply | When |
+| --- | --- |
+| `ok` | The window was placed. |
+| `ok: floating` | The window was tiled. It now floats, and was placed. |
+| `error: no focused window` | |
+| `error: this window cannot be moved` | |
+| `error: a fullscreen window cannot be placed` | |
+| `error: cannot read the window's position` | |
+| `error: no display` | |
+
 ### `zoom`
 
 ```text
@@ -317,8 +362,8 @@ follows the window. See
 pause
 ```
 
-Toggles tiling. While paused, Iguana does not move or resize any window, and the menu bar
-icon is a pause mark instead of a drawing of the desktop.
+Toggles tiling. While paused, Iguana does not move or resize any window on its own, and the
+menu bar icon is a pause mark instead of a drawing of the desktop.
 
 | Reply | When |
 | --- | --- |
