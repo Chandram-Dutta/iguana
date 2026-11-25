@@ -23,6 +23,9 @@ public enum Command: Equatable {
     case float
     case zoom
     case close
+    /// An app by bundle id or by part of its name, as in rules: its window gets the focus, or
+    /// the app is opened.
+    case focusApp(String)
     case space(SpaceTarget)
     /// `follow` switches to the target Space along with the window.
     case moveToSpace(SpaceTarget, follow: Bool)
@@ -49,6 +52,7 @@ public enum Command: Equatable {
     float                           toggle tiling for the focused window
     zoom                            toggle the focused window filling the Space
     close                           close the focused window
+    focus-app NAME|BUNDLE-ID        focus that app's window, or open the app
     space N|next|prev               switch to a native Space
     move-to-space N|next|prev       take the focused window to a native Space and go with it
     move-to-space N|next|prev --stay    send it there and stay where you are
@@ -114,6 +118,11 @@ public enum Command: Equatable {
         case "float": return try noArgs(.float)
         case "zoom": return try noArgs(.zoom)
         case "close": return try noArgs(.close)
+        // An app's name can be several words. They were lower-cased above, which the matching ignores.
+        case "focus-app": return .focusApp(try {
+                guard !args.isEmpty else { throw CommandError("'focus-app' needs the name or bundle id of an app") }
+                return args.joined(separator: " ")
+            }())
         case "space": return .space(try spaceTarget())
         case "move-to-space": return .moveToSpace(try spaceTarget(allowFlags: true), follow: try {
                 if args.contains("--stay") && args.contains("--follow") { throw CommandError("move-to-space: use --stay or --follow, not both") }
