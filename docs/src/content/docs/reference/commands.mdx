@@ -43,7 +43,7 @@ error: Iguana needs Accessibility permission (System Settings > Privacy & Securi
 
 | Command | What it does |
 | --- | --- |
-| [`focus`](#focus) | Focus the window in a direction, or a window by its id. |
+| [`focus`](#focus) | Focus the window in a direction, a window by its id, or the window you were in before. |
 | [`move`](#move) | Move the focused window within the layout, or to the next display. |
 | [`join`](#join) | Group the focused window with its neighbour. |
 | [`resize`](#resize) | Grow or shrink the focused window. |
@@ -55,7 +55,7 @@ error: Iguana needs Accessibility permission (System Settings > Privacy & Securi
 | [`close`](#close) | Close the focused window. |
 | [`undo`](#undo) | Take back the last change to the layout of the desktop. |
 | [`redo`](#redo) | Make the last change that was taken back again. |
-| [`space`](#space) | Switch to a desktop. |
+| [`space`](#space) | Switch to a desktop, or back to the one you were on before. |
 | [`move-to-space`](#move-to-space) | Take or send the focused window to a desktop. |
 | [`pause`](#pause) | Toggle tiling on or off. |
 | [`reload`](#reload) | Reload the config file. |
@@ -105,7 +105,7 @@ iguana: 'space' does not take --window
 ### `focus`
 
 ```text
-focus left|right|up|down
+focus left|right|up|down|recent
 focus --window ID
 ```
 
@@ -124,11 +124,18 @@ gives the window it has in front.
 
 If no window is focused, the frontmost window on the desktop is focused instead.
 
+`focus recent` goes back to the window that had the focus before the focused one. Press it
+again to return. Tiled and floating windows count; dialogs and sheets do not. It skips
+windows that are not on screen: those on a desktop that is not showing, minimised windows
+and the windows of a hidden app. It never switches desktop, but it does reach a window on
+another display.
+
 | Reply | When |
 | --- | --- |
 | `ok` | A window was focused. |
 | `ok: nothing in that direction` | There is no window that way. |
 | `ok: no windows here` | There are no windows on screen. |
+| `ok: no other recent window` | `recent` found no window it can go back to. |
 
 With [`mouse-follows-focus`](/reference/configuration/#mouse-follows-focus) on, the pointer
 moves to the centre of the newly focused window.
@@ -340,17 +347,25 @@ there is to redo.
 ### `space`
 
 ```text
-space N|next|prev
+space N|next|prev|recent
 ```
 
 Switches to a desktop by pressing Mission Control's own shortcut. `N` is a number from 1 to
 16, counted across all displays the way Mission Control numbers desktops. `previous` is
 accepted for `prev`.
 
+`recent` is the desktop the current display showed before the one it shows now, however you
+left it: a shortcut, a swipe or Mission Control. Run it twice to go back and forth between
+two desktops. Iguana remembers the desktop itself, not its number, so adding or removing
+desktops does not change where `recent` goes. Fullscreen Spaces are not desktops and are
+skipped. The current display is the one holding the focused tiled window, or the one under
+the pointer.
+
 | Reply | When |
 | --- | --- |
 | `ok` | The system shortcut was pressed. |
 | `ok: already on desktop N` | |
+| `ok: no previous desktop` | This display has shown no other desktop since Iguana started, or that desktop was removed. |
 | `error: there are only N desktops` | The number is higher than the number of desktops. |
 | `error: could not trigger the system shortcut` | |
 | `error: no display` | |
@@ -358,8 +373,8 @@ accepted for `prev`.
 ### `move-to-space`
 
 ```text
-move-to-space N|next|prev
-move-to-space N|next|prev --stay
+move-to-space N|next|prev|recent
+move-to-space N|next|prev|recent --stay
 ```
 
 Takes the focused window to a desktop and goes with it. With `--stay`, the window is sent
@@ -367,8 +382,9 @@ and you stay where you are. `--follow` spells out the default. `--stay` and `--f
 cannot be combined.
 
 `N` is a number from 1 to 16, counted across all displays. `next` and `prev` mean the next
-and previous desktop on the current display. `previous` is accepted for `prev`. The window
-does not have to be tiled.
+and previous desktop on the current display. `recent` is the desktop that display showed
+before, as for [`space recent`](#space). `previous` is accepted for `prev`. The window does
+not have to be tiled.
 
 With [`--window ID`](#acting-on-another-window), the window with that id is sent instead, from
 whichever desktop it is on. `next` and `prev` then count from that window's desktop.
@@ -383,6 +399,7 @@ follows the window. See
 | `ok` | The window was moved, or the slower route was started. |
 | `ok: already on desktop N` | |
 | `ok: no desktop in that direction` | `next` or `prev` at the end of the display's desktops. |
+| `ok: no previous desktop` | `recent`, and the display has shown no other desktop, or that desktop was removed. |
 | `error: no focused window` | |
 | `error: there are only N desktops` | |
 | `error: a fullscreen window cannot be sent to another desktop` | |

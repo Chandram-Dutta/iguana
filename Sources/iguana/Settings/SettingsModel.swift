@@ -98,7 +98,9 @@ struct CommandGroup: Identifiable {
     static let all: [CommandGroup] = {
         let directions = [("left", "Left"), ("down", "Down"), ("up", "Up"), ("right", "Right")]
         return [
-            CommandGroup(title: "Focus", commands: directions.map { CommandInfo(title: "Focus \($0.1)", text: "focus \($0.0)") }),
+            CommandGroup(title: "Focus", commands: directions.map { CommandInfo(title: "Focus \($0.1)", text: "focus \($0.0)") } + [
+                CommandInfo(title: "Back to the Window Before", text: "focus recent"),
+            ]),
             CommandGroup(title: "Move Window", commands: directions.map { CommandInfo(title: "Move \($0.1)", text: "move \($0.0)") }),
             CommandGroup(title: "Group With Neighbour", commands: [
                 CommandInfo(title: "Group With the Window on the Left", text: "join left"),
@@ -122,10 +124,12 @@ struct CommandGroup: Identifiable {
             CommandGroup(title: "Go to Desktop", commands: (1...9).map { CommandInfo(title: "Desktop \($0)", text: "space \($0)") } + [
                 CommandInfo(title: "Next Desktop", text: "space next"),
                 CommandInfo(title: "Previous Desktop", text: "space prev"),
+                CommandInfo(title: "Recent Desktop", text: "space recent"),
             ]),
             CommandGroup(title: "Take Window to Desktop", commands: (1...9).map { CommandInfo(title: "Desktop \($0)", text: "move-to-space \($0)") } + [
                 CommandInfo(title: "Next Desktop", text: "move-to-space next"),
                 CommandInfo(title: "Previous Desktop", text: "move-to-space prev"),
+                CommandInfo(title: "Recent Desktop", text: "move-to-space recent"),
             ]),
         ]
     }()

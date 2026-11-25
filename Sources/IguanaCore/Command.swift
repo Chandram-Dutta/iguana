@@ -4,6 +4,8 @@ public enum SpaceTarget: Equatable {
     case index(Int)
     case next
     case prev
+    /// The desktop the display showed before the one it shows now.
+    case recent
 }
 
 public struct CommandError: Error, CustomStringConvertible, Equatable {
@@ -16,6 +18,8 @@ public enum Command: Equatable {
     /// `focus --window ID`: focus the window the request names. Only a line from the command
     /// line can name a window, so a shortcut never runs this.
     case focusWindow
+    /// Back to the window that had the focus before the focused one.
+    case focusRecent
     case move(Direction)
     case join(Direction)
     /// `grow` is +1 or -1; `axis` nil means the nearest container that can change.
@@ -45,7 +49,7 @@ public enum Command: Equatable {
     case quit
 
     public static let usage = """
-    focus left|right|up|down        focus the window in that direction
+    focus left|right|up|down|recent  focus the window in that direction, or the one focused before
     focus --window ID               focus the window with that id (see list-windows)
     move left|right|up|down         move the focused window within the layout (or to the next display)
     join left|right|up|down         group the focused window with its neighbour
@@ -58,9 +62,9 @@ public enum Command: Equatable {
     close                           close the focused window
     undo                            take back the last change to the layout of this desktop
     redo                            make the last change that was undone again
-    space N|next|prev               switch to a native Space
-    move-to-space N|next|prev       take the focused window to a native Space and go with it
-    move-to-space N|next|prev --stay    send it there and stay where you are
+    space N|next|prev|recent        switch to a native Space, or back to the one before
+    move-to-space N|next|prev|recent  take the focused window to a native Space and go with it
+    move-to-space N|next|prev|recent --stay  send it there and stay where you are
     pause                           toggle tiling on or off
     reload                          reload the config file
     list-windows | list-spaces | tree | status    reports; add --json for a JSON document
@@ -77,19 +81,20 @@ public enum Command: Equatable {
 
         func direction() throws -> Direction {
             guard args.count == 1, let d = Direction(rawValue: args[0]) else {
-                throw CommandError("'\(name)' needs one of: left, right, up, down")
+                throw CommandError("'\(name)' needs one of: left, right, up, down\(name == "focus" ? ", recent" : "")")
             }
             return d
         }
         func spaceTarget(allowFlags: Bool = false) throws -> SpaceTarget {
             let args = allowFlags ? args.filter { $0 != "--follow" && $0 != "--stay" } : args
-            guard args.count == 1 else { throw CommandError("'\(name)' needs a Space number, 'next' or 'prev'") }
+            guard args.count == 1 else { throw CommandError("'\(name)' needs a Space number, 'next', 'prev' or 'recent'") }
             switch args[0] {
             case "next": return .next
             case "prev", "previous": return .prev
+            case "recent": return .recent
             default:
                 guard let n = Int(args[0]), n >= 1, n <= 16 else {
-                    throw CommandError("'\(name)' needs a Space number from 1 to 16, 'next' or 'prev'")
+                    throw CommandError("'\(name)' needs a Space number from 1 to 16, 'next', 'prev' or 'recent'")
                 }
                 return .index(n)
             }
@@ -100,7 +105,7 @@ public enum Command: Equatable {
         }
 
         switch name {
-        case "focus": return .focus(try direction())
+        case "focus": return args == ["recent"] ? .focusRecent : .focus(try direction())
         case "move": return .move(try direction())
         case "join": return .join(try direction())
         case "resize":
