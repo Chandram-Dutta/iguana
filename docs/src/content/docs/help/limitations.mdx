@@ -19,8 +19,6 @@ whether it fits before you rely on it.
   provides those.
 - **No virtual workspaces.** Workspaces are your native desktops. Iguana does not create,
   remove or rename desktops. Use Mission Control for that.
-- **Rules cannot assign an app to a display.** A rule can float an app's windows and send
-  them to a desktop when they open. It cannot name a display.
 - **One shortcut runs one command.** There are no key sequences and no modes.
 
 ## Limits that come from macOS
@@ -83,9 +81,10 @@ runs. Unbound combinations are untouched.
   window sizes Iguana has learned survive quitting and restarting Iguana. They do not survive a restart of the Mac, because macOS gives
   every window a new identity then. After a restart of the Mac, windows are tiled afresh.
 - **Only regular apps are watched.** Apps without a Dock icon are ignored.
-- **A rule's desktop is where a window starts, not where it is kept.** A rule sends a standard
-  window to its desktop once, when the window opens while Iguana is running. Windows that
-  were already open, and windows you have moved since, are left where they are.
+- **A rule's desktop or display is where a window starts, not where it is kept.** A rule
+  sends a standard window to its desktop or its display once, when the window opens while
+  Iguana is running. Windows that were already open, and windows you have moved since, are
+  left where they are until you run [`apply-rules`](/reference/commands/#apply-rules).
 - **Minimum sizes are learned, not known in advance.** Iguana finds out that a window will
   not shrink by asking it to, and then lays out the desktop a second time around it.
 - **Requires macOS 14 or later.**

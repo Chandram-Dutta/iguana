@@ -127,14 +127,14 @@ extension Config {
                 { "type": "string", "pattern": "^resize( (width|height))? (grow|shrink)( (width|height))?$" },
                 { "type": "string", "pattern": "^space ([1-9]|1[0-6]|next|prev|previous)$" },
                 { "type": "string", "pattern": "^move-to-space( (--stay|--follow))? ([1-9]|1[0-6]|next|prev|previous)( (--stay|--follow))?$" },
-                { "enum": ["flip", "stack", "balance", "float", "zoom", "close", "pause", "reload", "settings", "tour", "update", "list-windows", "list-spaces", "tree", "status", "quit"] }
+                { "enum": ["flip", "stack", "balance", "float", "zoom", "close", "pause", "reload", "apply-rules", "settings", "tour", "update", "list-windows", "list-spaces", "tree", "status", "quit"] }
               ]
             }
           }
         },
         "rule": {
           "type": "array",
-          "description": "Windows that should stay floating, or be sent to a desktop when they first appear. Written as [[rule]] sections. The first rule that matches a window decides.",
+          "description": "Windows that should stay floating, or be sent to a desktop or a display when they first appear. Written as [[rule]] sections. The first rule that matches a window decides.",
           "items": {
             "type": "object",
             "additionalProperties": false,
@@ -142,8 +142,12 @@ extension Config {
             "properties": {
               "app": { "type": "string", "description": "A bundle identifier (exact match) or part of the app's name." },
               "title": { "type": "string", "description": "A regular expression matched against the window title, ignoring case." },
-              "float": { "type": "boolean", "description": "Whether matching windows float. A rule with neither float nor desktop floats them; a rule with only desktop leaves floating alone." },
-              "desktop": { "type": "integer", "minimum": 1, "maximum": 16, "description": "Send a matching window to this desktop when it first appears, and stay on the desktop being used. Desktops are numbered as Mission Control numbers them." }
+              "float": { "type": "boolean", "description": "Whether matching windows float. A rule with none of float, desktop and display floats them; a rule with only desktop or display leaves floating alone." },
+              "desktop": { "type": "integer", "minimum": 1, "maximum": 16, "description": "Send a matching window to this desktop when it first appears, and stay on the desktop being used. Desktops are numbered as Mission Control numbers them." },
+              "display": {
+                "description": "Send a matching window to this display when it first appears, onto the desktop the display is showing, and stay where you are. Part of the display's name, ignoring case, or the display's number: displays are numbered from 1, left to right. A rule that has desktop does not use display.",
+                "oneOf": [{ "type": "string", "minLength": 1 }, { "type": "integer", "minimum": 1, "maximum": 16 }]
+              }
             }
           }
         }

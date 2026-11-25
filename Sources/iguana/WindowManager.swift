@@ -103,6 +103,7 @@ final class WindowManager {
     /// How often a stack has been put in order since it last was in order or the user last did something.
     private var stackOrderTries = 0
     private let desktopRules = DesktopRules()
+    private let displayRules = DisplayRules()
 
     // MARK: Lifecycle
 
@@ -324,6 +325,7 @@ final class WindowManager {
         for pid in pids { if let state = apps[pid] { enumerate(state) } }
         // Before the layout, so a window that a rule sends away never takes a tile here first.
         applyDesktopRules()
+        applyDisplayRules()
 
         let snap = ScreenSnapshot.take()
         prune(existing: snap.all)
@@ -383,6 +385,9 @@ final class WindowManager {
             let decides = rule(for: w, app: state.app)
             w.ruleFloat = decides?.floats ?? false
             if let n = decides?.desktop { desktopRules.note(id, desktop: n, app: state.app.localizedName) }
+            if let decides, let d = decides.display {
+                displayRules.note(id, display: d, rule: (config.rules.firstIndex(of: decides) ?? 0) + 1, app: state.app.localizedName)
+            }
             if restoredFloating.remove(id) != nil { w.userFloat = true }
             if let size = restoredMinSizes.removeValue(forKey: id) {
                 w.minSize = size
@@ -415,11 +420,7 @@ final class WindowManager {
     /// A rule can name a desktop. A new window it matches is sent there once, exactly as
     /// `move-to-space N --stay` sends the focused window, and the user stays where they are.
     private func applyDesktopRules() {
-        desktopRules.settle(paused: paused, standard: { id in
-            guard let w = windows[id] else { return nil }
-            guard w.tileable, let frame = w.element.frame else { return false }
-            return isTab(w, frame) ? nil : true
-        }) { id, n in
+        desktopRules.settle(paused: paused, standard: ruleStandard) { id, n in
             guard let w = windows[id] else { return "error: the window is gone" }
             let front = systemFocusedWindow()
             let hadKeyboard = front == id || (front == nil && NSWorkspace.shared.frontmostApplication?.processIdentifier == w.pid)
@@ -437,6 +438,25 @@ final class WindowManager {
             }
             return reply
         }
+    }
+
+    /// A rule can name a display. A new window it matches is moved there once, onto the desktop
+    /// that display is showing, and the user stays on the desktop they are using.
+    private func applyDisplayRules() {
+        displayRules.settle(paused: paused, standard: ruleStandard, displays: {
+            displays = DisplayInfo.current()
+            return displays
+        }, location: { id in windows[id]?.element.frame.flatMap(displayIndex(for:)) }) { id, index in
+            sendWindow(id, toDisplay: index)
+        }
+    }
+
+    /// Whether a new window a rule waits for is a standard one yet. Nil when it is gone, or is a
+    /// tab, which stays with its window.
+    private func ruleStandard(_ id: CGWindowID) -> Bool? {
+        guard let w = windows[id] else { return nil }
+        guard w.tileable, let frame = w.element.frame else { return false }
+        return isTab(w, frame) ? nil : true
     }
 
     /// A new native tab is a window of its own, with the frame of the window it is a tab of and
@@ -748,6 +768,7 @@ final class WindowManager {
             setPaused(!paused)
             return paused ? "ok: paused" : "ok: tiling"
         case .reload: return reloadConfig()
+        case .applyRules: return applyRules()
         case .settings, .tour, .update: return "ok"
         case .listWindows: return listWindows()
         case .listSpaces: return listSpaces()
@@ -853,6 +874,35 @@ final class WindowManager {
         return nearestWindow(from: displays[index].frame, direction: dir, among: frames, excluding: WindowID(index)).map(Int.init)
     }
 
+    /// Put a window on another display, onto the desktop that display is showing, as `move`
+    /// carries one across at the edge. A tiled window joins the layout there beside the window
+    /// focused in it, as a new window would. A floating one keeps its size, as far as it fits, and
+    /// is centred. The desktop being used and the focus stay as they are.
+    private func sendWindow(_ id: CGWindowID, toDisplay index: Int) -> String {
+        guard let w = windows[id] else { return "error: the window is gone" }
+        guard displays.indices.contains(index) else { return "error: no such display" }
+        guard displays[index].isDesktop else { return "error: that display is showing a fullscreen Space" }
+        guard let frame = w.element.frame else { return "error: cannot read the window's position" }
+        let area = displays[index].usableFrame(config)
+        let size = CGSize(width: min(frame.width, area.width), height: min(frame.height, area.height))
+        animator.cancel(id)
+        for tree in trees.values { tree.remove(id) }
+        w.element.setSize(size)
+        w.element.setPosition(CGPoint(x: area.midX - size.width / 2, y: area.midY - size.height / 2))
+        w.lastSetFrame = nil
+        // The window server reports the move a moment later. The layout that follows must see the
+        // window where it is now, or it would give it a tile on the display it left.
+        let deadline = Date().addingTimeInterval(0.3)
+        var arrived = false
+        repeat {
+            arrived = Self.serverOrigin(id).map { displayIndex(for: CGRect(origin: $0, size: size)) == index } ?? false
+            if !arrived { usleep(4_000) }
+        } while !arrived && Date() < deadline
+        // Its desktop can change a little later still, and the layout only takes it in then.
+        scheduleRefresh(after: 0.1)
+        return arrived ? "ok" : "error: the window did not move to that display"
+    }
+
     // MARK: Native Spaces
 
     private var activeDisplay: DisplayInfo? {
@@ -904,7 +954,9 @@ final class WindowManager {
             guard onThisDisplay.indices.contains(j) else { return "ok: no desktop in that direction" }
             destination = onThisDisplay[j]
         }
-        guard destination.id != here.spaceID else { return "ok: already on desktop \(destination.number)" }
+        // A rule's window can be on a desktop that is not showing: then where it is counts.
+        let on = ruled == nil ? [] : Private.spaces(of: id)
+        guard on.isEmpty ? destination.id != here.spaceID : !on.contains(destination.id) else { return "ok: already on desktop \(destination.number)" }
 
         // A window has to sit on the display its Space belongs to.
         if destination.displayID != here.managedID, let there = displays.first(where: { $0.managedID == destination.displayID }) {
@@ -926,7 +978,7 @@ final class WindowManager {
             } else {
                 // Hand the keyboard to the window that is left nearest to where this one was.
                 let remaining = slots.filter { $0.key != id }
-                if let oldSlot, let next = remaining.min(by: { distance($0.value, oldSlot) < distance($1.value, oldSlot) })?.key {
+                if let oldSlot, id == focusedWindow, let next = remaining.min(by: { distance($0.value, oldSlot) < distance($1.value, oldSlot) })?.key {
                     focus(window: next)
                 }
             }
@@ -1110,13 +1162,67 @@ final class WindowManager {
         }
         // A rule sends a window to its desktop when the window appears. Those that are open now stay.
         desktopRules.markExisting()
+        displayRules.markExisting()
+        applyFloatRules()
+        onConfigChange?()
+        if started { refresh() }
+        return reply
+    }
+
+    /// Ask every window again whether a rule floats it, as when the config is read. A window
+    /// floated or tiled by hand keeps that: the user's choice wins over a rule.
+    private func applyFloatRules() {
         for (pid, state) in apps {
             for w in windows.values where w.pid == pid { w.ruleFloat = matchesFloatRule(w, app: state.app) }
         }
         for w in windows.values where w.floating { for tree in trees.values { tree.remove(w.id) } }
-        onConfigChange?()
-        if started { refresh() }
-        return reply
+    }
+
+    /// `apply-rules`: what the rules say, done now to the windows that are open. Otherwise a rule
+    /// only sends a window as it opens. Each standard window goes to the desktop or the display
+    /// its rule names, by the same routes as a new one, and the user stays where they are.
+    private func applyRules() -> String {
+        guard !paused else { return "error: tiling is paused" }
+        applyFloatRules()
+        let snap = ScreenSnapshot.take()
+        let desktops = Desktop.all()
+        var moved = 0, cannotStay = false
+        for w in windows.values.sorted(by: { $0.id < $1.id }) {
+            guard let app = apps[w.pid]?.app, let rule = rule(for: w, app: app), rule.desktop != nil || rule.display != nil,
+                  w.tileable, w.element.bool(kAXMinimizedAttribute) != true, w.element.bool("AXFullScreen") != true,
+                  let frame = w.element.frame,
+                  // Of the tabs of one window, the one in front stands for all of them.
+                  snap.onScreen[w.id] != nil || !isTab(w, frame) else { continue }
+            let window = "window \(w.id) of \(app.localizedName ?? "an app")"
+            var reply = ""
+            if let n = rule.desktop {
+                let on = Private.spaces(of: w.id)
+                switch DesktopRuleAction.decide(wanted: n, standardWindow: true, windowDesktops: desktops.filter { on.contains($0.id) }.map(\.number),
+                                                desktopCount: desktops.count, canStay: Private.hasMoveBridge) {
+                case .send:
+                    let position = w.element.position
+                    reply = moveToSpace(.index(n), follow: false, ruled: w.id)
+                    // Aiming at a desktop on another display moves the window there first. It did not go, so put it back.
+                    if reply.hasPrefix("error"), let position { w.element.setPosition(position) }
+                case .missing: Log.write("apply-rules: \(window) was not sent to desktop \(n): there are only \(desktops.count) desktops")
+                case .cannotStay: cannotStay = true
+                case .leave: break
+                }
+            } else if let d = rule.display, isShowing(w.id, snap) {
+                // A window on a desktop that is not being shown stays on it.
+                switch DisplayRuleAction.decide(wanted: d, standardWindow: true, windowDisplay: displayIndex(for: frame),
+                                                names: displays.map(\.name), frames: displays.map(\.frame)) {
+                case .send(let i): reply = sendWindow(w.id, toDisplay: i)
+                case .missing: Log.write("apply-rules: \(window) was not sent to display \(d): no such display is connected")
+                case .leave: break
+                }
+            }
+            if reply == "ok" { moved += 1 }
+            if reply.hasPrefix("error: ") { Log.write("apply-rules: \(window) was not moved: \(reply.dropFirst(7))") }
+        }
+        if cannotStay { Log.write("apply-rules: this macOS can only take a window to another desktop by going there with it, so desktops in rules were not applied") }
+        refresh()
+        return moved == 0 ? "ok: nothing to move" : "ok: \(moved) window(s) moved"
     }
 
     // MARK: Reports

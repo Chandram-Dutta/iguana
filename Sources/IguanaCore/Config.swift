@@ -23,25 +23,30 @@ public struct Rule: Equatable {
     public var app: String?
     /// Regular expression matched against the window title.
     public var title: String?
-    /// Nil when the rule says nothing about floating. Only a rule that names a desktop can say
-    /// nothing: a rule with neither key floats, as every rule did before rules could do more.
+    /// Nil when the rule says nothing about floating. Only a rule that names a desktop or a
+    /// display can say nothing: a rule with none of these keys floats, as every rule did before
+    /// rules could do more.
     public var float: Bool?
     /// The desktop matching windows are sent to when they first appear, numbered the way
     /// Mission Control numbers them.
     public var desktop: Int?
+    /// The display matching windows are sent to when they first appear. A rule that names a
+    /// desktop has none: the desktop decides, because a desktop belongs to one display.
+    public var display: DisplayRef?
 
     /// The desktops a rule can name: the ones `space` and `move-to-space` accept.
     public static let desktopNumbers = 1...16
 
-    public init(app: String?, title: String?, float: Bool? = nil, desktop: Int? = nil) {
+    public init(app: String?, title: String?, float: Bool? = nil, desktop: Int? = nil, display: DisplayRef? = nil) {
         self.app = app
         self.title = title
-        self.float = float ?? (desktop == nil ? true : nil)
+        self.float = float ?? (desktop == nil && display == nil ? true : nil)
         self.desktop = desktop
+        self.display = display
     }
 
     /// Whether the rule floats the windows it matches.
-    public var floats: Bool { float ?? (desktop == nil) }
+    public var floats: Bool { float ?? (desktop == nil && display == nil) }
 
     public func matches(bundleID: String?, appName: String?, title: String?) -> Bool {
         if let app {
@@ -226,7 +231,8 @@ public struct Config: Equatable {
     # Rules for the windows of an app. `app` is a bundle id or part of the app name, `title` is a
     # regular expression. `float = true` keeps matching windows floating; dialogs, sheets and
     # fixed-size windows float on their own. `desktop = 3` sends a matching window to desktop 3
-    # when it first appears, and leaves you where you are.
+    # when it first appears, and leaves you where you are. `display = "Studio"` (part of the
+    # display's name) or `display = 2` (counted from the left) sends it to that display instead.
     # Once the file has any [[rule]], the built-in rules below no longer apply by themselves.
     # The first rule that matches a window decides, so an exception (float = false) goes above
     # the general rule it is an exception to.
@@ -430,12 +436,17 @@ public struct Config: Equatable {
             c.rules = []
             for (i, entry) in list.enumerated() {
                 guard let t = entry.tableValue else { continue }
-                checkKeys(t, ["app", "title", "float", "desktop"], "rule \(i + 1)")
+                checkKeys(t, ["app", "title", "float", "desktop", "display"], "rule \(i + 1)")
                 var desktop: Int?
                 if case .int(let n)? = t["desktop"] { desktop = n }
-                // A `float` that is not true or false has always been read as true.
+                // A desktop belongs to one display, so with both the desktop decides.
+                let display = t["desktop"] == nil ? t["display"].flatMap(DisplayRef.init) : nil
+                // A `float` that is not true or false has always been read as true. A rule whose
+                // display is left out still does not float, as it would not have with the display.
+                let float = t["float"].map { $0.boolValue ?? true }
+                    ?? (t["display"] != nil && t["desktop"] == nil && display == nil ? false : nil)
                 let rule = Rule(app: t["app"]?.stringValue, title: t["title"]?.stringValue,
-                                float: t["float"].map { $0.boolValue ?? true }, desktop: desktop)
+                                float: float, desktop: desktop, display: display)
                 if rule.app == nil && rule.title == nil {
                     warnings.append("rule \(i + 1) needs 'app' or 'title'")
                     continue
@@ -449,6 +460,12 @@ public struct Config: Equatable {
                     let range = Rule.desktopNumbers
                     warnings.append("rule \(i + 1): desktop must be a whole number from \(range.lowerBound) to \(range.upperBound); skipping this rule")
                     continue
+                }
+                if t["display"] != nil, t["desktop"] != nil {
+                    warnings.append("rule \(i + 1): desktop and display both given; desktop decides")
+                } else if t["display"] != nil, display == nil {
+                    let range = DisplayRef.numbers
+                    warnings.append("rule \(i + 1): display must be part of a display's name or a number from \(range.lowerBound) to \(range.upperBound); keeping the rule without it")
                 }
                 c.rules.append(rule)
             }

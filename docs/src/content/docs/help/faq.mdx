@@ -87,6 +87,18 @@ Yes. Give it a rule with a `desktop`, in the config file or in the Window Rules 
 the settings window. A window that opens is sent there and you stay where you are. See
 [Open an app's windows on a desktop](/guides/desktops-and-displays/#open-an-apps-windows-on-a-desktop).
 
+### Can an app always open on the same display?
+
+Yes. Give it a rule with a `display`: part of the display's name, or its number from the
+left. A window that opens is moved there, onto the desktop that display is showing. See
+[Open an app's windows on a display](/guides/desktops-and-displays/#open-an-apps-windows-on-a-display).
+
+### Do rules move the windows that are already open?
+
+Not by themselves. A rule sends a window to its desktop or display when the window opens.
+Run `iguana apply-rules` to do the same for every window that is open now. See
+[`apply-rules`](/reference/commands/#apply-rules).
+
 ### How do I move a window to another display?
 
 Use `move` towards that display. When the window is at the edge of its layout, the next

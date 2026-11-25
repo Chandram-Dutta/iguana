@@ -184,7 +184,7 @@ built-in shortcut writes it as `""`.
 ## Window Rules
 
 One row for each rule, with the app's icon and name, an optional title pattern, a Float
-switch and a pop-up menu of desktops. A window that matches a floating rule stays where you
+switch and pop-up menus of desktops and displays. A window that matches a floating rule stays where you
 put it instead of being tiled. With no rules, the pane says that nothing floats by rule.
 
 - **Add an App** lists the apps that are running. Choose one to float all of its windows.
@@ -192,10 +192,16 @@ put it instead of being tiled. With no rules, the pane says that nothing floats 
 - **The title pattern** under the app's name narrows the rule to windows whose title matches.
   Leave it empty for all of the app's windows.
 - **The Float switch** says whether the rule's windows float. Switch it off for an app whose
-  windows should be tiled and only sent to a desktop.
+  windows should be tiled and only sent to a desktop or a display.
 - **The desktop menu** sends the rule's windows to a desktop when they open, and leaves you
   where you are. It lists the desktops you have now. "Any Desktop" sends them nowhere. See
   [Open an app's windows on a desktop](/guides/desktops-and-displays/#open-an-apps-windows-on-a-desktop).
+- **The display menu** moves the rule's windows to a display when they open, onto the desktop
+  it is showing. It lists the displays that are connected, by number and name, and writes the
+  number. A display the rule names by name in the file is shown as written and kept. "Any
+  Display" moves them nowhere. While a desktop is chosen the menu is dimmed, because the
+  desktop decides. See
+  [Open an app's windows on a display](/guides/desktops-and-displays/#open-an-apps-windows-on-a-display).
 - **The minus button** at the end of a row removes that rule.
 
 These edit the [`[[rule]]`](/reference/configuration/#rule) sections. Unlike the other

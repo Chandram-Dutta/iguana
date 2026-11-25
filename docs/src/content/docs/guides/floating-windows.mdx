@@ -51,18 +51,19 @@ Windows you floated by hand are remembered when Iguana restarts.
 ## Rules
 
 A rule says what happens to the windows that match it: whether they float, and which desktop
-they are sent to when they first appear. Rules live in the
+or display they are sent to when they first appear. Rules live in the
 [config file](/reference/configuration/#rule) as `[[rule]]` sections, and in the
 **Window Rules** pane of the [settings window](/guides/settings-window/#window-rules).
 
-Each rule has up to four keys:
+Each rule has up to five keys:
 
 | Key | Type | Meaning |
 | --- | --- | --- |
 | `app` | string | A bundle identifier, matched exactly, or part of the app's name. Case is ignored. |
 | `title` | string | A regular expression matched against the window title. Case is ignored. |
-| `float` | boolean | `true` floats matching windows. `false` makes the rule an exception: matching windows are tiled. Defaults to `true` in a rule without `desktop`. |
+| `float` | boolean | `true` floats matching windows. `false` makes the rule an exception: matching windows are tiled. Defaults to `true` in a rule without `desktop` or `display`. |
 | `desktop` | whole number, 1 to 16 | Sends a matching window to that desktop when it first appears. See [Send an app's windows to a desktop](#send-an-apps-windows-to-a-desktop). |
+| `display` | string, or whole number 1 to 16 | Moves a matching window to that display when it first appears: part of the display's name, or its number from the left. See [Open an app's windows on a display](/guides/desktops-and-displays/#open-an-apps-windows-on-a-display). |
 
 A rule needs `app`, `title` or both. With both, a window must match both.
 
@@ -187,6 +188,10 @@ The window is sent once, when it opens. After that it is yours to move.
 [Desktops and displays](/guides/desktops-and-displays/#open-an-apps-windows-on-a-desktop)
 says exactly when a window is sent and when it is left alone.
 
+A `display` works the same way for a display, and its windows go onto the desktop that
+display is showing. With both keys in one rule, the desktop decides. See
+[Open an app's windows on a display](/guides/desktops-and-displays/#open-an-apps-windows-on-a-display).
+
 ### No rules at all
 
 Leaving every `[[rule]]` out of the file does not mean "no rules": the built-in ones apply.
@@ -204,12 +209,15 @@ A rule is checked when a window first appears. Whether a window floats is checke
 every window when the config is reloaded. A window whose title changes later is not checked
 again until then.
 
-The desktop is different: it only counts at the moment a window opens. Reloading the config
-never moves a window that is already open.
+The desktop and the display are different: they only count at the moment a window opens.
+Reloading the config never moves a window that is already open.
+[`apply-rules`](/reference/commands/#apply-rules) does: it sends every open window to the
+desktop or display its rule names, and decides floating again as a reload does.
 
 A rule that has neither `app` nor `title`, whose `title` is not a valid regular expression,
 or whose `desktop` is not a whole number from 1 to 16, is skipped with a warning. The other
-rules still apply.
+rules still apply. A `display` that cannot be used is left out with a warning, and the rest of
+the rule applies.
 
 ## Related
 

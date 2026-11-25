@@ -53,8 +53,6 @@ final class DesktopRuleTests: XCTestCase {
             XCTAssertEqual(c.rules, [Rule(app: "Mail", title: nil, desktop: 2)], "desktop = \(bad)")
             XCTAssertEqual(warnings, ["rule 1: desktop must be a whole number from 1 to 16; skipping this rule"], "desktop = \(bad)")
         }
-        let (_, unknown) = try Config.load("[[rule]]\napp = \"Slack\"\ndisplay = 2\n")
-        XCTAssertEqual(unknown, ["unknown key 'display' in rule 1"], "a rule cannot name a display")
     }
 
     func testTheFirstMatchingRuleDecidesFloatingAndDesktopTogether() throws {
@@ -116,7 +114,7 @@ final class DesktopRuleTests: XCTestCase {
         let schema = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(Config.jsonSchema.utf8)) as? [String: Any])
         let rule = try XCTUnwrap(((schema["properties"] as? [String: Any])?["rule"] as? [String: Any])?["items"] as? [String: Any])
         let keys = try XCTUnwrap(rule["properties"] as? [String: Any])
-        XCTAssertEqual(Set(keys.keys), ["app", "title", "float", "desktop"])
+        XCTAssertEqual(Set(keys.keys), ["app", "title", "float", "desktop", "display"])
         let desktop = try XCTUnwrap(keys["desktop"] as? [String: Any])
         XCTAssertEqual(desktop["type"] as? String, "integer")
         XCTAssertEqual(desktop["minimum"] as? Int, Rule.desktopNumbers.lowerBound)
