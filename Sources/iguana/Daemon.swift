@@ -69,6 +69,14 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if let self { self.dragPreview.drag(on, self.wm) }
         }
         wm.onConfigChange = { [weak self] in self?.registerHotkeys() }
+        // A pid is reused quickly; its cached icon could be another app's next time.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main
+        ) { [weak self] n in
+            if let pid = (n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.processIdentifier {
+                self?.iconCache[pid] = nil
+            }
+        }
         wm.onModeChange = { [weak self] in
             // On the next turn of the run loop: the key that switched the mode is still being
             // handled, and must not fire again in the new set.
