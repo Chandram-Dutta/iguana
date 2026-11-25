@@ -23,7 +23,7 @@ final class Hooks {
         var places: (desktops: [Desktop], onScreen: [CGWindowID: CGRect])?
         /// What a hook is told about a window. Asked once for each window, when it is first seen.
         func describe(_ id: CGWindowID) -> HookTracker.Window {
-            if places == nil { places = (Desktop.all(), ScreenSnapshot.take().onScreen) }
+            if places == nil { places = (wm.system.desktops(), wm.system.snapshot().onScreen) }
             let w = facts.windows[id]
             let place = wm.place(of: id, frame: places?.onScreen[id], desktops: places?.desktops ?? [])
             return HookTracker.Window(id: id, app: w.flatMap { facts.apps[$0.pid]?.app.localizedName } ?? "",
@@ -124,7 +124,7 @@ final class Hooks {
             app = NSWorkspace.shared.frontmostApplication?.localizedName ?? ""
             title = ""
         }
-        let place = wm.place(of: id, frame: ScreenSnapshot.take().onScreen[id])
+        let place = wm.place(of: id, frame: wm.system.snapshot().onScreen[id])
         return HookEnvironment.variables(event: .focusChanged, desktop: place.desktop, display: place.display ?? facts.activeDisplay?.name,
                                          window: (id, app, title))
     }

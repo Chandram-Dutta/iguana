@@ -5,11 +5,11 @@ let arguments = Array(CommandLine.arguments.dropFirst())
 
 func printUsage() {
     print("""
-    Iguana \(WindowManager.version), a tiling window manager for macOS.
+    Iguana \(Iguana.version), a tiling window manager for macOS.
 
     usage:
       iguana daemon                 run the window manager (this is what Iguana.app does)
-      iguana config init            write the default config to \(WindowManager.configURL.path)
+      iguana config init            write the default config to \(Iguana.configURL.path)
       iguana config path            print where the config file lives
       iguana config check [file]    check a config file and list every problem in it
       iguana settings               open the settings window
@@ -32,19 +32,19 @@ case "daemon":
 case "help", "-h", "--help":
     printUsage()
 case "version", "--version":
-    print(WindowManager.version)
+    print(Iguana.version)
 case "config":
     switch arguments.dropFirst().first {
     case "path":
-        print(WindowManager.configURL.path)
+        print(Iguana.configURL.path)
     case "init":
         if let message = ConfigFile.createIfMissing() {
             print(message)
             exit(message.hasPrefix("error") ? 1 : 0)
         }
-        print("\(WindowManager.configURL.path) already exists, left untouched")
+        print("\(Iguana.configURL.path) already exists, left untouched")
     case "check":
-        let url = arguments.count > 2 ? URL(fileURLWithPath: arguments[2]) : WindowManager.configURL
+        let url = arguments.count > 2 ? URL(fileURLWithPath: arguments[2]) : Iguana.configURL
         let (report, ok) = ConfigFile.check(url)
         print(report.joined(separator: "\n"))
         exit(ok ? 0 : 1)

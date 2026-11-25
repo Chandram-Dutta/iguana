@@ -6,39 +6,45 @@ import IguanaCore
 /// the log what was done. Which windows are new, and what to do with one, is decided in
 /// IguanaCore (`DesktopRuleQueue`, `DesktopRuleAction`).
 final class DesktopRules {
+    private let system: WindowSystem
+    private let scheduler: Scheduler
     private var queue = DesktopRuleQueue()
     private var saidCannotStay = false
 
+    init(system: WindowSystem, scheduler: Scheduler) {
+        self.system = system
+        self.scheduler = scheduler
+    }
+
     /// Every window the system has, on any desktop.
-    private static func everyWindow() -> Set<CGWindowID> {
-        let list = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]] ?? []
-        return Set(list.compactMap { ($0[kCGWindowNumber as String] as? NSNumber)?.uint32Value })
+    private func everyWindow() -> Set<CGWindowID> {
+        Set(system.windowOwners().keys)
     }
 
     /// Called when the config is read: the windows that are open now stay where they are.
     func markExisting() {
-        queue.markExisting(Self.everyWindow())
+        queue.markExisting(everyWindow())
     }
 
     /// A window Iguana sees for the first time, matched by a rule that names a desktop.
     func note(_ id: CGWindowID, desktop: Int, app: String?) {
-        queue.note(id, desktop: desktop, app: app ?? "an app", at: Date())
+        queue.note(id, desktop: desktop, app: app ?? "an app", at: scheduler.now)
     }
 
     /// Deal with the windows that are waiting. `standard` says whether a window is a standard
     /// one, and nil when it is gone or is not one to send at all; `send` moves it and answers
     /// as the `move-to-space` command does.
     func settle(paused: Bool, standard: (CGWindowID) -> Bool?, send: (CGWindowID, Int) -> String) {
-        guard queue.hasLooked else { return queue.firstLook(existing: Self.everyWindow()) }
-        let due = queue.due(at: Date(), paused: paused, standard: standard)
+        guard queue.hasLooked else { return queue.firstLook(existing: everyWindow()) }
+        let due = queue.due(at: scheduler.now, paused: paused, standard: standard)
         guard !due.isEmpty else { return }
 
-        let desktops = Desktop.all()
+        let desktops = system.desktops()
         for entry in due {
-            let on = Private.spaces(of: entry.window)
+            let on = system.spaces(of: entry.window)
             let action = DesktopRuleAction.decide(wanted: entry.desktop, standardWindow: true,
                                                   windowDesktops: desktops.filter { on.contains($0.id) }.map(\.number),
-                                                  desktopCount: desktops.count, canStay: Private.hasMoveBridge)
+                                                  desktopCount: desktops.count, canStay: system.hasMoveBridge)
             let window = "window \(entry.window) of \(entry.app)"
             switch action {
             case .leave:

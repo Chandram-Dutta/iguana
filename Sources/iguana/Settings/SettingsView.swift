@@ -190,7 +190,7 @@ private struct GeneralPane: View {
                         .toggleStyle(.switch)
                         .labelsHidden()
                 }
-                SettingRow(title: model.updateSummary(running: WindowManager.version)) {
+                SettingRow(title: model.updateSummary(running: Iguana.version)) {
                     HStack(spacing: 8) {
                         if model.checkingForUpdate { ProgressView().controlSize(.small) }
                         if let update = model.updateOffered {

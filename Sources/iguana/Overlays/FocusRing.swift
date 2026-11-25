@@ -31,7 +31,7 @@ final class FocusRing {
     private var overlay: OutlineOverlay?
     private var tracker = FocusRingTracker()
     /// The window being followed, to pick its own notifications out of everybody's.
-    private var watched: (id: CGWindowID, element: AXUIElement)?
+    private var watched: (id: CGWindowID, element: UIElement)?
     /// The window the ring is around, and the Space it was put on screen on.
     private var shown: (id: CGWindowID, space: UInt64)?
     /// The last window that was asked whether it is a standard one, and was.
@@ -45,8 +45,8 @@ final class FocusRing {
         update(reorder: true)
     }
 
-    func moved(_ element: AXUIElement) {
-        guard let watched, CFEqual(element, watched.element) else { return }
+    func moved(_ element: UIElement) {
+        guard let watched, element.isSame(as: watched.element) else { return }
         update(reorder: false)
     }
 

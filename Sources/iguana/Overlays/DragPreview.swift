@@ -2,26 +2,6 @@ import AppKit
 import ApplicationServices
 import IguanaCore
 
-/// The ordinary windows on screen, front to back, as the window server has them. One call,
-/// and no permission needed.
-struct WindowsOnScreen {
-    var order: [CGWindowID] = []
-    /// Measured from the top-left corner of the primary display.
-    var frames: [CGWindowID: CGRect] = [:]
-
-    static func take() -> WindowsOnScreen {
-        var list = WindowsOnScreen()
-        for info in (CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]) ?? [] {
-            guard (info[kCGWindowLayer as String] as? NSNumber)?.intValue == 0,
-                  let id = (info[kCGWindowNumber as String] as? NSNumber)?.uint32Value,
-                  let bounds = info[kCGWindowBounds as String] as? NSDictionary, let frame = CGRect(dictionaryRepresentation: bounds) else { continue }
-            list.order.append(id)
-            list.frames[id] = frame
-        }
-        return list
-    }
-}
-
 extension WindowManager {
     /// What letting go of a dragged tile would do with the pointer at `pointer`, and where the
     /// window would land. Nil when it would do nothing.
@@ -37,7 +17,7 @@ extension WindowManager {
         let tiles = tileFrames
         guard tiles[id] != nil else { return nil }
         let facts = facts()
-        let onScreen = onScreen ?? .take()
+        let onScreen = onScreen ?? system.windowsOnScreen()
 
         // A window Iguana knows that is on screen without a tile lies over the tiles: a
         // floating window, a dialog, a zoomed window. So does a window of Iguana's own, unless
@@ -148,8 +128,8 @@ final class DragPreview {
         lastLook = ProcessInfo.processInfo.systemUptime
         // The button is asked about as well: the look that was waiting may come after it went up.
         guard active, let wm, let drag = wm.dragging, CGEventSource.buttonState(.combinedSessionState, button: .left),
-              let pointer = CGEvent(source: nil)?.location else { return hide() }
-        let onScreen = WindowsOnScreen.take()
+              let pointer = wm.system.pointerLocation else { return hide() }
+        let onScreen = wm.system.windowsOnScreen()
         guard let frame = onScreen.frames[drag.id],
               let plan = wm.dropPlan(dragging: drag.id, from: drag.start, now: frame, at: pointer, onScreen: onScreen) else { return hide() }
 

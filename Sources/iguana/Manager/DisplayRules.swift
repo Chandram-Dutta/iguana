@@ -6,18 +6,25 @@ import IguanaCore
 /// to the log what was done. Which windows are new, and where one goes, is decided in
 /// IguanaCore (`DisplayRuleQueue`, `DisplayRuleAction`).
 final class DisplayRules {
+    private let system: WindowSystem
+    private let scheduler: Scheduler
     private var queue = DisplayRuleQueue()
     /// Rules whose display was not there, with that display. Each is reported once.
     private var saidMissing = Set<String>()
 
+    init(system: WindowSystem, scheduler: Scheduler) {
+        self.system = system
+        self.scheduler = scheduler
+    }
+
     /// Called when the config is read: the windows that are open now stay where they are.
     func markExisting() {
-        queue.markExisting(ScreenSnapshot.take().all)
+        queue.markExisting(system.snapshot().all)
     }
 
     /// A window Iguana sees for the first time, matched by rule number `rule`, which names a display.
     func note(_ id: CGWindowID, display: DisplayRef, rule: Int, app: String?) {
-        queue.note(id, display: display, rule: rule, app: app ?? "an app", at: Date())
+        queue.note(id, display: display, rule: rule, app: app ?? "an app", at: scheduler.now)
     }
 
     /// Deal with the windows that are waiting.
@@ -28,8 +35,8 @@ final class DisplayRules {
     ///   - send: moves a window to the display at a position, and answers as a command does.
     func settle(paused: Bool, standard: (CGWindowID) -> Bool?, displays: () -> [DisplayInfo],
                 location: (CGWindowID) -> Int?, send: (CGWindowID, Int) -> String) {
-        guard queue.hasLooked else { return queue.firstLook(existing: ScreenSnapshot.take().all) }
-        let due = queue.due(at: Date(), paused: paused, standard: standard)
+        guard queue.hasLooked else { return queue.firstLook(existing: system.snapshot().all) }
+        let due = queue.due(at: scheduler.now, paused: paused, standard: standard)
         guard !due.isEmpty else { return }
 
         let displays = displays()

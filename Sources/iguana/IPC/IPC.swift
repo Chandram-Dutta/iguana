@@ -5,7 +5,7 @@ import IguanaCore
 /// one line in, one reply out. `subscribe` is the exception: its connection stays open, and
 /// the app writes a line to it for each event (see Subscribers.swift).
 enum IPC {
-    static var socketPath: String { socketPathOverride ?? WindowManager.supportDirectory.appendingPathComponent("iguana.sock").path }
+    static var socketPath: String { socketPathOverride ?? Iguana.supportDirectory.appendingPathComponent("iguana.sock").path }
     /// A test listens on a socket of its own, so that it never touches the one a running
     /// Iguana answers on.
     static var socketPathOverride: String?

@@ -8,13 +8,13 @@ extension WindowManager {
     /// recently focused first and the focused window last; and which app each belongs to.
     func switcherWindows() -> (windows: [Switcher.Window], owners: [CGWindowID: pid_t]) {
         let facts = self.facts()
-        let snap = ScreenSnapshot.take()
-        let desktops = Desktop.all()
+        let snap = system.snapshot()
+        let desktops = system.desktops()
         let showing = Set(displays.map(\.spaceID))
-        let stages = StageManager.isOn
+        let stages = system.stageManager.isOn
         // The switcher's recency is the shared focus history: its order, written as dates the
         // ranking sorts by. A window not in it has none, and is listed after those that do.
-        let now = Date()
+        let now = scheduler.now
         let recency = Dictionary(uniqueKeysWithValues: focusHistory.windows.enumerated().map { ($1, now.addingTimeInterval(-Double($0))) })
         var list: [Switcher.Window] = []
         var owners: [CGWindowID: pid_t] = [:]
@@ -30,7 +30,7 @@ extension WindowManager {
                 visibility = .minimised
             } else if app.isHidden {
                 visibility = .hidden
-            } else if stages, Private.spaces(of: id).contains(where: showing.contains) {
+            } else if stages, system.spaces(of: id).contains(where: showing.contains) {
                 visibility = .otherStage
             } else {
                 visibility = .elsewhere

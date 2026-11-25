@@ -10,12 +10,12 @@ import QuartzCore
 /// only the newest frame per window means a slow app skips frames instead of falling behind.
 private final class AppWriter {
     struct Write {
-        let element: AXUIElement
+        let element: UIElement
         let frame: CGRect
         let final: Bool
     }
 
-    private let app: AXUIElement?
+    private let app: UIElement?
     private let queue: DispatchQueue
     private let lock = NSLock()
     private var pending: [CGWindowID: Write] = [:]
@@ -27,7 +27,7 @@ private final class AppWriter {
 
     var landed: ((CGWindowID, CGRect, CGSize?) -> Void)?
 
-    init(pid: pid_t, app: AXUIElement?) {
+    init(pid: pid_t, app: UIElement?) {
         self.app = app
         queue = DispatchQueue(label: "iguana.frames.\(pid)", qos: .userInteractive)
     }
@@ -94,10 +94,10 @@ private final class AppWriter {
 }
 
 /// Moves windows to their new frames, either at once or as a short glide.
-final class Animator: NSObject {
+final class Animator: NSObject, FrameMover {
     private struct Motion {
         let pid: pid_t
-        let element: AXUIElement
+        let element: UIElement
         let from: CGRect
         let to: CGRect
         let start: CFTimeInterval
@@ -127,7 +127,7 @@ final class Animator: NSObject {
     var isIdle: Bool { motions.isEmpty && landing.isEmpty }
 
     /// Take a window to `to`. A window that is already gliding continues from where it is now.
-    func move(_ id: CGWindowID, pid: pid_t, element: AXUIElement, app: AXUIElement?,
+    func move(_ id: CGWindowID, pid: pid_t, element: UIElement, app: UIElement?,
               from: CGRect, to: CGRect, duration: Double, easing: Easing) {
         let start = motions[id]?.current ?? from
         let writer = writer(pid, app)
@@ -154,7 +154,7 @@ final class Animator: NSObject {
         writers[pid] = nil
     }
 
-    private func writer(_ pid: pid_t, _ app: AXUIElement?) -> AppWriter {
+    private func writer(_ pid: pid_t, _ app: UIElement?) -> AppWriter {
         if let w = writers[pid] { return w }
         let w = AppWriter(pid: pid, app: app)
         w.landed = { [weak self] id, frame, actual in

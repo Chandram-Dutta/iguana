@@ -45,6 +45,8 @@ struct DisplayInfo {
     let isMain: Bool
     /// From 1, left to right, as `DisplayOrder` numbers displays.
     var number = 0
+    /// Stage Manager as it was when the display was looked at, for the room its strip takes.
+    var stage = StageManager.State()
 
     /// Fullscreen apps, and anything else that is not a normal desktop, are left alone.
     var isDesktop: Bool { spaceIndex != nil }
@@ -85,7 +87,11 @@ struct DisplayInfo {
                 totalDesktops: total,
                 isMain: screen == main)
         }
-        for (i, n) in DisplayOrder.numbers(list.map(\.frame)).enumerated() { list[i].number = n }
+        let stage = StageManager.current
+        for (i, n) in DisplayOrder.numbers(list.map(\.frame)).enumerated() {
+            list[i].number = n
+            list[i].stage = stage
+        }
         return list
     }
 
@@ -103,10 +109,10 @@ struct DisplayInfo {
         r.origin.y += s.outer.top
         r.size.width -= s.outer.left + s.outer.right
         r.size.height -= s.outer.top + s.outer.bottom
-        let strip = StageManager.reservedWidth(config)
+        let strip = stage.reservedWidth(config)
         if strip > 0, r.width - strip > 400 {
             // The strip of recent apps sits on the left, or on the right when the Dock is on the left.
-            if !StageManager.stripOnRight { r.origin.x += strip }
+            if !stage.stripOnRight { r.origin.x += strip }
             r.size.width -= strip
         }
         return DisplaySettings.narrow(r, maxWidth: s.maxWidth)
@@ -117,17 +123,26 @@ enum StageManager {
     private static let prefs = UserDefaults(suiteName: "com.apple.WindowManager")
     private static let dock = UserDefaults(suiteName: "com.apple.dock")
 
-    static var isOn: Bool { prefs?.bool(forKey: "GloballyEnabled") ?? false }
-    /// "Show recent apps in Stage Manager" switched off: the strip only appears at the screen edge.
-    static var stripAutoHides: Bool { prefs?.bool(forKey: "AutoHide") ?? false }
-    static var stripOnRight: Bool { dock?.string(forKey: "orientation") == "left" }
+    struct State: Equatable {
+        var isOn = false
+        /// "Show recent apps in Stage Manager" switched off: the strip only appears at the screen edge.
+        var stripAutoHides = false
+        var stripOnRight = false
 
-    static func reservedWidth(_ config: Config) -> CGFloat {
-        switch config.stripReserve {
-        case .off: return 0
-        case .points(let p): return isOn ? p : 0
-        case .auto: return isOn && !stripAutoHides ? config.stripWidth : 0
+        func reservedWidth(_ config: Config) -> CGFloat {
+            switch config.stripReserve {
+            case .off: return 0
+            case .points(let p): return isOn ? p : 0
+            case .auto: return isOn && !stripAutoHides ? config.stripWidth : 0
+            }
         }
+    }
+
+    /// The user's settings as they are now.
+    static var current: State {
+        State(isOn: prefs?.bool(forKey: "GloballyEnabled") ?? false,
+              stripAutoHides: prefs?.bool(forKey: "AutoHide") ?? false,
+              stripOnRight: dock?.string(forKey: "orientation") == "left")
     }
 }
 
@@ -158,4 +173,16 @@ struct ScreenSnapshot {
         }
         return snap
     }
+}
+
+/// Accessibility and CoreGraphics measure from the top-left corner of the primary display with y
+/// growing downwards. AppKit measures from its bottom-left corner with y growing upwards.
+func topLeftRect(_ appKit: CGRect) -> CGRect {
+    let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+    return CGRect(x: appKit.minX, y: primaryHeight - appKit.maxY, width: appKit.width, height: appKit.height)
+}
+
+func nearlyEqual(_ a: CGRect, _ b: CGRect, tolerance: CGFloat = 1.5) -> Bool {
+    abs(a.minX - b.minX) <= tolerance && abs(a.minY - b.minY) <= tolerance
+        && abs(a.width - b.width) <= tolerance && abs(a.height - b.height) <= tolerance
 }

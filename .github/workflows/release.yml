@@ -47,9 +47,9 @@ jobs:
       - name: The tag matches the version in the source
         if: env.HAS_SECRETS == 'true'
         run: |
-          VERSION="$(sed -nE 's/.*static let version = "([^"]+)".*/\1/p' Sources/iguana/WindowManager.swift)"
+          VERSION="$(sed -nE 's/.*static let version = "([^"]+)".*/\1/p' Sources/iguana/Iguana.swift)"
           if [ "v$VERSION" != "$TAG" ]; then
-            echo "::error::The tag is $TAG but WindowManager.version is $VERSION."
+            echo "::error::The tag is $TAG but Iguana.version is $VERSION."
             exit 1
           fi
 

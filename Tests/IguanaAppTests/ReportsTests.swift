@@ -28,7 +28,7 @@ final class ReportsTests: XCTestCase {
     func testStatusAnswersBeforeTilingStarts() throws {
         let text = report(.status, last: Report.LastShortcut(keys: "option-l", secondsAgo: 4, reply: "ok"))
         let status = try JSONDecoder().decode(Report.Status.self, from: Data(text.utf8))
-        XCTAssertEqual(status.version, WindowManager.version)
+        XCTAssertEqual(status.version, Iguana.version)
         XCTAssertEqual(status.permission, AXIsProcessTrusted())
         XCTAssertFalse(status.paused)
         XCTAssertEqual(status.configPath, folder.appendingPathComponent("iguana/iguana.toml").path)

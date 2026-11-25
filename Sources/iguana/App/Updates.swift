@@ -45,7 +45,7 @@ final class UpdateChecker {
     private var waiting: [(UpdateCheck.Outcome) -> Void] = []
     private var failureLogged = false
 
-    init(defaults: UserDefaults = .standard, running: String = WindowManager.version, now: @escaping () -> Date = Date.init,
+    init(defaults: UserDefaults = .standard, running: String = Iguana.version, now: @escaping () -> Date = Date.init,
          log: @escaping (String) -> Void = Log.write, ask: @escaping Ask = { UpdateChecker.askGitHub(completion: $0) }) {
         self.defaults = defaults
         self.running = running
@@ -136,7 +136,7 @@ final class UpdateChecker {
     // MARK: The request
 
     /// The one request Iguana ever makes: GitHub's public "latest release" of this repository.
-    static func request(url: URL = UpdateCheck.latestReleaseURL, version: String = WindowManager.version) -> URLRequest {
+    static func request(url: URL = UpdateCheck.latestReleaseURL, version: String = Iguana.version) -> URLRequest {
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: UpdateCheck.timeout)
         request.httpShouldHandleCookies = false
         request.setValue(UpdateCheck.userAgent(version: version), forHTTPHeaderField: "User-Agent")

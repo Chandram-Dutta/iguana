@@ -25,17 +25,17 @@ extension WindowManager {
         // Like its text, `status` answers before the permission is granted, so that the app can
         // always be inspected.
         if command == .status {
-            let strip = StageManager.reservedWidth(config)
+            let strip = system.stageManager.reservedWidth(config)
             return Report.encode(Report.Status(
-                version: Self.version, permission: AXIsProcessTrusted(), paused: paused,
-                configPath: Self.configURL.path, configExists: FileManager.default.fileExists(atPath: Self.configURL.path),
+                version: Iguana.version, permission: system.isTrusted, paused: paused,
+                configPath: configURL().path, configExists: FileManager.default.fileExists(atPath: configURL().path),
                 configWarnings: configWarnings,
                 windows: Report.WindowCounts(tiled: facts.tiled.count, known: facts.windows.count, apps: facts.apps.count),
-                stageManager: Report.StageManager(on: StageManager.isOn, reserved: Double(strip)),
+                stageManager: Report.StageManager(on: system.stageManager.isOn, reserved: Double(strip)),
                 displays: displayReports, shortcuts: shortcuts, tourShowing: tourShowing, lastShortcut: lastShortcut,
                 update: update, mode: mode == Config.defaultMode ? nil : mode))
         }
-        guard AXIsProcessTrusted() else {
+        guard system.isTrusted else {
             return "error: Iguana needs Accessibility permission (System Settings > Privacy & Security > Accessibility)"
         }
         switch command {
@@ -50,8 +50,8 @@ extension WindowManager {
     private var displayReports: [Report.Display] { displays.sorted { $0.number < $1.number }.map { $0.report(number: $0.number) } }
 
     private func windowsReport(_ facts: Facts) -> Report.Windows {
-        let onScreen = ScreenSnapshot.take().onScreen
-        let desktops = Desktop.all()
+        let onScreen = system.snapshot().onScreen
+        let desktops = system.desktops()
         return Report.Windows(windows: facts.windows.values.sorted { $0.id < $1.id }.map { w in
             let app = facts.apps[w.pid]?.app
             let frame = onScreen[w.id]
@@ -67,9 +67,9 @@ extension WindowManager {
     private func spacesReport(_ facts: Facts) -> Report.Spaces {
         var windowsOn: [UInt64: [CGWindowID]] = [:]
         for id in facts.windows.keys.sorted() {
-            for space in Private.spaces(of: id) { windowsOn[space, default: []].append(id) }
+            for space in system.spaces(of: id) { windowsOn[space, default: []].append(id) }
         }
-        let desktops = Desktop.all().map { desktop -> Report.Desktop in
+        let desktops = system.desktops().map { desktop -> Report.Desktop in
             let showing = displays.contains { $0.spaceID == desktop.id }
             return Report.Desktop(number: desktop.number, display: owner(of: desktop)?.name, showing: showing,
                                   active: showing && facts.activeDisplay?.spaceID == desktop.id, windows: windowsOn[desktop.id] ?? [])
@@ -103,8 +103,9 @@ extension WindowManager {
 
     /// The desktop number and the display name of a window, as far as they can be told.
     /// `frame` is where the window is on screen, when it is.
-    func place(of id: CGWindowID, frame: CGRect?, desktops: [Desktop] = Desktop.all()) -> (desktop: Int?, display: String?) {
-        let spaces = Private.spaces(of: id)
+    func place(of id: CGWindowID, frame: CGRect?, desktops: [Desktop]? = nil) -> (desktop: Int?, display: String?) {
+        let desktops = desktops ?? system.desktops()
+        let spaces = system.spaces(of: id)
         // A window assigned to all desktops is on the one being shown.
         let desktop = desktops.first { d in spaces.contains(d.id) && displays.contains { $0.spaceID == d.id } }
             ?? desktops.first { spaces.contains($0.id) }
