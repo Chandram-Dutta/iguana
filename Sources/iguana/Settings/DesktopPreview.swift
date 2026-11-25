@@ -28,13 +28,15 @@ struct DesktopPreview: View {
 
     private func tiles(in size: CGSize) -> [Tile] {
         let scale = size.width / data.screen.width
-        let outer = config.gapOuter
-        let usable = CGRect(x: (data.usable.minX + outer.left) * scale,
-                            y: (data.usable.minY + outer.top) * scale,
-                            width: (data.usable.width - outer.left - outer.right) * scale,
-                            height: (data.usable.height - outer.top - outer.bottom) * scale)
+        let display = data.display.map { config.displaySettings(name: $0.name, number: $0.number) }
+        let outer = display?.outer ?? config.gapOuter
+        let usable = DisplaySettings.narrow(CGRect(x: (data.usable.minX + outer.left) * scale,
+                                                   y: (data.usable.minY + outer.top) * scale,
+                                                   width: (data.usable.width - outer.left - outer.right) * scale,
+                                                   height: (data.usable.height - outer.top - outer.bottom) * scale),
+                                            maxWidth: display?.maxWidth.map { $0 * scale })
         let tree = Tree(snapshot: data.layout)
-        let slots = computeLayout(tree, in: usable, gap: config.gapInner * scale, visible: data.visible, peek: config.stackPeek * scale)
+        let slots = computeLayout(tree, in: usable, gap: (display?.inner ?? config.gapInner) * scale, visible: data.visible, peek: config.stackPeek * scale)
         // Keep a stable order so that the same window keeps its identity while it travels.
         let order = tree.windows.filter { slots[$0] != nil }
         guard !order.isEmpty else { return [] }

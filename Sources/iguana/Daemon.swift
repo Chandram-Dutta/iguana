@@ -326,7 +326,7 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
         model.desks = desks.map { d in
             DeskModel.Desk(number: d.number, isActive: d.isActive, preview: DesktopPreviewData(
                 layout: d.layout, visible: d.windows, icons: icons.filter { d.windows.contains($0.key) }, focused: d.focused,
-                screen: d.screen, usable: d.usable, isExample: false))
+                screen: d.screen, usable: d.usable, isExample: false, display: (d.display.name, d.display.number)))
         }
         model.config = wm.config
         model.paused = wm.paused
@@ -461,7 +461,7 @@ extension Daemon: SettingsBackend {
         var icons: [WindowID: NSImage] = [:]
         for (id, pid) in p.owners { icons[id] = NSRunningApplication(processIdentifier: pid)?.icon }
         return DesktopPreviewData(layout: p.layout, visible: p.visible, icons: icons, focused: p.focused,
-                                  screen: p.screen, usable: p.usable, isExample: false)
+                                  screen: p.screen, usable: p.usable, isExample: false, display: (p.display.name, p.display.number))
     }
 }
 

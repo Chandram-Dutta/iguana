@@ -5,6 +5,7 @@
 //   reports       the --json examples               -> reference/commands.mdx
 //   hooks         HookEnvironment's variables       -> reference/configuration.mdx
 //   config keys   Config.defaultText and Config.load -> reference/configuration.mdx
+//   [[display]]   DisplaySettings.parse              -> reference/configuration.mdx
 //   shortcuts     the [bindings] of defaultText      -> reference/default-shortcuts.mdx
 //   key names     Hotkeys.keyCodes, KeyCombo.parse   -> reference/key-names.mdx
 //   schema        Config.jsonSchema                  -> public/schema/iguana.schema.json
@@ -20,6 +21,7 @@ const commandSwift = source('IguanaCore/Command.swift');
 const configSwift = source('IguanaCore/Config.swift');
 const schemaSwift = source('IguanaCore/Schema.swift');
 const hooksSwift = source('IguanaCore/Hooks.swift');
+const displaySwift = source('IguanaCore/DisplaySettings.swift');
 const hotkeysSwift = source('iguana/Hotkeys.swift');
 
 const commandsPage = page('reference/commands.mdx');
@@ -173,6 +175,24 @@ for (const [table, key, pattern, text] of manual) {
 	const body = section(section(configPage, `## \`[${table}]\``) ?? '', `### \`${key}\``) ?? '';
 	expect(body.includes(text), `configuration.mdx: ${table}.${key} should say "${text}"`);
 }
+// A [[display]] is read in DisplaySettings.swift, and documented under its own heading.
+const displayPage = section(configPage, '## `[[display]]`') ?? '';
+expect(displayPage !== '', 'configuration.mdx has no "## `[[display]]`" section');
+for (const [, table, list] of displaySwift.matchAll(/checkKeys\((\w+), \[([^\]]+)\]/g)) {
+	for (const [, key] of list.matchAll(/"([a-z-]+)"/g)) {
+		// The keys of the table each have a heading; the sides of `outer` are named under it.
+		const ok = table === 't' ? section(displayPage, `### \`${key}\``) !== null : displayPage.includes(`\`${key}\``);
+		expect(ok, `configuration.mdx: [[display]] does not document the key '${key}'`);
+	}
+}
+for (const [, name, min, max] of displaySwift.matchAll(/number\([^,]+, "([a-z.-]+)", min: ([\d.]+), max: ([\d.]+)\)/g)) {
+	const body = section(displayPage, `### \`${name.split('.')[0]}\``) ?? '';
+	expect(body.includes(`${min} to ${max}`), `configuration.mdx: display ${name} should give the range ${min} to ${max}`);
+}
+const displayNumbers = displaySwift.match(/numbers = (\d+)\.\.\.(\d+)/);
+expect(displayNumbers && (section(displayPage, '### `number`') ?? '').includes(`${displayNumbers[1]} to ${displayNumbers[2]}`),
+	'configuration.mdx: the range of display numbers does not match DisplaySettings.numbers');
+
 for (const value of ['linear', 'ease-out', 'ease-in-out']) {
 	expect(configSwift.includes(value) && (section(configPage, '### `easing`') ?? '').includes(`"${value}"`),
 		`configuration.mdx: easing should list "${value}"`);

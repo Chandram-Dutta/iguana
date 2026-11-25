@@ -133,6 +133,37 @@
           "desktop": { "type": "integer", "minimum": 1, "maximum": 16, "description": "Send a matching window to this desktop when it first appears, and stay on the desktop being used. Desktops are numbered as Mission Control numbers them." }
         }
       }
+    },
+    "display": {
+      "type": "array",
+      "description": "Settings for one display, written as [[display]] sections. Each names a display by name or by number. The first that matches a display wins, and a key left out keeps its value from [gaps].",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "oneOf": [{ "required": ["name"] }, { "required": ["number"] }],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "description": "Part of the display's name, ignoring case, for example \"LG ULTRAWIDE\"." },
+          "number": { "type": "integer", "minimum": 1, "maximum": 16, "description": "The display's number. Displays are numbered from 1, left to right." },
+          "inner": { "type": "number", "minimum": 0, "maximum": 200, "description": "Space between neighbouring windows on this display, as inner under [gaps]." },
+          "outer": {
+            "description": "Space between the windows and the edge of this display, as outer under [gaps]. One number for all sides, or a table with top, left, bottom and right. A side left out of the table keeps its value from [gaps].",
+            "oneOf": [
+              { "type": "number", "minimum": 0, "maximum": 500 },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "top": { "type": "number", "minimum": 0, "maximum": 500 },
+                  "left": { "type": "number", "minimum": 0, "maximum": 500 },
+                  "bottom": { "type": "number", "minimum": 0, "maximum": 500 },
+                  "right": { "type": "number", "minimum": 0, "maximum": 500 }
+                }
+              }
+            ]
+          },
+          "max-width": { "type": "number", "minimum": 400, "maximum": 10000, "description": "The layout is at most this many points wide, centred on the display. For wide monitors." }
+        }
+      }
     }
   }
 }

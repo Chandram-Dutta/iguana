@@ -43,6 +43,8 @@ struct DisplayInfo {
     let desktopOffset: Int
     let totalDesktops: Int
     let isMain: Bool
+    /// From 1, left to right, as `DisplayOrder` numbers displays.
+    var number = 0
 
     /// Fullscreen apps, and anything else that is not a normal desktop, are left alone.
     var isDesktop: Bool { spaceIndex != nil }
@@ -51,7 +53,7 @@ struct DisplayInfo {
     static func current() -> [DisplayInfo] {
         let managed = Private.managedDisplaySpaces()
         let main = NSScreen.screens.first
-        return NSScreen.screens.compactMap { screen in
+        var list: [DisplayInfo] = NSScreen.screens.compactMap { screen in
             guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { return nil }
             let uuid = CGDisplayCreateUUIDFromDisplayID(number).map { CFUUIDCreateString(nil, $0.takeRetainedValue()) as String } ?? "display-\(number)"
             // With "Displays have separate Spaces" off there is a single entry that covers every display.
@@ -83,6 +85,8 @@ struct DisplayInfo {
                 totalDesktops: total,
                 isMain: screen == main)
         }
+        for (i, n) in DisplayOrder.numbers(list.map(\.frame)).enumerated() { list[i].number = n }
+        return list
     }
 
     /// The displays in the order they are numbered, each with its number (`DisplayOrder`).
@@ -90,20 +94,27 @@ struct DisplayInfo {
         DisplayOrder.order(displays.map(\.frame)).enumerated().map { ($0.offset + 1, displays[$0.element]) }
     }
 
-    /// The area windows are tiled into.
+    /// What `[[display]]` and `[gaps]` come to on this display.
+    func settings(_ config: Config) -> DisplaySettings.Effective {
+        config.displaySettings(name: name, number: number)
+    }
+
+    /// The area windows are tiled into, zoomed ones too: the visible frame minus this display's
+    /// outer gaps and the Stage Manager strip, and no wider than its `max-width`.
     func usableFrame(_ config: Config) -> CGRect {
+        let s = settings(config)
         var r = visibleFrame
-        r.origin.x += config.gapOuter.left
-        r.origin.y += config.gapOuter.top
-        r.size.width -= config.gapOuter.left + config.gapOuter.right
-        r.size.height -= config.gapOuter.top + config.gapOuter.bottom
+        r.origin.x += s.outer.left
+        r.origin.y += s.outer.top
+        r.size.width -= s.outer.left + s.outer.right
+        r.size.height -= s.outer.top + s.outer.bottom
         let strip = StageManager.reservedWidth(config)
         if strip > 0, r.width - strip > 400 {
             // The strip of recent apps sits on the left, or on the right when the Dock is on the left.
             if !StageManager.stripOnRight { r.origin.x += strip }
             r.size.width -= strip
         }
-        return r
+        return DisplaySettings.narrow(r, maxWidth: s.maxWidth)
     }
 }
 

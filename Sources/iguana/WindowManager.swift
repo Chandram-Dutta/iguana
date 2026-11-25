@@ -549,7 +549,7 @@ final class WindowManager {
         for (i, d) in displays.enumerated() where d.isDesktop {
             let here = (byDisplay[i] ?? []).sorted { $0.id < $1.id }
             let ids = Set(here.map(\.id))
-            let usable = d.usableFrame(config)
+            let usable = d.usableFrame(config), gap = d.settings(config).inner
             let key = d.treeKey
             let tree: Tree
             if let t = trees[key] {
@@ -559,16 +559,16 @@ final class WindowManager {
                 trees[key] = tree
             }
             for w in here where !tree.contains(w.id) {
-                adopt(w, into: tree, key: key, visible: ids, usable: usable)
+                adopt(w, into: tree, key: key, visible: ids, usable: usable, gap: gap)
             }
             if let z = zoomed[key], !ids.contains(z) { zoomed[key] = nil }
             // A minimum remembered from the last run is checked the first time it would shape a layout.
             let doubtful = ids.intersection(unverifiedMinimums)
             if !doubtful.isEmpty {
                 unverifiedMinimums.subtract(doubtful)
-                recheckMinimums(in: tree, key: key, visible: ids, usable: usable, only: doubtful)
+                recheckMinimums(in: tree, key: key, visible: ids, usable: usable, gap: gap, only: doubtful)
             }
-            let computed = computeLayout(tree, in: usable, gap: config.gapInner, visible: ids, minSizes: minSizes, peek: config.stackPeek)
+            let computed = computeLayout(tree, in: usable, gap: gap, visible: ids, minSizes: minSizes, peek: config.stackPeek)
             allSlots.merge(computed) { a, _ in a }
             var applied = computed
             if let z = zoomed[key] { applied[z] = usable }
@@ -577,7 +577,7 @@ final class WindowManager {
         return (frames, allSlots)
     }
 
-    private func adopt(_ w: WindowState, into tree: Tree, key: String, visible: Set<CGWindowID>, usable: CGRect) {
+    private func adopt(_ w: WindowState, into tree: Tree, key: String, visible: Set<CGWindowID>, usable: CGRect, gap: Double) {
         for (k, other) in trees where k != key { other.remove(w.id) }
         justAdopted.insert(w.id)
 
@@ -593,7 +593,7 @@ final class WindowManager {
             ?? tree.windows.last { visible.contains($0) }
         var split: Orientation?
         if config.autoSplit, let anchor,
-           let f = computeLayout(tree, in: usable, gap: config.gapInner, visible: visible)[anchor] {
+           let f = computeLayout(tree, in: usable, gap: gap, visible: visible)[anchor] {
             split = f.width >= f.height ? .horizontal : .vertical
         }
         tree.insert(w.id, after: anchor, split: split)
@@ -659,11 +659,12 @@ final class WindowManager {
     /// is asked for the size it would have without one. One that takes it had no such minimum.
     private func recheckMinimums(in tree: Tree, key: String) {
         guard let display = displays.first(where: { $0.isDesktop && $0.treeKey == key }) else { return }
-        recheckMinimums(in: tree, key: key, visible: lastVisible.filter { tree.contains($0) }, usable: display.usableFrame(config))
+        recheckMinimums(in: tree, key: key, visible: lastVisible.filter { tree.contains($0) },
+                        usable: display.usableFrame(config), gap: display.settings(config).inner)
     }
 
-    private func recheckMinimums(in tree: Tree, key: String, visible ids: Set<CGWindowID>, usable: CGRect, only: Set<CGWindowID>? = nil) {
-        let free = computeLayout(tree, in: usable, gap: config.gapInner, visible: ids, peek: config.stackPeek)
+    private func recheckMinimums(in tree: Tree, key: String, visible ids: Set<CGWindowID>, usable: CGRect, gap: Double, only: Set<CGWindowID>? = nil) {
+        let free = computeLayout(tree, in: usable, gap: gap, visible: ids, peek: config.stackPeek)
         for (id, slot) in free where only?.contains(id) != false {
             guard let w = windows[id], var m = w.minSize, zoomed[key] != id else { continue }
             let wide = m.width > slot.width + 2, tall = m.height > slot.height + 2
@@ -1389,14 +1390,14 @@ final class WindowManager {
     var tiledWindowCount: Int { lastFrames.count }
 
     /// The layout of the desktop being shown, for the settings window's miniature.
-    func desktopPreview() -> (layout: NodeSnapshot, visible: Set<CGWindowID>, owners: [CGWindowID: pid_t], focused: CGWindowID?, screen: CGSize, usable: CGRect)? {
+    func desktopPreview() -> (layout: NodeSnapshot, visible: Set<CGWindowID>, owners: [CGWindowID: pid_t], focused: CGWindowID?, screen: CGSize, usable: CGRect, display: DisplayInfo)? {
         guard let display = activeDisplay ?? displays.first, display.isDesktop, let tree = trees[display.treeKey] else { return nil }
         let visible = lastVisible.intersection(tree.windows)
         guard visible.count >= 2 else { return nil }
         var owners: [CGWindowID: pid_t] = [:]
         for id in visible { if let w = windows[id] { owners[id] = w.pid } }
         let usable = display.visibleFrame.offsetBy(dx: -display.frame.minX, dy: -display.frame.minY)
-        return (tree.snapshot, visible, owners, focusedWindow.flatMap { visible.contains($0) ? $0 : nil } ?? tree.focused, display.frame.size, usable)
+        return (tree.snapshot, visible, owners, focusedWindow.flatMap { visible.contains($0) ? $0 : nil } ?? tree.focused, display.frame.size, usable, display)
     }
 
     /// One desktop as the menu bar shows it: its number, its layout and the windows in it.
@@ -1410,6 +1411,7 @@ final class WindowManager {
         let focused: CGWindowID?
         let screen: CGSize
         let usable: CGRect
+        let display: DisplayInfo
     }
 
     /// Every desktop in Mission Control order, and which app each of their windows belongs to.
@@ -1432,7 +1434,7 @@ final class WindowManager {
             let focused = isActive ? (focusedWindow.flatMap { drawn.contains($0) ? $0 : nil } ?? tree?.focused) : tree?.focused
             return Desk(number: desktop.number, isActive: isActive, layout: tree?.snapshot ?? Tree().snapshot, windows: drawn,
                         focused: focused, screen: display.frame.size,
-                        usable: display.visibleFrame.offsetBy(dx: -display.frame.minX, dy: -display.frame.minY))
+                        usable: display.visibleFrame.offsetBy(dx: -display.frame.minX, dy: -display.frame.minY), display: display)
         }
         return (list, owners.filter { id, _ in list.contains { $0.windows.contains(id) } })
     }
