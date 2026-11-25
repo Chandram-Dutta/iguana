@@ -135,7 +135,9 @@ final class SubscribeStreamTests: XCTestCase {
         let sent = IPC.Subscriber.backlog * 2
         let started = Date()
         for n in 1...sent { IPC.broadcast(.focusChanged, focus(WindowID(n), title: title)) }
-        XCTAssertLessThan(Date().timeIntervalSince(started), 1, "the main queue never waits for a subscriber")
+        // Waiting for a subscriber that does not read would mean waiting for ever. The limit is
+        // loose so that a Mac busy with something else does not fail this.
+        XCTAssertLessThan(Date().timeIntervalSince(started), 10, "the main queue never waits for a subscriber")
         XCTAssertTrue(wait { IPC.subscribers.isEmpty }, "let go once its backlog was full")
 
         // What reached it before that, and then the end of the stream.

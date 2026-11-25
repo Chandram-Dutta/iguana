@@ -192,14 +192,15 @@ Program. With the certificate in the keychain, store the notarization credential
 (`xcrun notarytool store-credentials iguana ...`) and pass the profile name as `NOTARY_PROFILE`.
 Without them the script still runs and says plainly that the build is not ready to hand out.
 
-The version comes from `WindowManager.version`. The cask, `iguana.rb`, is published with every
+The version comes from `Iguana.version` (in `Sources/iguana/Iguana.swift`). The cask, `iguana.rb`, is published with every
 release, and the [tap](https://github.com/Chandram-Dutta/homebrew-tap) fetches it from the
 latest release by itself, once an hour.
 
 ## Development
 
 ```sh
-swift test                 # layout engine, config and editor, settings window and tour logic
+swift test                 # everything: the pure logic, and the window manager on a made-up Mac
+scripts/coverage.sh        # the same, and how much of each part the tests run
 cd docs && npm install && npm run dev      # the documentation site (Astro Starlight)
 tail -f ~/Library/Logs/Iguana.log
 ```
@@ -207,6 +208,12 @@ tail -f ~/Library/Logs/Iguana.log
 `Sources/IguanaCore` is pure logic with no system dependencies. `Sources/iguana` is the macOS
 layer: Accessibility, Spaces, animation, shortcuts, the settings window, the menu bar item, the
 command socket and the daily check for a newer version. `docs/` is the documentation site.
+
+Inside `Sources/iguana`, `Platform/` is the only code that talks to macOS about other apps'
+windows, and `Manager/` is the window manager, which reaches the Mac through it. That is what
+lets the tests run the real window manager against a Mac that is made up
+(`Tests/IguanaAppTests/Support`): they open, close, drag and switch desktops in milliseconds,
+and touch nothing on the Mac they run on. `AGENTS.md` has the rules for working on it.
 
 ## Licence
 

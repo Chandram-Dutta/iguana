@@ -26,7 +26,10 @@ jobs:
       - name: Build
         run: swift build
       - name: Test
-        run: swift test
+        run: swift test --enable-code-coverage
+      # How much of each part the tests run. The pure logic and the window manager have a floor.
+      - name: Coverage
+        run: scripts/coverage.sh --report-only --check
 
   docs:
     name: Documentation
