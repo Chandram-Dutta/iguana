@@ -518,8 +518,10 @@ well, the one you used last wins.
   does.
 - **The app has the focus already.** Its next window on screen gets the focus, so pressing the
   key again goes through the app's windows one by one. With one window, nothing changes.
-- **None of its windows is on screen.** They are on another desktop or minimised, or the app is
-  hidden. The app is brought forward and macOS shows one of its windows, which can take you
+- **All of its windows are minimised.** The one that had the focus most recently comes back
+  out of the Dock and gets the focus.
+- **None of its windows is on screen.** They are on another desktop, or the app is hidden.
+  The app is brought forward and macOS shows one of its windows, which can take you
   to another desktop.
 - **The app is not running.** It is opened. A bundle id is looked up by macOS. A name has to be
   the whole name of the app, as its file is called without `.app`, in `/Applications`,
@@ -533,6 +535,7 @@ moves to the centre of the window that gets the focus.
 | --- | --- |
 | `ok` | A window of the app has the focus. |
 | `ok: activated NAME` | None of its windows was on screen, so the app was brought forward. |
+| `ok: brought back a minimised window` | All of its windows were minimised; the most recently used one is back. |
 | `ok: opening NAME` | The app was not running, and is being opened. |
 | `error: no app called 'NAME'` | No running app matches, and no app of that name was found. |
 

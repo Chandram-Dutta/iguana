@@ -96,6 +96,13 @@ final class FocusAppTests: XCTestCase {
         XCTAssertEqual(FocusApp.pick(showing: [], remembered: nil, focused: nil), .activate)
     }
 
+    /// All of the app's windows minimised: the one focused most recently comes back.
+    func testAMinimisedWindowToBringBack() {
+        XCTAssertEqual(FocusApp.minimisedToBringBack([3, 7], history: [7, 9, 3]), 7)
+        XCTAssertEqual(FocusApp.minimisedToBringBack([3, 7], history: [9]), 3, "none in the history: the lowest id")
+        XCTAssertNil(FocusApp.minimisedToBringBack([], history: [9]))
+    }
+
     // MARK: Opening an app that is not running
 
     let paths = [

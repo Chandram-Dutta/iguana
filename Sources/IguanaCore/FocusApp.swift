@@ -75,6 +75,12 @@ public enum FocusApp {
         return .window(front)
     }
 
+    /// Of the app's minimised windows, the one that had the focus most recently — the first of
+    /// them in the focus history — else the lowest id, so the choice is stable.
+    public static func minimisedToBringBack(_ minimised: Set<WindowID>, history: [WindowID]) -> WindowID? {
+        history.first { minimised.contains($0) } ?? minimised.min()
+    }
+
     /// The folders an app that is not running is looked for in, in this order.
     public static func folders(home: String) -> [String] {
         ["/Applications", "/Applications/Utilities", "/System/Applications", "/System/Applications/Utilities", home + "/Applications"]

@@ -1124,7 +1124,15 @@ final class WindowManager {
         case .stay:
             return "ok"
         case .activate:
-            // On another desktop, minimised or hidden: macOS knows best which window to show.
+            // Every window minimised: bring the one used most recently back out of the Dock,
+            // which activating alone would not do.
+            let minimised = Set(windows.filter { $0.value.pid == chosen.pid && $0.value.element.bool(kAXMinimizedAttribute) == true }.keys)
+            if let id = FocusApp.minimisedToBringBack(minimised, history: focusHistory.windows) {
+                bringForward(id)
+                scheduleRefresh()
+                return "ok: brought back a minimised window"
+            }
+            // On another desktop or hidden: macOS knows best which window to show.
             if app.isHidden { app.unhide() }
             app.activate()
             return "ok: activated \(app.localizedName ?? text)"
