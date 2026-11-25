@@ -78,13 +78,15 @@ ln -s /Applications/Iguana.app/Contents/MacOS/iguana /usr/local/bin/iguana
 iguana help
 ```
 
-For status bars such as SketchyBar and for scripts, `iguana list-windows --json` (and `list-spaces`, `tree`, `status`) answers with JSON, and a `[hooks]` section in the config file runs a command of yours when the desktop or the focused window changes.
+For status bars such as SketchyBar and for scripts, `iguana list-windows --json` (and `list-spaces`, `tree`, `status`) answers with JSON. `iguana subscribe` keeps a connection open and prints a line of JSON for every change: the desktop, the focus, a window opening or closing, the layout, the pause. A `[hooks]` section in the config file (or the Hooks pane) runs a command of yours for the same events instead. Add `--window ID` to a command to act on a window other than the focused one.
 
 ## Default shortcuts
 
 | Keys | Action |
 | --- | --- |
 | `option-h/j/k/l` | focus left / down / up / right |
+| `option-tab` | back to the window that had the focus before |
+| `option-w` | find a window by typing part of its title or app |
 | `option-shift-h/j/k/l` | move the window (continues onto the next display at the edge) |
 | `option-ctrl-h/j/k/l` | group the window with its neighbour |
 | `option-minus`, `option-equal` | shrink, grow |
@@ -93,23 +95,44 @@ For status bars such as SketchyBar and for scripts, `iguana list-windows --json`
 | `option-f` | zoom the window to fill the Space |
 | `option-shift-space` | float or tile the window |
 | `option-shift-b` | balance sizes |
+| `option-z`, `option-shift-z` | undo, redo the last change to the layout |
 | `option-1` … `option-9` | go to desktop N |
 | `option-[`, `option-]` | go to the previous, next desktop |
+| `option-shift-tab` | back to the desktop you were on before |
 | `option-shift-1` … `option-shift-9` | take the window to desktop N and go with it |
 | `option-shift-[`, `option-shift-]` | take the window to the previous, next desktop |
+| `option-,`, `option-.` | focus the previous, next display |
+| `option-shift-,`, `option-shift-.` | take the window to the previous, next display |
 
 You can also drag a tiled window onto another: the middle swaps them, an edge takes that half of
 the tile, and an outline shows where the window will land. Drag an edge to resize; the layout
 keeps the new proportions. With `focus-follows-mouse = true` under `[layout]`, the window the
 pointer comes to rest on gets the focus without a click.
 
+More commands have no shortcut until you give them one:
+
+- `focus-app safari` focuses an app's window, or opens the app. It is the answer to a
+  scratchpad, since Iguana never hides a window.
+- `arrange columns|rows|grid|main` lays the whole desktop out at once, and
+  `split horizontal|vertical` chooses where the next window opens.
+- `place center|left|right|top-left|…|full` puts a floating window in part of the screen.
+- `"flip; balance"` runs several commands from one key, and `[mode.resize]` tables give you
+  modes, such as plain `h/j/k/l` resizing until you press esc.
+
+Layouts survive a restart of the Mac: as apps reopen their windows, each desktop takes its
+saved shape again.
+
 ## Settings
 
 There are two ways to change settings and they are the same thing underneath.
 
 **The settings window** (menu bar item > Settings…, or `iguana settings`) has panes for layout
-and gaps, animation, shortcuts and the rules that float an app's windows or send them to a
-desktop, and the switch for the daily check for a newer version. Changes apply to your real windows as you make them.
+and gaps, animation, shortcuts, the rules that float an app's windows or send them to a
+desktop or a display, and hooks, and the switch for the daily check for a newer version.
+Changes apply to your real windows as you make them.
+
+A `[[display]]` section in the config file gives one display its own gaps and a maximum layout
+width, so the windows on an ultrawide monitor can stay in the middle.
 
 A ring around the focused window, like the border other tiling window managers need a second
 tool for, is built in and off until you switch it on: `enabled = true` under `[focus-ring]`, or
