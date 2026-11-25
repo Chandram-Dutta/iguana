@@ -13,6 +13,9 @@ public struct CommandError: Error, CustomStringConvertible, Equatable {
 
 public enum Command: Equatable {
     case focus(Direction)
+    /// `focus --window ID`: focus the window the request names. Only a line from the command
+    /// line can name a window, so a shortcut never runs this.
+    case focusWindow
     case move(Direction)
     case join(Direction)
     /// `grow` is +1 or -1; `axis` nil means the nearest container that can change.
@@ -40,6 +43,7 @@ public enum Command: Equatable {
 
     public static let usage = """
     focus left|right|up|down        focus the window in that direction
+    focus --window ID               focus the window with that id (see list-windows)
     move left|right|up|down         move the focused window within the layout (or to the next display)
     join left|right|up|down         group the focused window with its neighbour
     resize grow|shrink [width|height]

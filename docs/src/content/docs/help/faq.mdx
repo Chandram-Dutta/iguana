@@ -186,7 +186,8 @@ No. It edits the same file, one value at a time, and keeps your comments and for
 ### Can I script Iguana?
 
 Yes. Every command can be sent from a terminal: `iguana focus left`, `iguana tree`, and so on.
-See [Command line](/reference/command-line/).
+With `--window`, a command acts on a window other than the focused one:
+`iguana close --window 1402`. See [Command line](/reference/command-line/).
 
 A script can also read what Iguana knows as JSON (`iguana list-windows --json`) and be run by
 Iguana when the desktop or the focused window changes. See

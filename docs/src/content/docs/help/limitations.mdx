@@ -37,7 +37,9 @@ takes a few milliseconds.
 
 On systems without it, Iguana falls back to holding the window by its title bar while
 switching desktop. That is slower, it briefly takes over the pointer, and it always follows
-the window, so `--stay` has no effect there.
+the window, so `--stay` has no effect there. A window named with
+[`--window`](/reference/commands/#acting-on-another-window) can only be carried while it is on
+screen.
 
 A [rule with a `desktop`](/guides/desktops-and-displays/#open-an-apps-windows-on-a-desktop)
 needs the bridge. A rule must never take you to another desktop, and the fallback always

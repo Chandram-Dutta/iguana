@@ -25,6 +25,7 @@ iguana update
 iguana help
 iguana version
 iguana <command>
+iguana <command> --window ID
 ```
 
 ## Subcommands
@@ -89,6 +90,7 @@ Anything else on the command line is sent to the running app as a
 iguana focus left
 iguana resize grow width
 iguana move-to-space 3 --stay
+iguana close --window 1402
 iguana status
 iguana list-windows --json
 ```
@@ -109,9 +111,41 @@ Because every command works this way, anything a shortcut can do can also be scr
 | --- | --- | --- |
 | `--stay`, `--follow` | [`move-to-space`](/reference/commands/#move-to-space) | Send the window and stay, or go with it (the default). |
 | `--json` | [`list-windows`](/reference/commands/#list-windows), [`list-spaces`](/reference/commands/#list-spaces), [`tree`](/reference/commands/#tree), [`status`](/reference/commands/#status) | Answer with one JSON document instead of text. See [JSON output](/reference/commands/#json-output). |
+| `--window ID` | [The commands that act on a window](/reference/commands/#acting-on-another-window) | Act on the window with that id instead of the focused one. See [below](#acting-on-another-window). |
 
 `--json` can come before or after the command. On any other command it is a mistake, and the
-tool stops with exit code 2.
+tool stops with exit code 2. The same goes for `--window`, which can come anywhere in the
+line. The two cannot be combined.
+
+### Acting on another window
+
+A command acts on the focused window. To act on another one, name it with `--window` and its
+id. The focus stays where it is. `iguana list-windows` prints the ids, and
+[`jq`](https://jqlang.org) picks one out of the JSON form:
+
+```sh
+# The first Safari window.
+id=$(iguana list-windows --json | jq -r 'first(.windows[] | select(.app == "Safari") | .id)')
+
+# Send it to desktop 2, and stay where you are.
+iguana move-to-space 2 --stay --window "$id"
+
+# Close every Calculator window.
+iguana list-windows --json | jq -r '.windows[] | select(.app == "Calculator") | .id' |
+  while read -r id; do iguana close --window "$id"; done
+```
+
+The id is a whole number, the same one `list-windows` prints. It stays the same until the
+window closes, so read it fresh each time the script runs. When the id is missing or is not
+a number, the tool stops with exit code 2:
+
+```text
+iguana: --window needs a window id (see iguana list-windows)
+```
+
+When no window has that id, the reply is `error: no window ID` and the exit code is 1.
+[Acting on another window](/reference/commands/#acting-on-another-window) in the command
+reference lists the commands that take it and what each does with it.
 
 To be told when something changes, instead of asking, see
 [`[hooks]`](/reference/configuration/#hooks).

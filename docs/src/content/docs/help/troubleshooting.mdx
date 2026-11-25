@@ -101,6 +101,8 @@ If the last line of `iguana status` does not change when you press the shortcut,
 | --- | --- |
 | `error: the focused window is not tiled` | The focused window floats, or is one Iguana does not manage. `move`, `join`, `resize`, `flip`, `stack`, `balance` and `zoom` need a tiled window. |
 | `error: no focused window` | Click a window first. |
+| `error: no window ID` | The window named with `--window` has closed, or Iguana does not track it. `iguana list-windows` gives the ids. |
+| `error: window ID is not tiled on a desktop being shown` | The window named with `--window` floats, or is on a desktop that is not being shown. |
 | `error: there are only N desktops` | You asked for a desktop that does not exist. Add one in Mission Control. |
 | `error: Iguana needs Accessibility permission` | See [above](#the-permission-is-not-granted). |
 

@@ -43,7 +43,7 @@ error: Iguana needs Accessibility permission (System Settings > Privacy & Securi
 
 | Command | What it does |
 | --- | --- |
-| [`focus`](#focus) | Focus the window in a direction. |
+| [`focus`](#focus) | Focus the window in a direction, or a window by its id. |
 | [`move`](#move) | Move the focused window within the layout, or to the next display. |
 | [`join`](#join) | Group the focused window with its neighbour. |
 | [`resize`](#resize) | Grow or shrink the focused window. |
@@ -71,13 +71,44 @@ error: Iguana needs Accessibility permission (System Settings > Privacy & Securi
 Most of these act on the focused window and need it to be tiled. When it is not, they reply
 `error: the focused window is not tiled`.
 
+### Acting on another window
+
+From the command line, `--window ID` makes a command act on the window with that id instead
+of the focused one, exactly as if it had the focus. The focus stays where it is.
+[`list-windows`](#list-windows) gives the ids. A shortcut cannot name a window.
+
+These commands take it: `focus`, `move`, `join`, `resize`, `flip`, `stack`, `balance`,
+`float`, `zoom`, `close` and `move-to-space`. With any other command the line is not sent:
+
+```text
+iguana: 'space' does not take --window
+```
+
+- `focus --window ID` focuses that window. It takes no direction.
+- `move`, `join`, `resize`, `flip`, `stack`, `balance` and `zoom` need the window to be tiled
+  on a desktop that is being shown. `balance` evens out that window's desktop.
+- `float` and `close` work for any window Iguana knows about, on any desktop.
+- `move-to-space` sends that window from whichever desktop it is on. With `--follow`, the
+  default, you go with it and it gets the focus. With `--stay`, the focus only moves if that
+  window had it.
+
+| Reply | When |
+| --- | --- |
+| `error: no window ID` | Iguana knows no window with that id. It has closed, or it is not a window Iguana tracks. |
+| `error: window ID is not tiled on a desktop being shown` | The command needs a tile, and the window floats or is on a desktop that is not being shown. |
+| `error: not while the welcome tour is on screen` | The [welcome tour](#tour) has the keyboard. |
+
+[Command line](/reference/command-line/#acting-on-another-window) has examples for scripts.
+
 ### `focus`
 
 ```text
 focus left|right|up|down
+focus --window ID
 ```
 
-Focuses the nearest window in that direction.
+Focuses the nearest window in that direction. With `--window ID`, it focuses the window with
+that id instead, as a click on it would. See [Acting on another window](#acting-on-another-window).
 
 "Nearest" is judged by where windows are on screen, not by the layout tree. Floating windows
 count. Windows that line up with the focused one are preferred over windows that are only
@@ -201,7 +232,8 @@ says what the other commands do in a stack.
 balance
 ```
 
-Gives every window on the focused window's desktop an equal share again.
+Gives every window on the focused window's desktop an equal share again. With
+[`--window`](#acting-on-another-window), on that window's desktop.
 
 | Reply | When |
 | --- | --- |
@@ -291,6 +323,9 @@ cannot be combined.
 and previous desktop on the current display. `previous` is accepted for `prev`. The window
 does not have to be tiled.
 
+With [`--window ID`](#acting-on-another-window), the window with that id is sent instead, from
+whichever desktop it is on. `next` and `prev` then count from that window's desktop.
+
 The window joins the layout of its new desktop like a newly opened window. On systems where
 the quick route is not available the window is carried across by its title bar, which always
 follows the window. See
@@ -307,6 +342,7 @@ follows the window. See
 | `error: a move is already in progress` | The slower route is still carrying a window. |
 | `error: cannot tell which desktop is showing` | |
 | `error: cannot read the window's position` | |
+| `error: the system did not move the window` | The quick route is not available, and the window named with `--window` is not on screen to be carried. |
 | `error: no display` | |
 
 ## Iguana itself
@@ -366,7 +402,8 @@ While the tour is in front, commands go to its practice desktop instead of your 
 windows and reply `ok: in the welcome tour`. The tour acts on `focus`, `move`, `resize`,
 `stack`, `space` and `move-to-space` once it has reached the lesson for them, and ignores
 every other command, `settings` and `pause` included. `status`, `reload`, `update`, `list-windows`,
-`list-spaces`, `tree` and `quit` work as usual.
+`list-spaces`, `tree` and `quit` work as usual. A command with `--window` replies
+`error: not while the welcome tour is on screen`.
 
 | Reply | When |
 | --- | --- |
