@@ -291,6 +291,18 @@ final class Daemon: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if reply.hasPrefix("error") { Log.write("\(binding.source): \(reply)") }
         }
         registeredShortcuts = bindings.count - hotkeyProblems.count
+        // A mode whose ways out all failed to register would leave no way back to [bindings]:
+        // go back to the default shortcuts, which then register on the next pass.
+        if wm.mode != Config.defaultMode {
+            let failed = Set(hotkeyProblems.compactMap { problem -> String? in
+                guard problem.hasPrefix("binding '"), let end = problem.dropFirst(9).firstIndex(of: "'") else { return nil }
+                return String(problem.dropFirst(9).prefix(upTo: end))
+            })
+            if !Config.hasWayOut(bindings.filter { !failed.contains($0.source) }) {
+                Log.write("mode \(wm.mode): no key to leave it could be registered; back to the default shortcuts")
+                wm.switchMode(Config.defaultMode)
+            }
+        }
         // A mistyped key in a mode would otherwise only come to light once the mode is on.
         for (name, list) in wm.config.modes.sorted(by: { $0.key < $1.key }) where name != wm.mode {
             for b in list where Hotkeys.keyCodes[b.combo.key] == nil {

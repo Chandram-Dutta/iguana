@@ -522,6 +522,7 @@ final class WindowManager {
         for id in windows.keys where !existing.contains(id) {
             animator.cancel(id)
             placing[id] = nil
+            inTransit[id] = nil
             windows[id] = nil
             lastFrames[id] = nil
             slots[id] = nil
@@ -592,6 +593,9 @@ final class WindowManager {
         var allSlots: [CGWindowID: CGRect] = [:]
         var byDisplay: [Int: [WindowState]] = [:]
         for w in windows.values where w.tileable && !w.floating {
+            // A window a rule just sent to another display is still where it was, briefly:
+            // it is not adopted anywhere until the move shows.
+            guard inTransit[w.id] == nil else { continue }
             guard let rect = snap.onScreen[w.id], let i = displayIndex(for: rect) else { continue }
             // While macOS slides from one Space to the next, the windows of both are on screen.
             // Only the ones that really live on the Space being shown belong in its layout.
@@ -977,7 +981,7 @@ final class WindowManager {
         }
         guard let frame = animator.destination(of: id) ?? w.element.frame else { return "error: cannot read the window's position" }
         let area = display.usableFrame(config)
-        let target = placement.frame(in: area, gap: config.gapInner, size: frame.size)
+        let target = placement.frame(in: area, gap: display.settings(config).inner, size: frame.size)
         place(w, at: target, glide: true) { placement.fit($0, to: target, in: area) }
         return floated ? "ok: floating" : "ok"
     }
@@ -1024,7 +1028,7 @@ final class WindowManager {
         for entry in due {
             guard let w = windows[entry.window], let frame = w.element.frame, let display = display(holding: w), display.isDesktop else { continue }
             let area = display.usableFrame(config)
-            guard let target = entry.rule.frame(for: frame, in: area, gap: config.gapInner) else { continue }
+            guard let target = entry.rule.frame(for: frame, in: area, gap: display.settings(config).inner) else { continue }
             place(w, at: target, glide: false) { entry.rule.fit($0, to: target, in: area) }
             Log.write("rule: placed window \(entry.window) of \(entry.app)")
         }
@@ -1179,6 +1183,7 @@ final class WindowManager {
         w.element.setPosition(area.origin)
         w.lastSetFrame = nil
         tree.remove(id)
+        restore.stop(displays[display].treeKey)
         // The window joins the layout over there in this refresh, and that is part of the move.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
             guard let self else { return }
@@ -1279,17 +1284,33 @@ final class WindowManager {
         w.element.setSize(size)
         w.element.setPosition(CGPoint(x: area.midX - size.width / 2, y: area.midY - size.height / 2))
         w.lastSetFrame = nil
-        // The window server reports the move a moment later. The layout that follows must see the
-        // window where it is now, or it would give it a tile on the display it left.
-        let deadline = Date().addingTimeInterval(0.3)
-        var arrived = false
-        repeat {
-            arrived = Self.serverOrigin(id).map { displayIndex(for: CGRect(origin: $0, size: size)) == index } ?? false
-            if !arrived { usleep(4_000) }
-        } while !arrived && Date() < deadline
-        // Its desktop can change a little later still, and the layout only takes it in then.
+        // The window server reports the move a moment later. A layout that runs before it shows
+        // must not adopt the window where it still is, so it is kept out until the poll sees it
+        // on the target display or gives up.
+        inTransit[id] = (display: index, deadline: Date().addingTimeInterval(0.3))
+        pollTransit(id)
         scheduleRefresh(after: 0.1)
-        return arrived ? "ok" : "error: the window did not move to that display"
+        return "ok"
+    }
+
+    /// A window `sendWindow` moved that the window server has not caught up with yet.
+    private var inTransit: [CGWindowID: (display: Int, deadline: Date)] = [:]
+
+    /// Look again in a moment whether the window reached its display; give up after the deadline.
+    private func pollTransit(_ id: CGWindowID) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self] in
+            guard let self, let transit = inTransit[id] else { return }
+            let arrived = Self.serverOrigin(id).map { origin in
+                self.windows[id].flatMap { w in w.element.frame.map { self.displayIndex(for: CGRect(origin: origin, size: $0.size)) } } == transit.display
+            } ?? false
+            if arrived || Date() >= transit.deadline {
+                inTransit[id] = nil
+                if !arrived { Log.write("rule: window \(id) did not move to display \(transit.display + 1)") }
+                scheduleRefresh()
+            } else {
+                pollTransit(id)
+            }
+        }
     }
 
     // MARK: Native Spaces
@@ -1373,7 +1394,7 @@ final class WindowManager {
         guard destination.id != from, !(spaces.count > 1 && spaces.contains(destination.id)) else {
             return "ok: already on desktop \(destination.number)"
         }
-        if ruled == nil { restore.stop(here.treeKey) }
+        if ruled == nil { restore.stop(treeEntry(containing: id)?.0 ?? here.treeKey) }
 
         // A window has to sit on the display its Space belongs to.
         if destination.displayID != here.managedID, let there = displays.first(where: { $0.managedID == destination.displayID }) {
@@ -1395,8 +1416,9 @@ final class WindowManager {
                 let origin = here.spaceID
                 _ = Private.press(shortcut: Private.SystemShortcut.desktop(destination.number))
                 whenSpaceChanges(from: origin, timeout: 3) { [weak self] _ in self?.focus(window: id) }
-            } else if id == focusedWindow {
+            } else if ruled == nil, id == focusedWindow {
                 // Hand the keyboard to the window that is left nearest to where this one was.
+                // A ruled window leaves it alone: applyDesktopRules gives it back itself.
                 let remaining = slots.filter { $0.key != id }
                 if let oldSlot, let next = remaining.min(by: { distance($0.value, oldSlot) < distance($1.value, oldSlot) })?.key {
                     focus(window: next)
