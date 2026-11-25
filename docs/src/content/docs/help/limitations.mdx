@@ -11,9 +11,11 @@ whether it fits before you rely on it.
 ## Features Iguana does not have
 
 - **No scratchpad.** Iguana never hides a window, so there is no hidden place to keep one.
-- **No preset layouts.** There is one layout model, a tree of splits and
+- **No layout modes.** There is one layout model, a tree of splits and
   [stacks](/guides/how-tiling-works/#stack). You shape it with `move`, `join`, `flip`, `stack`
-  and `resize`.
+  and `resize`. [`arrange`](/guides/how-tiling-works/#arrange-a-desktop-at-once) reshapes a
+  whole desktop into columns, rows, a grid or a main window with the others beside it, but
+  only once: the desktop is not kept in that shape as windows open, close and move.
 - **No tabbed layout.** A stack overlaps its windows and leaves a strip of each in view; it
   does not draw a tab bar. Native tabs are the way to put two windows in one, and macOS
   provides those.

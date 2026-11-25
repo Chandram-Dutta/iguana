@@ -72,6 +72,8 @@ final class WindowManager {
     private var windows: [CGWindowID: WindowState] = [:]
     private var trees: [String: Tree] = [:]
     private var zoomed: [String: CGWindowID] = [:]
+    /// Set by `split`: how the next window that opens beside this one splits its tile. Used once.
+    private var splitHints: [CGWindowID: Orientation] = [:]
     /// Where each visible tiled window belongs according to its tree.
     private var slots: [CGWindowID: CGRect] = [:]
     /// What was actually applied (differs from `slots` for a zoomed window).
@@ -477,6 +479,8 @@ final class WindowManager {
         }
         for tree in trees.values { tree.prune { existing.contains($0) } }
         for (key, id) in zoomed where !existing.contains(id) { zoomed[key] = nil }
+        // A window that closed or left the layout takes its hint with it.
+        splitHints = splitHints.filter { id, _ in trees.values.contains { $0.contains(id) } }
         if let waiting = focusIntent, !existing.contains(waiting) { focusIntent = nil }
         if let f = focusedWindow, !existing.contains(f) { focusedWindow = nil }
         for id in focusHistory.windows where !existing.contains(id) { focusHistory.forget(id) }
@@ -580,6 +584,7 @@ final class WindowManager {
     private func adopt(_ w: WindowState, into tree: Tree, key: String, visible: Set<CGWindowID>, usable: CGRect, gap: Double) {
         for (k, other) in trees where k != key { other.remove(w.id) }
         justAdopted.insert(w.id)
+        splitHints[w.id] = nil
 
         // A window that takes the place of another window of the same app (a native tab coming
         // forward) inherits its slot instead of opening a new one.
@@ -592,8 +597,10 @@ final class WindowManager {
         let anchor = preferred.first { $0 != w.id && visible.contains($0) && tree.contains($0) }
             ?? tree.windows.last { visible.contains($0) }
         var split: Orientation?
-        if config.autoSplit, let anchor,
-           let f = computeLayout(tree, in: usable, gap: gap, visible: visible)[anchor] {
+        if let anchor, let hint = splitHints.removeValue(forKey: anchor) {
+            split = hint
+        } else if config.autoSplit, let anchor,
+                  let f = computeLayout(tree, in: usable, gap: gap, visible: visible)[anchor] {
             split = f.width >= f.height ? .horizontal : .vertical
         }
         tree.insert(w.id, after: anchor, split: split)
@@ -748,6 +755,29 @@ final class WindowManager {
                 recheckMinimums(in: tree, key: key)
                 return "ok"
             } }
+        case .split(let hint):
+            return withTile(window) { id, tree, _ in
+                if hint != nil, tree.newWindowJoinsStack(beside: id) {
+                    splitHints[id] = nil
+                    return "ok: new windows join the stack this window is in"
+                }
+                splitHints[id] = hint
+                switch hint {
+                case .horizontal: return "ok: the next window opens beside it"
+                case .vertical: return "ok: the next window opens below it"
+                case nil: return "ok: automatic"
+                }
+            }
+        case .arrange(let arrangement):
+            return withTile(window) { id, tree, key in
+                let shown = tree.windows.filter { lastVisible.contains($0) }
+                guard shown.count > 1 || arrangement == .main else { return "ok: nothing to arrange" }
+                tree.arrange(arrangement, order: readingOrder(slots.filter { shown.contains($0.key) }), main: id,
+                             hidden: tree.windows.filter { !lastVisible.contains($0) })
+                zoomed[key] = nil
+                recheckMinimums(in: tree, key: key)
+                return "ok"
+            }
         case .zoom:
             return withTile(window) { id, _, key in
                 zoomed[key] = zoomed[key] == id ? nil : id

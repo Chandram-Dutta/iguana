@@ -1,12 +1,12 @@
 ---
 title: How tiling works
-description: The layout tree behind Iguana, how new windows split existing ones, and what move, join, flip, stack and resize do to it.
+description: The layout tree behind Iguana, how new windows split existing ones, and what move, join, flip, stack, resize and arrange do to it.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
 After this page you will be able to predict where a new window opens and what `move`, `join`,
-`flip`, `stack` and `resize` will do to any layout.
+`flip`, `stack`, `resize` and `arrange` will do to any layout.
 
 ## The layout is a tree
 
@@ -75,6 +75,25 @@ the same way as the one around it.
 
 With `auto-split` off, a new window always joins the row or column of the focused window, and
 never splits it the other way. See [`layout.auto-split`](/reference/configuration/#auto-split).
+
+To choose for the next window yourself, use `split` before you open it. `split horizontal`
+opens it side by side with the focused window, `split vertical` below it, whatever the shape
+of the tile and whatever `auto-split` says. The choice is used once, by the next window that
+opens next to the focused one. `split auto` takes it back.
+
+`split horizontal` with B focused, then a new window C. Along B's longer side, C would have
+gone below B:
+
+```text
++-----+-----+        +---+---+---+
+|     |     |        |   |   |   |
+|  A  |  B  |   →    | A | B | C |
+|     |     |        |   |   |   |
++-----+-----+        +---+---+---+
+```
+
+A window that opens next to a window in a [stack](#stack) joins the stack, whatever `split`
+says.
 
 When a window closes, its neighbours take its space.
 
@@ -323,6 +342,61 @@ if you see both.
 - **Windows that came and went.** The layout comes back without the windows that have closed
   or left the desktop since, and a window that has opened since is placed like a new window.
 - **Until Iguana quits.** The changes are not kept across a restart, unlike the layouts.
+
+## Arrange a desktop at once
+
+`arrange` rebuilds the layout of the focused window's desktop in one of four shapes. Here they
+are with four windows, A, B, C and D in reading order:
+
+```text
+ arrange columns              arrange rows
+
++-----+-----+-----+-----+    +-----------------------+
+|     |     |     |     |    |           A           |
+|     |     |     |     |    +-----------------------+
+|  A  |  B  |  C  |  D  |    |           B           |
+|     |     |     |     |    +-----------------------+
+|     |     |     |     |    |           C           |
+|     |     |     |     |    +-----------------------+
+|     |     |     |     |    |           D           |
++-----+-----+-----+-----+    +-----------------------+
+
+ arrange grid                 arrange main, with A focused
+
++-----------+-----------+    +-------------+---------+
+|     A     |     B     |    |             |    B    |
+|           |           |    |             +---------+
++-----------+-----------+    |      A      |    C    |
+|     C     |     D     |    |             +---------+
+|           |           |    |             |    D    |
++-----------+-----------+    +-------------+---------+
+```
+
+A grid has as many columns as the square root of the number of windows, rounded up. Its rows
+fill in order, and the last row can have fewer, wider windows. Five windows:
+
+```text
++-------+-------+-------+
+|   A   |   B   |   C   |
++-------+-------+-------+
+|     D     |     E     |
++-----------+-----------+
+```
+
+With `main`, the focused window takes 60% of the width and the others share the column on the
+right.
+
+- **The order.** The windows go in reading order of their tiles as they are now: top to
+  bottom, then left to right. Tiles whose tops are a few points apart count as one row. With
+  `main`, the focused window is taken out first and the others keep their order.
+- **Stacks and zoom.** Stacks become tiles, and a zoomed window goes back to its tile. The
+  focused window stays focused.
+- **Windows that are not showing** go at the end of the new layout, and take no room until
+  they come back.
+
+`arrange` reshapes the tree once. The result is an ordinary layout: new windows, `move`,
+`join` and `resize` change it as they would any other, and Iguana does not keep the desktop
+in that shape.
 
 ## Windows that are not showing keep their slot
 

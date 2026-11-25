@@ -50,6 +50,8 @@ error: Iguana needs Accessibility permission (System Settings > Privacy & Securi
 | [`flip`](#flip) | Switch the focused container between side-by-side and top-to-bottom. |
 | [`stack`](#stack) | Switch the focused container between tiles and a stack of overlapping windows. |
 | [`balance`](#balance) | Give every window an equal share again. |
+| [`split`](#split) | Choose where the next window beside the focused one opens. |
+| [`arrange`](#arrange) | Rearrange every window on the desktop at once. |
 | [`float`](#float) | Toggle tiling for the focused window. |
 | [`zoom`](#zoom) | Toggle the focused window filling the desktop. |
 | [`close`](#close) | Close the focused window. |
@@ -249,6 +251,62 @@ Gives every window on the focused window's desktop an equal share again. With
 | Reply | When |
 | --- | --- |
 | `ok` | |
+| `error: the focused window is not tiled` | |
+
+### `split`
+
+```text
+split horizontal|vertical|auto
+```
+
+Chooses where the next window that opens beside the focused window goes. `horizontal` puts it
+side by side with the focused window, `vertical` puts it below. `auto` goes back to what
+[`auto-split`](/reference/configuration/#auto-split) says.
+
+The choice belongs to the focused window and is used once, by the next window that opens next
+to it. It works whatever `auto-split` is set to. It is forgotten when the window closes,
+floats or leaves its desktop.
+
+A new window next to a window in a [stack](#stack) joins the stack, whatever `split` says.
+[Where a new window opens](/guides/how-tiling-works/#where-a-new-window-opens) has a diagram.
+
+| Reply | When |
+| --- | --- |
+| `ok: the next window opens beside it` | `horizontal`. |
+| `ok: the next window opens below it` | `vertical`. |
+| `ok: automatic` | `auto`. |
+| `ok: new windows join the stack this window is in` | The focused window is in a stack. Nothing is remembered. |
+| `error: the focused window is not tiled` | |
+
+### `arrange`
+
+```text
+arrange columns|rows|grid|main
+```
+
+Rearranges every window on the focused window's desktop at once:
+
+- `columns`: every window side by side, with equal widths.
+- `rows`: every window top to bottom, with equal heights.
+- `grid`: rows of equal tiles, filled in order. Each row has as many windows as the square
+  root of their number, rounded up. The last row can have fewer, wider windows.
+- `main`: the focused window on the left, with 60% of the width. The others are top to bottom
+  on the right and share the rest equally.
+
+The windows go in reading order of where they are now: top to bottom, then left to right. With
+`main`, the focused window is taken out first and the others keep that order. Stacks on the
+desktop become tiles, a [zoomed](#zoom) window goes back to its tile, and the focused window
+stays focused. Windows that are not showing, such as minimised ones, go at the end and take no
+room until they come back.
+
+This happens once. The result is an ordinary layout, and every other command changes it as
+usual. [Arrange a desktop at once](/guides/how-tiling-works/#arrange-a-desktop-at-once) has
+diagrams.
+
+| Reply | When |
+| --- | --- |
+| `ok` | The desktop was rearranged. |
+| `ok: nothing to arrange` | Fewer than two windows are on screen. `main` with one window replies `ok`. |
 | `error: the focused window is not tiled` | |
 
 ### `float`
