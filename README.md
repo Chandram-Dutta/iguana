@@ -19,7 +19,7 @@ windows of inactive workspaces by parking them in a corner of the screen. Iguana
 - **It only touches windows that are on screen.** Nothing is ever hidden or parked. Minimised
   windows, hidden apps, other Stage Manager stages and background native tabs keep their slot and
   take no room until they come back.
-- **Nothing to undo.** Quit Iguana (or let it crash) and every window is exactly where you see it.
+- **Nothing to put back.** Quit Iguana (or let it crash) and every window is exactly where you see it.
 - **No need to disable System Integrity Protection.**
 
 ## Install
