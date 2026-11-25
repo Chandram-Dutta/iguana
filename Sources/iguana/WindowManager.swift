@@ -103,6 +103,10 @@ final class WindowManager {
     private var started = false
     private var restoredFloating = Set<CGWindowID>()
     private var restoredMinSizes: [CGWindowID: CGSize] = [:]
+    /// After a restart of the Mac: the saved layouts, waiting for their windows to come back.
+    private var restore = RestoreSession()
+    /// What the windows in the layouts were when last saved, for those that are not on screen.
+    private var savedWindows: [CGWindowID: WindowDescriptor] = [:]
     /// Windows whose minimum size comes from the last run and has not been checked in this one.
     private var unverifiedMinimums = Set<CGWindowID>()
     private var saveWork: DispatchWorkItem?
@@ -290,7 +294,7 @@ final class WindowManager {
         onDrag?(false)
         var wait = 0.0
         defer { scheduleRefresh(after: wait) }
-        guard let w = windows[d.id], let now = w.element.frame, let (_, tree) = treeEntry(containing: d.id) else { return }
+        guard let w = windows[d.id], let now = w.element.frame, let (key, tree) = treeEntry(containing: d.id) else { return }
         w.lastSetFrame = nil
         let dw = now.width - d.start.width, dh = now.height - d.start.height
         // A window that was carried somewhere can come back from the drag with another size:
@@ -302,11 +306,14 @@ final class WindowManager {
                 if abs(dw) > 3 { tree.changeShare(of: d.id, along: .horizontal, .ratio(Double(now.width / d.start.width)), visible: lastVisible) }
                 if abs(dh) > 3 { tree.changeShare(of: d.id, along: .vertical, .ratio(Double(now.height / d.start.height)), visible: lastVisible) }
             }
+            restore.stop(key)
         } else if let cursor = CGEvent(source: nil)?.location,
                   // The same question the outline asked all through the drag (DragPreview.swift),
                   // so what it showed is what is done: trade places, take half of a tile, join a stack.
                   let plan = dropPlan(dragging: d.id, from: d.start, now: d.carried ? CGRect(origin: now.origin, size: d.start.size) : now, at: cursor) {
             recording { DragDrop.carryOut(plan.drop, of: d.id, in: displays.compactMap { trees[$0.treeKey] }, visible: lastVisible) }
+            restore.stop(key)
+            if let there = treeEntry(containing: d.id)?.0 { restore.stop(there) }
             if displayIndex(for: now) != displayIndex(for: plan.rect) {
                 // Let go with most of itself on another display than the one it lands on. A
                 // layout is made of the windows on its display, so the window is put there first.
@@ -398,6 +405,7 @@ final class WindowManager {
     private func enumerate(_ state: AppState) {
         guard let list = state.element.elements(kAXWindowsAttribute) else { return }
         let pid = state.app.processIdentifier
+        var fresh: [WindowState] = []
         for el in list {
             guard let id = Private.windowID(of: el) else { continue }
             if let known = windows[id] {
@@ -423,10 +431,12 @@ final class WindowManager {
                 unverifiedMinimums.insert(id)
             }
             windows[id] = w
+            fresh.append(w)
             if let o = state.observer {
                 AXObserverAddNotification(o, el, kAXUIElementDestroyedNotification as CFString, Unmanaged.passUnretained(self).toOpaque())
             }
         }
+        refloat(fresh, app: state.app)
     }
 
     private static func isTileable(_ el: AXUIElement) -> Bool {
@@ -589,6 +599,8 @@ final class WindowManager {
             let ids = Set(here.map(\.id))
             let usable = d.usableFrame(config), gap = d.settings(config).inner
             let key = d.treeKey
+            // After a restart of the Mac, the desktop takes its saved shape again as its windows come back.
+            restoreLayout(d, here, snap, usable: usable, gap: gap)
             let tree: Tree
             if let t = trees[key] {
                 tree = t
@@ -828,6 +840,7 @@ final class WindowManager {
         case .float:
             guard let w = targetWindow(window) else { return "error: no focused window" }
             guard w.tileable else { return "error: this window cannot be tiled" }
+            if let key = treeEntry(containing: w.id)?.0 ?? display(holding: w)?.treeKey { restore.stop(key) }
             w.userFloat = !w.floating
             if w.floating { for tree in trees.values { tree.remove(w.id) } }
             refresh()
@@ -897,6 +910,7 @@ final class WindowManager {
             return notTiled(named)
         }
         let result = body(id, tree, key)
+        restore.stop(key)
         refresh()
         return result
     }
@@ -928,6 +942,7 @@ final class WindowManager {
         guard let snapshot = redoing ? history.redo(key: key, current: current) : history.undo(key: key, current: current) else { return nothing }
         let here = Set(tree.windows)
         tree.restore(snapshot)
+        restore.stop(key)
         // A window that has closed, floated or gone to another desktop since stays gone. One that
         // has arrived since is not in the snapshot, and the refresh places it as a new window.
         tree.prune { here.contains($0) }
@@ -948,6 +963,7 @@ final class WindowManager {
         // A tiled window is floated first, as `float` does.
         let floated = w.tileable && !w.floating
         if floated {
+            if let key = treeEntry(containing: id)?.0 { restore.stop(key) }
             w.userFloat = true
             for tree in trees.values { tree.remove(id) }
             refresh()
@@ -1132,8 +1148,9 @@ final class WindowManager {
 
     private func move(_ dir: Direction, _ named: CGWindowID?) -> String {
         guard let w = targetWindow(named), let frame = lastFrames[w.id],
-              let (_, tree) = treeEntry(containing: w.id) else { return notTiled(named) }
+              let (key, tree) = treeEntry(containing: w.id) else { return notTiled(named) }
         let id = w.id
+        restore.stop(key)
         if tree.move(id, dir, visible: lastVisible) {
             refresh()
             return "ok"
@@ -1226,7 +1243,9 @@ final class WindowManager {
         }
         guard there != here else { return "ok: already on display \(number)" }
         guard displays[there].isDesktop else { return "error: display \(number) is showing a fullscreen app" }
-        if let tile, let (_, tree) = treeEntry(containing: id) {
+        if let tile, let (key, tree) = treeEntry(containing: id) {
+            restore.stop(key)
+            restore.stop(displays[there].treeKey)
             carry(id, w, tile, from: tree, to: there)
         } else {
             let f = DisplayTarget.floatingFrame(frame, from: displays[here].usableFrame(config), to: displays[there].usableFrame(config))
@@ -1347,6 +1366,7 @@ final class WindowManager {
         guard destination.id != from, !(spaces.count > 1 && spaces.contains(destination.id)) else {
             return "ok: already on desktop \(destination.number)"
         }
+        if ruled == nil { restore.stop(here.treeKey) }
 
         // A window has to sit on the display its Space belongs to.
         if destination.displayID != here.managedID, let there = displays.first(where: { $0.managedID == destination.displayID }) {
@@ -1798,12 +1818,15 @@ final class WindowManager {
 
     // MARK: Saved layouts
 
-    private struct SavedState: Codable {
+    struct SavedState: Codable {
         var boot: Double
         var trees: [String: NodeSnapshot]
         var floating: [CGWindowID]
         /// Minimum sizes learned so far, as [width, height], so a restart does not relearn them.
         var minSizes: [String: [Double]]?
+        /// What each window in `trees` and `floating` is, so that it can be known again after
+        /// a restart of the Mac, when it has a new id.
+        var windows: [String: WindowDescriptor]?
     }
 
     static var supportDirectory: URL {
@@ -1822,8 +1845,18 @@ final class WindowManager {
 
     private func loadState() {
         guard let data = try? Data(contentsOf: Self.stateURL),
-              let saved = try? JSONDecoder().decode(SavedState.self, from: data),
-              saved.boot == Self.bootTime else { return }
+              let saved = try? JSONDecoder().decode(SavedState.self, from: data) else { return }
+        var described: [CGWindowID: WindowDescriptor] = [:]
+        for (key, d) in saved.windows ?? [:] { if let id = CGWindowID(key) { described[id] = d } }
+        guard saved.boot == Self.bootTime else {
+            // Every window comes back with a new id. The layouts wait for windows that look like theirs.
+            restore = RestoreSession(trees: saved.trees, floating: saved.floating, windows: described, from: Date())
+            if !restore.waiting.isEmpty {
+                Log.write("restore: the Mac has restarted; for \(Int(RestoreSession.gracePeriod / 60)) minutes, windows that come back take their places in \(restore.waiting.count) saved layout(s)")
+            }
+            return
+        }
+        savedWindows = described
         for (key, snapshot) in saved.trees { trees[key] = Tree(snapshot: snapshot) }
         restoredFloating = Set(saved.floating)
         for (key, size) in saved.minSizes ?? [:] where size.count == 2 {
@@ -1845,10 +1878,75 @@ final class WindowManager {
         for (key, tree) in trees where !tree.isEmpty { snapshots[key] = tree.snapshot }
         var mins: [String: [Double]] = [:]
         for w in windows.values { if let m = w.minSize { mins["\(w.id)"] = [Double(m.width), Double(m.height)] } }
-        let state = SavedState(boot: Self.bootTime, trees: snapshots,
-                               floating: windows.values.filter { $0.userFloat == true }.map(\.id), minSizes: mins)
+        let floating = windows.values.filter { $0.userFloat == true }.map(\.id)
+        // A window that is not on screen is kept as it was last seen, without asking its app.
+        var described: [CGWindowID: WindowDescriptor] = [:]
+        for id in Set(trees.values.flatMap(\.windows) + floating) {
+            let ask = lastVisible.contains(id) || savedWindows[id] == nil
+            described[id] = (ask ? windows[id].flatMap { describe($0, frame: lastFrames[id]) } : nil) ?? savedWindows[id]
+        }
+        savedWindows = described
+        let state = SavedState(boot: Self.bootTime, trees: snapshots, floating: floating, minSizes: mins,
+                               windows: Dictionary(uniqueKeysWithValues: described.map { ("\($0.key)", $0.value) }))
         guard let data = try? JSONEncoder().encode(state) else { return }
         try? FileManager.default.createDirectory(at: Self.supportDirectory, withIntermediateDirectories: true)
         try? data.write(to: Self.stateURL, options: .atomic)
+    }
+
+    // MARK: After a restart of the Mac
+
+    /// What a window is, to know it again after a restart of the Mac. `frame` is where it is,
+    /// when that is known already.
+    private func describe(_ w: WindowState, frame: CGRect?) -> WindowDescriptor? {
+        guard let app = apps[w.pid]?.app, let frame = frame ?? w.element.frame else { return nil }
+        return WindowDescriptor(bundleID: app.bundleIdentifier, app: app.localizedName, title: w.element.string(kAXTitleAttribute), frame: frame)
+    }
+
+    /// Lay a desktop out in its saved shape again when more of its windows have come back. This
+    /// comes before the layout is computed, so the windows go straight to their places: the ones
+    /// that have just come back at once, the others gliding as usual.
+    private func restoreLayout(_ display: DisplayInfo, _ here: [WindowState], _ snap: ScreenSnapshot, usable: CGRect, gap: Double) {
+        // Never while a window is being dragged by hand.
+        guard drag == nil else { return }
+        let key = display.treeKey
+        let wanted = restore.apps(waitingOn: key, at: Date())
+        guard !wanted.isEmpty else { return }
+        var seen: [CGWindowID: WindowDescriptor] = [:]
+        for w in here {
+            guard let bundle = apps[w.pid]?.app.bundleIdentifier, wanted.contains(bundle) else { continue }
+            seen[w.id] = describe(w, frame: snap.onScreen[w.id])
+        }
+        let old = trees[key]
+        let kept = Set(old?.windows ?? [])
+        guard let tree = restore.rebuild(key, windows: seen, kept: kept, at: Date()) else { return }
+        trees[key] = tree
+        let back = tree.windows
+        for id in back {
+            for (k, other) in trees where k != key { other.remove(id) }
+            if !kept.contains(id) { justAdopted.insert(id) }
+        }
+        // The windows that were here already and have no place in the saved layout go in as new
+        // windows do, and glide there. Those not on screen keep a place at the end.
+        tree.focused = old?.focused
+        let ids = Set(here.map(\.id))
+        for w in here where kept.contains(w.id) && !tree.contains(w.id) {
+            adopt(w, into: tree, key: key, visible: ids, usable: usable, gap: gap)
+            justAdopted.remove(w.id)
+        }
+        for id in old?.windows ?? [] where !tree.contains(id) { tree.insert(id) }
+        let desktop = display.spaceIndex.map { "desktop \(display.desktopOffset + $0)" } ?? "a desktop"
+        Log.write("restore: \(desktop) has \(back.count) window(s) back in its saved layout\(restore.waiting.contains(key) ? "" : ", which is complete")")
+    }
+
+    /// A window the user had floated by hand before a restart of the Mac floats again when it comes back.
+    private func refloat(_ fresh: [WindowState], app: NSRunningApplication) {
+        guard !fresh.isEmpty, let bundle = app.bundleIdentifier, restore.mayFloat(bundle, at: Date()) else { return }
+        var seen: [CGWindowID: WindowDescriptor] = [:]
+        // Where the window is does not matter here.
+        for w in fresh where w.tileable {
+            seen[w.id] = WindowDescriptor(bundleID: bundle, app: app.localizedName, title: w.element.string(kAXTitleAttribute), frame: .zero)
+        }
+        let count = windows.values.filter { $0.pid == app.processIdentifier && $0.tileable }.count
+        for id in restore.refloat(seen, appWindows: [bundle: count], at: Date()) { windows[id]?.userFloat = true }
     }
 }

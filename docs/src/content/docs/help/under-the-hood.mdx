@@ -26,7 +26,8 @@ Everything below follows from that rule.
    and where, and reads which desktop each display is on.
 3. **It updates the layout trees.** New windows are added next to the last focused window.
    Windows that no longer exist are removed. Windows that exist but are not showing stay in
-   the tree.
+   the tree. In the first minutes after a restart of the Mac, a window that Iguana
+   recognises from before takes its old place instead.
 4. **It computes a frame for every visible tiled window** from the tree of the desktop each
    display is showing.
 5. **It sets only the frames that differ** from where the windows already are.
@@ -136,13 +137,20 @@ With that, Iguana makes no request at all unless you ask for one with
 | Path | Contents |
 | --- | --- |
 | `~/.config/iguana/iguana.toml` | Your settings. Optional. |
-| `~/Library/Application Support/Iguana/state.json` | The layout tree of each desktop, the windows you floated by hand and the minimum sizes Iguana has learned. Written about a second after the layout changes and again when Iguana quits. |
+| `~/Library/Application Support/Iguana/state.json` | The layout tree of each desktop, the windows you floated by hand and the minimum sizes Iguana has learned, with the app, title and frame of each of those windows. Written about a second after the layout changes and again when Iguana quits. |
 | `~/Library/Application Support/Iguana/iguana.sock` | The socket for the command line tool. Readable and writable only by you. |
 | `~/Library/Logs/Iguana.log` | The log. |
 | `~/Library/Preferences/xyz.onlychan.iguana.plist` | Whether the welcome tour has been shown, when Iguana last looked for a newer version, and the newer version it found. |
 
-The saved state is used again when Iguana restarts, but only if the Mac has not restarted
-since it was saved, because the numbers that identify windows start over at each restart.
+When Iguana restarts, the saved state is used again as it is. The numbers that identify
+windows start over when the Mac restarts, so after that Iguana goes by each window's app,
+title and frame instead. For three minutes after tiling starts, a window that comes back
+takes the place of the saved window of the same app with the same title. Failing that, it
+takes the place of the nearest saved window of its app. The saved minimum sizes are not
+used after a restart of the Mac.
+
+That is why the file holds your window titles. It stays on your Mac: Iguana never sends it
+anywhere.
 
 ## Staying responsive
 
