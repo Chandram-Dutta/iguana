@@ -98,13 +98,22 @@ public enum ShareChange {
 
 /// The tiling tree of one Space on one display.
 ///
-/// Windows that are currently not on screen (minimised, hidden app, another Stage Manager stage,
-/// a background native tab) stay in the tree and keep their slot. Every operation that depends on
-/// what the user can see takes a `visible` set and skips the rest.
+/// Windows that are currently not on screen (minimised, hidden app, another Stage Manager stage)
+/// stay in the tree and keep their slot. Every operation that depends on what the user can see
+/// takes a `visible` set and skips the rest.
+///
+/// A window with native tabs is one window on screen, and one leaf here: the tab in front. The
+/// other tabs are windows of their own that are not on screen. They have no leaf, and each takes
+/// the leaf over when it comes forward (`insert` with `sameSlot`), so a tab always has the place
+/// its window has now.
 public final class Tree {
     public internal(set) var root: Node
     /// Last focused window of this tree. New windows open next to it.
     public var focused: WindowID?
+    /// The tabs that are not in front, by the tab that is. They are remembered so that the
+    /// window keeps its place when the tab in front is closed, and so that a tab is known
+    /// again when it comes forward. No window is in here twice, and none that has a leaf.
+    private var behind: [WindowID: [WindowID]] = [:]
 
     public init(orientation: Orientation = .horizontal) {
         root = Node(container: orientation)
@@ -113,7 +122,20 @@ public final class Tree {
     public var windows: [WindowID] { root.leaves() }
     public var isEmpty: Bool { root.children.isEmpty }
 
+    /// Whether the window has a leaf. A tab that is not in front has none.
     public func contains(_ id: WindowID) -> Bool { root.find(id) != nil }
+
+    /// The tab that is in front of this one and has the leaf of their window. Nil for a window
+    /// that has a leaf itself, and for one this tree does not know.
+    public func inFront(of id: WindowID) -> WindowID? {
+        behind.first { $0.value.contains(id) }?.key
+    }
+
+    /// A window that gets a leaf of its own is nobody's tab any more.
+    private func leaveTabs(_ id: WindowID) {
+        guard let front = inFront(of: id), let others = behind[front]?.filter({ $0 != id }) else { return }
+        behind[front] = others.isEmpty ? nil : others
+    }
 
     func node(_ id: WindowID) -> Node? { root.find(id) }
 
@@ -128,19 +150,25 @@ public final class Tree {
     /// Insert a window next to `anchor` (or at the end of the root).
     /// - `split`: when it differs from the orientation of the anchor's container, the anchor's slot
     ///   is split in that orientation instead of widening the container (dwindle behaviour).
-    /// - `sameSlot`: the new window shares the anchor's slot, used when one window replaces
-    ///   another on screen (native tabs).
+    /// - `sameSlot`: the new window takes the anchor's leaf, used when one window replaces
+    ///   another on screen: a native tab that comes forward. The anchor is a tab behind it from
+    ///   then on, and has no leaf until it comes forward itself.
     ///
     /// A window that opens next to one in a stack joins the stack, whatever `split` says.
     @discardableResult
     public func insert(_ id: WindowID, after anchor: WindowID? = nil, split: Orientation? = nil, sameSlot: Bool = false) -> Bool {
         guard !contains(id) else { return false }
+        leaveTabs(id)
         guard let anchor, let an = node(anchor), let p = an.parent, let i = an.index else {
             root.append(Node(window: id, weight: root.meanChildWeight))
             return true
         }
         if sameSlot {
-            p.insert(Node(window: id, weight: an.weight), at: i + 1)
+            // The same leaf, so whatever was done to the window while the other tab was in
+            // front (its share, a move, a swap) is where this tab finds it.
+            an.kind = .window(id)
+            behind[id] = (behind.removeValue(forKey: anchor) ?? []) + [anchor]
+            if focused == anchor { focused = id }
             return true
         }
         if let split, split != p.orientation, !p.stacked {
@@ -162,17 +190,34 @@ public final class Tree {
         return true
     }
 
+    /// A window that has tabs behind it leaves its leaf to one of them, the one that was in
+    /// front last: the window they are tabs of is still there. Taking away a tab that is not
+    /// in front changes nothing in the layout.
     @discardableResult
     public func remove(_ id: WindowID) -> Bool {
-        guard let n = node(id) else { return false }
+        guard let n = node(id) else {
+            guard inFront(of: id) != nil else { return false }
+            leaveTabs(id)
+            return true
+        }
+        if focused == id { focused = nil }
+        if var others = behind.removeValue(forKey: id), let next = others.popLast() {
+            n.kind = .window(next)
+            behind[next] = others.isEmpty ? nil : others
+            return true
+        }
         n.detach()
         normalize()
-        if focused == id { focused = nil }
         return true
     }
 
     /// Drop every window for which `keep` returns false.
     public func prune(keeping keep: (WindowID) -> Bool) {
+        // The tabs that are not in front first, so that no leaf is left to one that is to go.
+        for (front, others) in behind {
+            let kept = others.filter(keep)
+            behind[front] = kept.isEmpty ? nil : kept
+        }
         for id in windows where !keep(id) { remove(id) }
     }
 
@@ -319,6 +364,7 @@ public final class Tree {
         // Looked up before the window leaves, while a stack of two still is a stack. The tree
         // is put in order once, at the end, so that these nodes stay the ones in the tree.
         let target = shownStack(around: anchor, visible: visible) ?? leaf
+        leaveTabs(id)
         node(id)?.detach()
         let new = Node(window: id)
         let axis = side.orientation
@@ -365,6 +411,7 @@ public final class Tree {
             while let p = branch.parent, p !== stack { branch = p }
         }
         guard let p = branch.parent else { return false }
+        leaveTabs(id)
         node(id)?.detach()
         p.insert(Node(window: id, weight: p.meanChildWeight), at: (branch.index ?? p.children.count) + 1)
         normalize()
@@ -541,6 +588,13 @@ public final class Tree {
             if !seen.insert(id).inserted, let n = node(id) { n.detach() }
         }
         normalize()
+        // Which tab of a window is in front is not part of an arrangement. The one in front
+        // now takes the place the arrangement has for whichever of them was in front then.
+        for (front, others) in behind {
+            if !contains(front), let then = others.first(where: contains) { node(then)?.kind = .window(front) }
+            let still = contains(front) ? others.filter { !contains($0) } : []
+            behind[front] = still.isEmpty ? nil : still
+        }
         if let f = focused, !contains(f) { focused = nil }
     }
 

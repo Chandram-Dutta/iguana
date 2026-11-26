@@ -187,9 +187,7 @@ final class RestoreScenarioTests: SavedLayoutTestCase {
         mac.settle()
 
         XCTAssertNotNil(mac.tiles[docs.id])
-        XCTExpectFailure("a floating window is described once and never again, so it is saved under the title it had when it was first saved") {
-            XCTAssertNil(mac.tiles[radio.id], "the window that floated is the one with this title")
-        }
+        XCTAssertNil(mac.tiles[radio.id], "the window that floated is the one with this title")
     }
 
     func testTheTiledWindowOfAnAppIsNotTakenForItsFloatingOne() {
@@ -204,11 +202,99 @@ final class RestoreScenarioTests: SavedLayoutTestCase {
         let player = open("Music", "Player")
         let equaliser = open("Music", "Equaliser", frame: place)
 
-        XCTExpectFailure("the first window of an app to come back is taken for the app's only floating one, whatever its title") {
-            XCTAssertNotNil(mac.tiles[player.id], "the window that was tiled is tiled")
-            XCTAssertNil(mac.tiles[equaliser.id], "and the one that floated floats")
-            XCTAssertEqual(equaliser.rect, place)
-        }
+        XCTAssertNotNil(mac.tiles[player.id], "the window that was tiled is tiled")
+        XCTAssertNil(mac.tiles[equaliser.id], "and the one that floated floats")
+        XCTAssertEqual(equaliser.rect, place)
+        XCTAssertEqual(saved?.floating, [equaliser.id])
+    }
+
+    func testAFloatingWindowWithANewTitleIsNotKnownAgainWhenItsAppHadMoreWindows() {
+        open("Safari", "Docs")
+        open("Music", "Player")
+        open("Music", "Now playing: one song")
+        XCTAssertEqual(mac.run("float"), "ok: floating")
+        restartMac()
+
+        // The app's only window so far, under a title that was not saved. With two windows
+        // saved it could be either of them, so it is not floated on a guess.
+        let playing = open("Music", "Now playing: another song")
+        XCTAssertNotNil(mac.tiles[playing.id])
+        XCTAssertEqual(saved?.floating, [])
+    }
+
+    func testAWindowARuleFloatsIsNotTakenForTheFloatingOne() {
+        replaceScenario(Scenario(config: "[[rule]]\napp = \"Music\"\ntitle = \"Mini\"\nfloat = true\n"))
+        let docs = open("Safari", "Docs")
+        open("Music", "Mini")
+        open("Music", "Now playing: one song")
+        XCTAssertEqual(mac.run("float"), "ok: floating")
+        XCTAssertEqual(mac.tiles.keys.sorted(), [docs.id])
+        restartMac()
+
+        // The window the rule floats was not saved: the rule is all that floats it. It comes
+        // back first and alone, and leaves the saved window to the one that was floated by hand.
+        let mini = open("Music", "Mini")
+        XCTAssertEqual(saved?.floating, [], "floating by its rule, not by hand")
+        let place = CGRect(x: 700, y: 400, width: 420, height: 300)
+        let player = open("Music", "Now playing: another song", frame: place)
+        XCTAssertEqual(saved?.floating, [player.id], "the only window of the app that no rule floats, as when it was saved")
+        XCTAssertEqual(player.rect, place)
+        XCTAssertTrue(mac.tiles.isEmpty)
+        XCTAssertNil(mac.tiles[mini.id])
+    }
+
+    func testTheFloatingWindowIsKnownAmongWindowsARuleFloats() {
+        replaceScenario(Scenario(config: "[[rule]]\napp = \"Music\"\ntitle = \"Mini\"\nfloat = true\n"))
+        open("Safari", "Docs")
+        open("Music", "Mini")
+        open("Music", "Now playing: one song")
+        XCTAssertEqual(mac.run("float"), "ok: floating")
+        restartMac()
+
+        // Music reopens both windows at once. Only one of them is a window that was saved.
+        let music = mac.system.launch("Music")
+        mac.system.open(music, title: "Mini")
+        let player = mac.system.open(music, title: "Now playing: another song")
+        mac.settle()
+        XCTAssertEqual(saved?.floating, [player.id])
+        XCTAssertTrue(mac.tiles.isEmpty)
+    }
+
+    // MARK: Windows tiled by hand
+
+    func testAWindowTiledByHandAgainstARuleIsTiledAgainAfterARestart() {
+        replaceScenario(Scenario(config: "[[rule]]\napp = \"Calculator\"\nfloat = true\n"))
+        open("Calculator", "Sums")
+        XCTAssertEqual(mac.run("float"), "ok: tiled")
+        open("Safari", "Docs")
+        open("Calculator", "Tape")
+        XCTAssertEqual(mac.tiles.count, 2, "the rule floats the calculator's other window")
+        let before = mac.tiles.values.map(\.minX).sorted()
+        restartMac()
+
+        // The window the rule alone decides for comes back first. It is not the one that was tiled.
+        let tape = open("Calculator", "Tape")
+        XCTAssertTrue(mac.tiles.isEmpty)
+        let docs = open("Safari", "Docs")
+        let sums = open("Calculator", "Sums")
+        XCTAssertEqual(mac.tiledInReadingOrder, [sums.id, docs.id], "known by its title, tiled again, and on the left as it was")
+        XCTAssertEqual(mac.tiles.values.map(\.minX).sorted(), before)
+        XCTAssertNil(mac.tiles[tape.id])
+        XCTAssertEqual(saved?.tiled, [sums.id], "tiled by hand under its new id")
+        XCTAssertEqual(restored.last, "restore: desktop 1 has 2 window(s) back in its saved layout, which is complete")
+    }
+
+    func testAWindowTiledByHandIsNotKnownAgainByAnotherTitle() {
+        replaceScenario(Scenario(config: "[[rule]]\napp = \"Calculator\"\nfloat = true\n"))
+        open("Calculator", "Sums")
+        XCTAssertEqual(mac.run("float"), "ok: tiled")
+        restartMac()
+
+        // The calculator's only window, as before, but the rule floats others that were not
+        // saved: without its title there is no telling that this is the one.
+        let tape = open("Calculator", "Tape")
+        XCTAssertNil(mac.tiles[tape.id], "left to the rule")
+        XCTAssertEqual(saved?.tiled, [])
     }
 
     // MARK: The user takes over

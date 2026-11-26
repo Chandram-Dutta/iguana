@@ -59,8 +59,9 @@ extension WindowManager {
         lookAtDisplays()
         guard let here = (ruled == nil && named == nil ? nil : display(holding: w)) ?? activeDisplay else { return "error: no display" }
         let desktops = system.desktops()
+        let on = system.spaces(of: id)
         // The desktop the window is on. Only a named or ruled window can be on one that is not being shown.
-        let spaces = (named == nil && ruled == nil) ? [] : system.spaces(of: id)
+        let spaces = (named == nil && ruled == nil) ? [] : on
         let from = spaces.isEmpty || spaces.contains(here.spaceID) ? here.spaceID : spaces[0]
         guard from == here.spaceID ? here.isDesktop : desktops.contains(where: { $0.id == from }) else {
             return "error: a fullscreen window cannot be sent to another desktop"
@@ -81,7 +82,8 @@ extension WindowManager {
             guard let previous = recentDesktop(on: here) else { return "ok: no previous desktop" }
             destination = previous
         }
-        guard destination.id != from, !(spaces.count > 1 && spaces.contains(destination.id)) else {
+        // A window assigned to all desktops is on the destination already, whichever way it was named.
+        guard destination.id != from, !(on.count > 1 && on.contains(destination.id)) else {
             return "ok: already on desktop \(destination.number)"
         }
         if ruled == nil { restore.stop(treeEntry(containing: id)?.0 ?? here.treeKey) }
@@ -103,9 +105,10 @@ extension WindowManager {
                 // Brought to the desktop being shown, so there is no desktop to go to.
                 focus(window: id)
             } else if follow {
-                let origin = here.spaceID
+                // The desktop may belong to another display, so it is the one waited for: this
+                // display does not leave its own then.
                 _ = system.press(shortcut: Private.SystemShortcut.desktop(destination.number))
-                carrier.whenSpaceChanges(from: origin, timeout: 3) { [weak self] _ in self?.focus(window: id) }
+                carrier.whenSpaceShows(destination.id, timeout: 3) { [weak self] _ in self?.focus(window: id) }
             } else if ruled == nil, id == focusedWindow {
                 // Hand the keyboard to the window that is left nearest to where this one was.
                 // A ruled window leaves it alone: applyDesktopRules gives it back itself.
@@ -125,7 +128,7 @@ extension WindowManager {
         // ends on the destination desktop.
         Log.write("move-to-space: the quick route did not move window \(id), falling back to dragging it")
         guard let frame = w.element.frame else { return "error: cannot read the window's position" }
-        carrier.carry(id, w.element, frame, shortcutID: Private.SystemShortcut.desktop(destination.number), from: activeDisplay?.spaceID) { [weak self] in
+        carrier.carry(id, w.element, frame, shortcutID: Private.SystemShortcut.desktop(destination.number), to: destination.id) { [weak self] in
             guard let self else { return }
             self.windows[id]?.lastSetFrame = nil
             self.allDirty = true

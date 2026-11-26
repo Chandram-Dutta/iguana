@@ -161,6 +161,7 @@ final class PersistenceScenarioTests: SavedLayoutTestCase {
         XCTAssertEqual(savedLayout("space-uuid-2|display-1"), [zsh.id])
         XCTAssertEqual(file.trees["space-uuid-1|display-1"]?.orientation, .horizontal, "side by side")
         XCTAssertEqual(file.floating, [])
+        XCTAssertEqual(file.tiled, [])
         XCTAssertEqual(file.minSizes, [:])
 
         // A description for every window in a layout: the app, the title and the tile.
@@ -219,6 +220,51 @@ final class PersistenceScenarioTests: SavedLayoutTestCase {
         mac.system.unminimise(docs)
         mac.settle()
         XCTAssertEqual(savedDescription(of: docs)?.title, "Release notes", "back on screen, it is looked at again")
+    }
+
+    func testAFloatingWindowOnScreenIsDescribedAsItIsNow() {
+        open("Safari", "Docs")
+        let player = open("Music", "One song")
+        XCTAssertEqual(mac.run("float"), "ok: floating")
+        XCTAssertEqual(savedDescription(of: player)?.title, "One song")
+
+        // It has no tile, and is looked at all the same for as long as it is on screen.
+        player.title = "Another song"
+        player.rect = CGRect(x: 900, y: 500, width: 420, height: 300)
+        mac.settle()
+        mac.save()
+        XCTAssertEqual(savedDescription(of: player), WindowDescriptor(bundleID: "com.example.music", app: "Music", title: "Another song",
+                                                                      frame: CGRect(x: 900, y: 500, width: 420, height: 300)))
+    }
+
+    func testAFloatingWindowThatIsNotOnScreenKeepsItsLastDescription() {
+        let display = mac.system.displayList[0]
+        mac.system.addDesktop(to: display)
+        open("Safari", "Docs")
+        let player = open("Music", "One song")
+        XCTAssertEqual(mac.run("float"), "ok: floating")
+        let radio = open("Safari", "Radio")
+        XCTAssertEqual(mac.run("float"), "ok: floating")
+
+        // One goes to the Dock; the other is left behind on its desktop.
+        mac.system.minimise(player)
+        mac.settle()
+        player.title = "Another song"
+        mac.save()
+        XCTAssertEqual(savedDescription(of: player)?.title, "One song", "as it was when it was last on screen: its app is not asked")
+        XCTAssertEqual(saved?.floating, [player.id, radio.id], "and it still floats by hand")
+
+        mac.system.showDesktop(2)
+        mac.settle()
+        radio.title = "Radio: the news"
+        mac.save()
+        XCTAssertEqual(savedDescription(of: radio)?.title, "Radio")
+
+        mac.system.unminimise(player)
+        mac.system.showDesktop(1)
+        mac.settle()
+        XCTAssertEqual(savedDescription(of: player)?.title, "Another song", "back on screen, they are looked at again")
+        XCTAssertEqual(savedDescription(of: radio)?.title, "Radio: the news")
     }
 
     // MARK: Iguana starts again on the same boot
@@ -368,11 +414,74 @@ final class PersistenceScenarioTests: SavedLayoutTestCase {
         XCTAssertEqual(mac.run("float"), "ok: tiled")
         XCTAssertEqual(mac.tiles.keys.sorted(), [docs.id, sums.id], "the user's choice wins over the rule")
 
+        XCTAssertEqual(saved?.tiled, [sums.id], "the window tiled by hand is in the file")
+        XCTAssertEqual(saved?.floating, [])
+
         mac.relaunch()
 
-        XCTExpectFailure("only windows floated by hand are saved, so a window tiled by hand against a rule floats again") {
-            XCTAssertEqual(mac.tiles.keys.sorted(), [docs.id, sums.id])
-        }
+        XCTAssertEqual(mac.tiles.keys.sorted(), [docs.id, sums.id])
+        XCTAssertEqual(saved?.tiled, [sums.id], "and it is still in the file for the next time")
+
+        // Reading the rules again leaves it tiled, as it does in the run that tiled it.
+        XCTAssertEqual(mac.run("apply-rules"), "ok: nothing to move")
+        XCTAssertEqual(mac.tiles.keys.sorted(), [docs.id, sums.id])
+
+        // Floated by hand again, it is no longer kept as tiled.
+        XCTAssertEqual(mac.run("float --window \(sums.id)"), "ok: floating")
+        XCTAssertEqual(saved?.tiled, [])
+        XCTAssertEqual(saved?.floating, [sums.id])
+        mac.relaunch()
+        XCTAssertEqual(mac.tiles.keys.sorted(), [docs.id])
+
+        // A window that closes takes its entry along.
+        XCTAssertEqual(mac.run("float --window \(sums.id)"), "ok: tiled")
+        XCTAssertEqual(saved?.tiled, [sums.id])
+        mac.system.close(sums)
+        mac.settle()
+        XCTAssertEqual(saved?.tiled, [])
+    }
+
+    func testAWindowTiledByHandWhileItIsNotOnScreenIsDescribedToo() {
+        replaceScenario(Scenario(config: "[[rule]]\napp = \"Calculator\"\nfloat = true\n"))
+        let docs = open("Safari", "Docs")
+        let sums = open("Calculator", "Sums")
+        mac.system.minimise(sums)
+        mac.settle()
+        XCTAssertNil(savedDescription(of: sums), "the rule floats it: nothing is kept about it")
+
+        // In the Dock it joins no layout yet, and is in the file all the same.
+        XCTAssertEqual(mac.run("float --window \(sums.id)"), "ok: tiled")
+        XCTAssertEqual(savedLayout(), [docs.id])
+        XCTAssertEqual(saved?.tiled, [sums.id])
+        XCTAssertEqual(savedDescription(of: sums)?.title, "Sums")
+
+        mac.relaunch()
+        mac.system.unminimise(sums)
+        mac.settle()
+        XCTAssertEqual(mac.tiles.keys.sorted(), [docs.id, sums.id], "out of the Dock in the next run, it is tiled")
+    }
+
+    func testAFileWithoutWindowsTiledByHandLeavesThemToTheRules() {
+        replaceScenario(Scenario(config: "[[rule]]\napp = \"Calculator\"\nfloat = true\n"))
+        let docs = open("Safari", "Docs")
+        let sums = open("Calculator", "Sums")
+        XCTAssertEqual(mac.run("float"), "ok: tiled")
+
+        // The file an Iguana from before this was kept would have left: the window is in the
+        // layout, and nothing says that it was tiled by hand.
+        mac.save()
+        var old = saved!
+        old.tiled = nil
+        relaunch(finding: old)
+
+        XCTAssertEqual(mac.tiles.keys.sorted(), [docs.id], "the rule floats it, as it did before windows tiled by hand were kept")
+        XCTAssertFrame(docs.rect, mac.usable(), "and it leaves no gap on screen")
+        XCTAssertEqual(saved?.tiled, [])
+
+        // Tiled by hand once more, it is kept from now on.
+        XCTAssertEqual(mac.run("float --window \(sums.id)"), "ok: tiled")
+        mac.relaunch()
+        XCTAssertEqual(mac.tiles.keys.sorted(), [docs.id, sums.id])
     }
 
     func testAHandFloatedWindowOfAnAppThatWasBusyStillFloatsTheRunAfter() {
@@ -388,8 +497,101 @@ final class PersistenceScenarioTests: SavedLayoutTestCase {
         player.app.answers = true
         mac.relaunch()
 
-        XCTExpectFailure("a save writes only the floating windows looked at in this run, and drops the ones still waiting from the last") {
-            XCTAssertEqual(mac.tiles.keys.sorted(), [docs.id])
-        }
+        XCTAssertEqual(mac.tiles.keys.sorted(), [docs.id])
+        XCTAssertEqual(saved?.floating, [player.id])
+    }
+
+    func testWhatIsKeptForAWindowOfABusyAppStaysInTheFileUntilTheWindowIsGone() {
+        replaceScenario(Scenario(config: "[[rule]]\napp = \"Calculator\"\nfloat = true\n"))
+        let docs = open("Safari", "Docs")
+        let wide = open("Xcode", "Project")
+        wide.minSize = CGSize(width: 900, height: 300)
+        let sums = open("Calculator", "Sums")
+        XCTAssertEqual(mac.run("float"), "ok: tiled")
+        let player = open("Music", "Player")
+        XCTAssertEqual(mac.run("float"), "ok: floating")
+        XCTAssertEqual(mac.tiles.keys.sorted(), [docs.id, wide.id, sums.id])
+        XCTAssertEqual(wide.rect.width, 900, accuracy: 1)
+
+        // Iguana starts again while none of the three apps says what windows it has.
+        for window in [wide, sums, player] { window.app.answers = false }
+        mac.relaunch()
+        XCTAssertEqual(saved?.floating, [player.id], "floated by hand in the last run, and not seen yet in this one")
+        XCTAssertEqual(saved?.tiled, [sums.id], "tiled by hand, likewise")
+        XCTAssertEqual(saved?.minSizes, ["\(wide.id)": [900, 0]], "the minimum size learned in the last run")
+        XCTAssertEqual(savedDescription(of: player)?.title, "Player", "described as the last run saw it")
+        XCTAssertEqual(savedLayout(), [docs.id, wide.id, sums.id])
+
+        // Saved again and again, they stay.
+        open("Notes", "Todo")
+        mac.save()
+        XCTAssertEqual(saved?.floating, [player.id])
+        XCTAssertEqual(saved?.tiled, [sums.id])
+        XCTAssertEqual(saved?.minSizes?.keys.sorted(), ["\(wide.id)"])
+
+        // Two of the windows close before their apps have answered. The next look at the
+        // screen finds them gone, and nothing is kept for a window that is gone.
+        mac.system.close(player)
+        mac.system.close(wide)
+        open("Notes", "Shopping")
+        XCTAssertEqual(saved?.floating, [])
+        XCTAssertEqual(saved?.minSizes, [:])
+        XCTAssertNil(savedDescription(of: player))
+        XCTAssertEqual(saved?.tiled, [sums.id], "the window that is still there is still waited for")
+
+        // The calculator answers at last: its window is tiled as the user left it.
+        sums.app.answers = true
+        mac.relaunch()
+        XCTAssertNotNil(mac.tiles[sums.id])
+        XCTAssertEqual(saved?.tiled, [sums.id])
+    }
+
+    func testALearnedMinimumSizeOfAnAppThatWasBusyIsStillKnownTheRunAfter() {
+        let wide = open("Xcode", "Project")
+        wide.minSize = CGSize(width: 900, height: 300)
+        let notes = open("Notes", "Todo")
+        XCTAssertEqual(wide.rect.width, 900, accuracy: 1)
+        let frames = [wide.rect, notes.rect]
+        let asked = wide.sizesAsked.count
+
+        wide.app.answers = false
+        mac.relaunch()
+        XCTAssertEqual(saved?.minSizes, ["\(wide.id)": [900, 0]], "still in the file, a second after starting and as Iguana quits")
+        wide.app.answers = true
+        mac.relaunch()
+
+        XCTAssertEqual([wide.rect, notes.rect], frames)
+        // Remembered, and so only checked: the window is asked once for the half it would have without a minimum.
+        XCTAssertEqual(wide.sizesAsked.count, asked + 1)
+        XCTAssertEqual(saved?.minSizes, ["\(wide.id)": [900, 0]])
+    }
+
+    func testQuittingBeforeTheFirstLookAtTheScreenKeepsWhatWasSaved() {
+        let docs = open("Safari", "Docs")
+        let wide = open("Xcode", "Project")
+        wide.minSize = CGSize(width: 900, height: 300)
+        let player = open("Music", "Player")
+        XCTAssertEqual(mac.run("float"), "ok: floating")
+        let sums = open("Calculator", "Sums")
+        XCTAssertEqual(mac.run("float"), "ok: floating")
+        XCTAssertEqual(mac.run("float"), "ok: tiled")
+        mac.save()
+        let before = saved
+        XCTAssertEqual(before?.minSizes?.keys.sorted(), ["\(wide.id)"])
+
+        // Iguana starts without its permission, so it looks at nothing, and is quit.
+        mac.system.isTrusted = false
+        mac.relaunch()
+        XCTAssertTrue(mac.tiles.isEmpty)
+        mac.save()
+        XCTAssertEqual(saved?.floating, [player.id], "no window is known to be gone, so nothing is dropped")
+        XCTAssertEqual(saved?.tiled, [sums.id])
+        XCTAssertEqual(saved?.minSizes, before?.minSizes)
+        XCTAssertEqual(saved?.windows, before?.windows)
+        XCTAssertEqual(savedLayout(), [docs.id, wide.id, sums.id])
+
+        mac.system.isTrusted = true
+        mac.relaunch()
+        XCTAssertEqual(mac.tiles.keys.sorted(), [docs.id, wide.id, sums.id], "the next run finds everything as it was left")
     }
 }

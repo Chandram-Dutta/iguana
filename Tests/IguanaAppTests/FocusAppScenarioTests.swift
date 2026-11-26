@@ -159,6 +159,37 @@ final class FocusAppScenarioTests: FocusScenarioTestCase {
         XCTAssertTrue(mac.system.pressed.isEmpty, "Iguana does not switch desktop itself")
     }
 
+    func testAnAppActivatedJustAfterAFocusCommandKeepsTheKeyboard() {
+        let second = mac.system.addDesktop(to: mac.system.displayList[0])
+        let mail = mac.system.launch("Mail")
+        mac.system.open(mail, on: second)
+        let (left, _) = sideBySide()
+
+        // One shortcut bound to a chain: the second command follows the first at once.
+        XCTAssertEqual(mac.run("focus left; focus-app mail"), "ok: activated Mail")
+
+        XCTAssertTrue(mac.system.frontmost === mail, "the check of the first command did not take the keyboard back")
+        XCTAssertEqual(left.app.activations, 0)
+        XCTAssertEqual(left.raises, 1)
+        XCTAssertEqual(mac.system.focusRequests, [left.id])
+    }
+
+    func testActivatingAnAppEndsTheWaitForAnEarlierFocus() {
+        let second = mac.system.addDesktop(to: mac.system.displayList[0])
+        let mail = mac.system.launch("Mail")
+        mac.system.open(mail, on: second)
+        let (left, right) = sideBySide()
+        // Nothing takes on this Mac, so the keyboard is still where it was when the check comes.
+        mac.system.focusSticks = false
+
+        XCTAssertEqual(mac.run("focus left; focus-app mail"), "ok: activated Mail")
+
+        XCTAssertEqual(mail.activations, 1)
+        XCTAssertEqual(left.app.activations, 0, "the first command is not tried again: the user has asked for something else since")
+        XCTAssertEqual(left.raises, 1)
+        XCTAssertTrue(keyWindow === right)
+    }
+
     func testFocusAppOpensAnAppThatIsNotRunningOrSaysThereIsNone() {
         open("Notes")
         mac.system.installed["com.apple.mail"] = URL(fileURLWithPath: "/System/Applications/Mail.app")

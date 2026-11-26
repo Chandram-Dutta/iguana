@@ -4,9 +4,14 @@ import IguanaCore
 
 extension WindowManager {
     func updateFocus(_ snap: ScreenSnapshot) {
-        // While a focus request is still being confirmed, the request is the truth.
-        guard focusIntent == nil else { return }
         var id = systemFocusedWindow()
+        // While a focus request is still being confirmed, the request is the truth. It is
+        // confirmed as soon as macOS agrees and the window can be seen: from then on, where the
+        // focus goes is the user's doing or an app's, and is believed.
+        if let asked = focusIntent {
+            guard id == asked, isShowing(asked, snap) else { return }
+            focusIntent = nil
+        }
         // An app whose key window lives on another Space still reports that window as focused.
         // What the user can act on is its frontmost window on the Space being shown.
         if let reported = id, !isShowing(reported, snap) {
@@ -56,12 +61,23 @@ extension WindowManager {
         return "ok"
     }
 
-    func focus(window id: CGWindowID, attempt: Int = 0, warp: Bool = true) {
+    /// Where the keyboard is: the app in front, and the window that app says has it.
+    typealias KeyboardPlace = (pid: pid_t?, window: CGWindowID?)
+
+    /// Give a window the keyboard, and check a moment later that it has it. A retry passes
+    /// `origin` on: where the keyboard was before the first try, which is all a retry may undo.
+    func focus(window id: CGWindowID, attempt: Int = 0, warp: Bool = true, origin: (was: KeyboardPlace, half: KeyboardPlace)? = nil) {
         guard let w = windows[id] else {
             // The window closed while its focus was being confirmed: stop waiting for it.
             if focusIntent == id { focusIntent = nil }
             return
         }
+        // What macOS says for as long as it has not done what is asked here: the keyboard is
+        // where it was, or the window's app has come forward and still has the window it had.
+        let origin = origin ?? (was: (system.frontmostPID, systemFocusedWindow()),
+                                half: (w.pid, apps[w.pid]?.element.element(kAXFocusedWindowAttribute)?.windowID))
+        if attempt == 0 { focusSerial += 1 }
+        let serial = focusSerial
         // The direct route can lose a race with the app. A retry goes through the app instead.
         if attempt > 0 || !system.focus(pid: w.pid, window: id) { apps[w.pid]?.app.comeForward() }
         w.element.perform(kAXRaiseAction)
@@ -75,11 +91,18 @@ extension WindowManager {
         }
         // macOS sometimes reports success and leaves the focus where it was. Check, and try again.
         scheduler.after(0.12) { [weak self] in
-            guard let self, self.focusIntent == id else { return }
-            if self.systemFocusedWindow() == id || attempt >= 2 {
+            guard let self, self.focusIntent == id, self.focusSerial == serial else { return }
+            let now: KeyboardPlace = (self.system.frontmostPID, self.systemFocusedWindow())
+            if now.window == id {
                 self.focusIntent = nil
+            } else if attempt < 2, now == origin.was || now == origin.half {
+                self.focus(window: id, attempt: attempt + 1, origin: origin)
             } else {
-                self.focus(window: id, attempt: attempt + 1)
+                // Out of tries, or the keyboard is somewhere it was not before the request:
+                // the user or an app has moved it since, and taking it back would undo that.
+                // Either way the request is over. Look again, so that macOS is believed.
+                self.focusIntent = nil
+                self.scheduleRefresh()
             }
         }
     }
@@ -117,7 +140,10 @@ extension WindowManager {
                 scheduleRefresh()
                 return "ok: brought back a minimised window"
             }
-            // On another desktop or hidden: macOS knows best which window to show.
+            // On another desktop or hidden: macOS knows best which window to show. A window
+            // asked for a moment ago is not wanted any more, so its check must not take the
+            // keyboard back from this app.
+            focusIntent = nil
             if app.isHidden { app.unhide() }
             app.comeForward()
             return "ok: activated \(app.localizedName ?? text)"

@@ -402,9 +402,12 @@ in that shape.
 ## Windows that are not showing keep their slot
 
 A window stays in the tree when it stops being shown: when you minimise it, hide its app,
-switch to another Stage Manager stage, or bring another native tab in front of it. Its slot
-closes up and the visible windows share the room. When the window comes back, its slot opens
-again in the same place with the same share.
+or switch to another Stage Manager stage. Its slot closes up and the visible windows share
+the room. When the window comes back, its slot opens again in the same place with the same
+share.
+
+The native tabs of one window share one slot. Whichever tab is in front has the place and
+the size the window has now, however it was moved or resized while another tab was showing.
 
 ```text
  B minimised                    B restored

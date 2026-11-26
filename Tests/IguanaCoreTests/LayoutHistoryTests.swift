@@ -55,6 +55,69 @@ final class LayoutHistoryTests: XCTestCase {
         XCTAssertNil(h.undo(key: "d", current: layout(0)))
     }
 
+    func testAStepThatWouldOnlyPutBackAWindowThatHasGoneIsPassedOver() {
+        var h = LayoutHistory()
+        let columns = split(.horizontal, win(1), win(2)), rows = split(.vertical, win(1), win(2))
+        // A third window opened beside the second, and was moved up twice.
+        let opened = split(.vertical, win(1), split(.horizontal, win(2), win(3)))
+        let between = split(.vertical, win(1), win(3), win(2)), above = split(.vertical, win(3), win(1), win(2))
+        h.record(key: "d", before: columns, after: rows)
+        h.record(key: "d", before: opened, after: between)
+        h.record(key: "d", before: between, after: above)
+
+        // The third window has closed. Without it both moves are the rows there are now.
+        XCTAssertEqual(h.undo(key: "d", current: rows), columns)
+        XCTAssertNil(h.undo(key: "d", current: columns))
+        XCTAssertEqual(h.redo(key: "d", current: columns), rows, "the layout was kept for redo once, not once for each step passed over")
+        XCTAssertNil(h.redo(key: "d", current: rows))
+    }
+
+    func testAStepThatIsPassedOverLeavesNothingToRedo() {
+        var h = LayoutHistory()
+        let before = split(.horizontal, win(1), split(.vertical, win(2), win(3)))
+        h.record(key: "d", before: before, after: split(.horizontal, win(1), win(3), win(2)))
+        let now = split(.horizontal, win(1), win(2))
+        XCTAssertNil(h.undo(key: "d", current: now))
+        XCTAssertNil(h.redo(key: "d", current: now))
+    }
+
+    func testRedoPassesOverALayoutThatDiffersOnlyByAWindowThatHasGone() {
+        var h = LayoutHistory()
+        let before = split(.horizontal, win(1), split(.vertical, win(2), win(3))), after = split(.horizontal, win(1), win(3), win(2))
+        h.record(key: "d", before: before, after: after)
+        XCTAssertEqual(h.undo(key: "d", current: after), before)
+        // The third window closes before the step is made again.
+        let now = split(.horizontal, win(1), win(2))
+        XCTAssertNil(h.redo(key: "d", current: now))
+        XCTAssertNil(h.undo(key: "d", current: now), "and nothing was kept to undo")
+    }
+
+    func testAStepThatStillChangesSomethingWithoutTheWindowThatHasGoneIsKept() {
+        var h = LayoutHistory()
+        let before = split(.horizontal, win(1), split(.vertical, win(2), win(3))), after = split(.vertical, win(1), win(2), win(3))
+        h.record(key: "d", before: before, after: after)
+        // The third window has closed. The step still turns the rows into columns.
+        let rows = split(.vertical, win(1), win(2)), columns = split(.horizontal, win(1), win(2))
+        XCTAssertEqual(h.undo(key: "d", current: rows), before, "as it was recorded: leaving the window out is for whoever puts the layout back")
+        XCTAssertEqual(h.redo(key: "d", current: columns), rows)
+        XCTAssertEqual(h.undo(key: "d", current: rows), columns)
+    }
+
+    func testAStepThatOnlyChangesTheSharesWithoutTheWindowThatHasGoneIsKept() {
+        var h = LayoutHistory()
+        // The first window had the wider share, then the layout was balanced.
+        let before = split(.horizontal, win(1, 1.2), NodeSnapshot(window: nil, orientation: .vertical, weight: 0.8, children: [win(2), win(3)]))
+        h.record(key: "d", before: before, after: split(.horizontal, win(1), split(.vertical, win(2), win(3))))
+        XCTAssertEqual(h.undo(key: "d", current: split(.horizontal, win(1), win(2))), before)
+    }
+
+    func testAWindowThatHasOpenedSinceMakesEveryStepOneThatChangesSomething() {
+        var h = LayoutHistory()
+        h.record(key: "d", before: layout(0), after: layout(1))
+        // The step is the layout there is now, but for a third window it knows nothing of.
+        XCTAssertEqual(h.undo(key: "d", current: split(.horizontal, win(1), win(2), win(3))), layout(0))
+    }
+
     func testOnlyTheLastFiftyStepsAreKept() {
         var h = LayoutHistory()
         for n in 0..<60 { h.record(key: "d", before: layout(n), after: layout(n + 1)) }

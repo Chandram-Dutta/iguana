@@ -744,7 +744,6 @@ final class ApplyRulesScenarioTests: ScenarioTestCase {
 
         XCTAssertEqual(mac.run("apply-rules"), "ok: 1 window(s) moved")
         XCTAssertEqual(mac.logged("did not move").count, 1)
-        XCTExpectFailure("pollTransit logs the display's place in the list plus one, not its number: it says display 2 for display 1")
         XCTAssertEqual(mac.logged("did not move"), ["rule: window \(mail.id) did not move to display 1"])
     }
 }

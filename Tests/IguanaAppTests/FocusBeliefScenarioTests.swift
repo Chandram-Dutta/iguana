@@ -106,11 +106,72 @@ final class FocusBeliefScenarioTests: FocusScenarioTestCase {
 
         // It never takes. Once the tries are used up, what macOS says counts again.
         mac.scheduler.advance(by: 1)
-        XCTExpectFailure("giving up asks for no new look, so the request goes on being believed until something else happens") {
-            XCTAssertEqual(mac.focused, right.id)
-        }
+        XCTAssertEqual(mac.focused, right.id)
         look()
         XCTAssertEqual(mac.focused, right.id)
+    }
+
+    func testGivingUpTellsWhoeverFollowsTheFocus() {
+        let (left, right) = sideBySide()
+        mac.system.focusSticks = false
+        XCTAssertEqual(mac.wm.run(.focus(.left)), "ok")
+        XCTAssertEqual(mac.focused, left.id)
+        // The focus ring and the `focus-changed` hook look at the focus when they hear of a change.
+        var heard: [CGWindowID?] = []
+        mac.wm.onChange = { [unowned self] in heard.append(mac.focused) }
+
+        mac.scheduler.advance(by: 0.37)
+        XCTAssertEqual(left.app.activations, 2, "the tries are used up")
+        XCTAssertTrue(heard.isEmpty)
+        mac.settle()
+
+        XCTAssertEqual(heard, [right.id], "told once, with the window that has the keyboard")
+    }
+
+    func testAWindowOnAnotherDesktopIsBelievedWhileMacOSIsOnItsWayThere() {
+        mac.system.addDesktop(to: mac.system.displayList[0])
+        let safari = mac.system.launch("Safari")
+        let here = mac.system.open(safari, title: "Here")
+        mac.settle()
+        mac.system.showDesktop(2)
+        mac.settle()
+        let there = mac.system.open(safari, title: "There")
+        mac.settle()
+        mac.system.showDesktop(1)
+        mac.settle()
+        mac.system.click(here)
+        mac.settle()
+        XCTAssertEqual(mac.focused, here.id)
+
+        // The window is picked in the menu bar item's menu. Safari says at once that it has the
+        // keyboard, and macOS has yet to show its desktop.
+        mac.wm.focusWindow(there.id)
+        mac.scheduler.advance(by: 0.05)
+        XCTAssertTrue(keyWindow === there)
+        XCTAssertEqual(mac.focused, there.id, "not Safari's window on the desktop being left")
+
+        mac.system.showDesktop(2)
+        mac.settle()
+        XCTAssertEqual(mac.focused, there.id)
+        XCTAssertEqual(mac.system.focusRequests, [there.id], "asked for once")
+    }
+
+    func testARequestIsOverAsSoonAsALookFindsThatItTook() {
+        let (left, right) = sideBySide()
+        XCTAssertEqual(mac.wm.run(.focus(.left)), "ok")
+        XCTAssertTrue(keyWindow === left)
+
+        // Something makes the window manager look before its own check is due. macOS agrees with
+        // the request, so what macOS says from here on is somebody else's doing.
+        mac.wm.scheduleRefresh()
+        mac.scheduler.advance(by: 0.05)
+        mac.system.click(right)
+        mac.settle()
+
+        XCTAssertTrue(keyWindow === right)
+        XCTAssertEqual(mac.focused, right.id)
+        XCTAssertEqual(left.app.activations, 0)
+        XCTAssertEqual(left.raises, 1)
     }
 }
 

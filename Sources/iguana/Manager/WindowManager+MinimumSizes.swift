@@ -10,10 +10,15 @@ extension WindowManager {
         if let placed = placing.removeValue(forKey: id), placed.asked == asked {
             return placedLanded(id, asked: asked, actual: actual, fit: placed.fit)
         }
+        // What a drag by hand starts from (`frameChanged`). A window that did not take the
+        // request has said nothing about its size.
+        windows[id]?.rest = actual.map { (asked, $0) }
         guard let w = windows[id], let actual, !zoomed.values.contains(id) else { return }
         let known = w.minSize ?? .zero
         guard (actual.width > asked.width + 2 && actual.width > known.width)
             || (actual.height > asked.height + 2 && actual.height > known.height) else { return }
+        // A size that is not believed for a minimum is not believed for a drag either.
+        w.rest = nil
         w.element.setSize(asked.size)
         scheduler.after(0.15) { [weak self] in self?.confirmMinimum(id, asked: asked) }
     }

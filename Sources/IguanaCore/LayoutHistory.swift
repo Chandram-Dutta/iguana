@@ -22,6 +22,8 @@ public struct LayoutHistory {
 
     /// The layout to go back to, or nil when there is none. `current` is kept for `redo`, so
     /// redo brings back the layout as it was just now, windows that have opened since included.
+    /// The windows in `current` are the ones that are still there: a step that would only put
+    /// back a window that is not among them is not a layout to go back to.
     public mutating func undo(key: String, current: NodeSnapshot) -> NodeSnapshot? {
         guard let before = Self.pop(&undoable[key, default: []], unlike: current) else { return nil }
         Self.push(current, onto: &redoable[key, default: []])
@@ -46,8 +48,17 @@ public struct LayoutHistory {
     }
 
     /// A layout that is the one on screen already would change nothing, so it is passed over.
+    /// So is one that differs from it only by windows that `current` no longer has. Those have
+    /// closed, floated or gone to another desktop, and going back does not bring them back.
     private static func pop(_ list: inout [NodeSnapshot], unlike current: NodeSnapshot) -> NodeSnapshot? {
-        while let last = list.popLast() { if last != current { return last } }
+        let here = Set(Tree(snapshot: current).windows)
+        while let last = list.popLast() {
+            guard last != current else { continue }
+            // What the layout would be once `last` is put back and the windows that have gone are left out.
+            let tree = Tree(snapshot: last)
+            tree.prune { here.contains($0) }
+            if tree.snapshot != current { return last }
+        }
         return nil
     }
 }

@@ -27,8 +27,8 @@ extension WindowManager {
         return floated ? "ok: floating" : "ok"
     }
 
-    /// Take a floating window to `target`. It glides there as tiled windows do, unless `glide` is
-    /// false or the move is tiny. `fit` says where the window goes if it will not take the size.
+    /// Take a window that is in no layout to `target`. It glides there as tiled windows do, unless
+    /// `glide` is false or the move is tiny. `fit` says where the window goes if it will not take the size.
     func place(_ w: WindowState, at target: CGRect, glide: Bool, fit: @escaping (CGSize) -> CGRect) {
         let current = w.element.frame ?? target
         let change = max(abs(current.minX - target.minX), abs(current.minY - target.minY),
@@ -42,13 +42,18 @@ extension WindowManager {
     /// A placed window has been given its frame. One that did not take the size (a minimum, a
     /// fixed size) is moved to where `fit` puts it at the size it has. A busy window can answer
     /// with the size it had before, so it is asked once more and looked at again a moment later.
+    ///
+    /// Only a window that is in no layout is touched: one that floats, or one that cannot be
+    /// tiled, which `place` takes as it is and no rule need float. A tiled window belongs to
+    /// its tile, and it can have become one since it was placed.
     func placedLanded(_ id: CGWindowID, asked: CGRect, actual: CGSize?, fit: @escaping (CGSize) -> CGRect) {
         func refused(_ size: CGSize) -> Bool { abs(size.width - asked.width) > 2 || abs(size.height - asked.height) > 2 }
-        guard let w = windows[id], w.floating, actual.map(refused) != false else { return }
+        func untiled(_ w: WindowState) -> Bool { w.floating || !w.tileable }
+        guard let w = windows[id], untiled(w), actual.map(refused) != false else { return }
         w.element.setSize(asked.size)
         scheduler.after(0.15) { [weak self] in
-            // Unless something has moved the window since: the user, or another placement.
-            guard let self, self.placing[id] == nil, !self.mover.isMoving(id), self.windows[id]?.floating == true,
+            // Unless something has moved the window since: the user, another placement, or a layout it joined.
+            guard let self, self.placing[id] == nil, !self.mover.isMoving(id), self.windows[id].map(untiled) == true,
                   let now = w.element.frame, abs(now.minX - asked.minX) <= 2, abs(now.minY - asked.minY) <= 2, refused(now.size) else { return }
             w.element.setPosition(fit(now.size).origin)
         }

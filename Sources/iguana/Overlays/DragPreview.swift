@@ -9,7 +9,8 @@ extension WindowManager {
     /// The outline drawn during a drag and the drop at the end of it both ask this, and the
     /// deciding is done in IguanaCore (`DragDrop.plan`). This gathers what it decides on.
     ///
-    /// - `start`: the tile the window was on when the drag began. `now`: where the window is.
+    /// - `start`: the tile the window was on when the drag began, at the size the window
+    ///   really had there. `now`: where the window is.
     func dropPlan(dragging id: CGWindowID, from start: CGRect, now: CGRect, at pointer: CGPoint, onScreen: WindowsOnScreen? = nil) -> DropPlan? {
         // Nothing while tiling is paused, nothing for an edge being dragged (a resize), and
         // nothing for a window that has no tile: a floating one, or one that is zoomed.

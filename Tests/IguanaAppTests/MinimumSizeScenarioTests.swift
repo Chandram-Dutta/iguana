@@ -64,6 +64,27 @@ final class MinimumSizeScenarioTests: ScenarioTestCase {
         XCTAssertFrame(other.rect, right, "so the layout is the even one")
     }
 
+    func testAWindowThatAnsweredWithItsOldSizeIsCarriedFromTheSizeItHas() {
+        let busy = mac.system.open(mac.system.launch("Photos"))
+        mac.settle()
+        let other = mac.system.open(mac.system.launch("Notes"))
+        mac.scheduler.advance(by: 0)
+        // Asked to take half the desktop, it answers that it is as wide as it was. Asked again, it takes it.
+        busy.minSize = busy.rect.size
+        mac.wm.refresh()
+        busy.minSize = .zero
+        mac.settle()
+        XCTAssertFrame(busy.rect, left)
+
+        // Carried by its title bar to the middle of the other tile.
+        mac.system.drag(busy, to: CGPoint(x: right.midX - busy.rect.width / 2, y: right.midY - 10))
+        mac.settle()
+        XCTAssertEqual(mac.wm.dragging?.start, left, "the width it answered with at first is not what the drag starts from")
+        mac.system.releaseMouse()
+        mac.settle()
+        XCTAssertEqual(mac.tiledInReadingOrder, [other.id, busy.id], "so this is a move, and the two trade places")
+    }
+
     func testAWindowThatDoesNotTakeTheRequestSaysNothingAboutItsMinimum() {
         let busy = mac.system.open(mac.system.launch("Photos"))
         mac.settle()

@@ -137,27 +137,62 @@ final class RestoreTests: XCTestCase {
 
     func testAHandFloatedWindowFloatsAgain() {
         let saved = [window("com.apple.Notes", "Groceries", left), window("com.apple.Notes", "Ideas", right), window("com.apple.Music", nil, left)]
+        // Notes had both its windows floating; Music had the one.
+        let had = ["com.apple.Notes": 2, "com.apple.Music": 1]
+        func floating(_ windows: Seen, _ appWindows: [String: Int]) -> [WindowID: Int] {
+            Restore.floating(windows, appWindows: appWindows, savedAppWindows: had, saved: saved)
+        }
         // The same app and title.
-        XCTAssertEqual(Restore.floating([1: window("com.apple.Notes", "Ideas", left)], appWindows: ["com.apple.Notes": 3], saved: saved), [1: 1])
+        XCTAssertEqual(floating([1: window("com.apple.Notes", "Ideas", left)], ["com.apple.Notes": 3]), [1: 1])
         // Another title, and the app has two saved floating windows: no way to tell.
-        XCTAssertEqual(Restore.floating([1: window("com.apple.Notes", "Recipes", left)], appWindows: ["com.apple.Notes": 1], saved: saved), [:])
-        // The app's only window, and its only saved floating window: whatever the title.
-        XCTAssertEqual(Restore.floating([1: window("com.apple.Music", "Music", right)], appWindows: ["com.apple.Music": 1], saved: saved), [1: 2])
+        XCTAssertEqual(floating([1: window("com.apple.Notes", "Recipes", left)], ["com.apple.Notes": 1]), [:])
+        // The app's only window, and its only saved window: whatever the title.
+        XCTAssertEqual(floating([1: window("com.apple.Music", "Music", right)], ["com.apple.Music": 1]), [1: 2])
         // The app has another window too.
-        XCTAssertEqual(Restore.floating([1: window("com.apple.Music", "Music", right)], appWindows: ["com.apple.Music": 2], saved: saved), [:])
+        XCTAssertEqual(floating([1: window("com.apple.Music", "Music", right)], ["com.apple.Music": 2]), [:])
         // Each saved window is taken once, by the lowest id.
         let twins: Seen = [1: window("com.apple.Notes", "Ideas", left), 2: window("com.apple.Notes", "Ideas", right), 3: window("com.apple.Notes", "Groceries", left)]
-        XCTAssertEqual(Restore.floating(twins, appWindows: ["com.apple.Notes": 3], saved: saved), [1: 1, 3: 0])
+        XCTAssertEqual(floating(twins, ["com.apple.Notes": 3]), [1: 1, 3: 0])
         // Never a window of another app, nor one without a bundle id.
-        XCTAssertEqual(Restore.floating([1: window("com.apple.Safari", "Ideas", left), 2: window(nil, "Ideas", left)],
-                                        appWindows: ["com.apple.Safari": 1], saved: saved), [:])
-        XCTAssertEqual(Restore.floating([1: window(nil, "x", left)], appWindows: [:], saved: [window(nil, "x", left)]), [:])
+        XCTAssertEqual(floating([1: window("com.apple.Safari", "Ideas", left), 2: window(nil, "Ideas", left)], ["com.apple.Safari": 1]), [:])
+        XCTAssertEqual(Restore.floating([1: window(nil, "x", left)], appWindows: [:], savedAppWindows: [:], saved: [window(nil, "x", left)]), [:])
+    }
+
+    func testTheOnlyWindowOfAnAppIsItsFloatingOneOnlyWhenTheAppHadOneWindow() {
+        let saved = [window("com.apple.Music", "Equaliser", left)]
+        let player: Seen = [1: window("com.apple.Music", "Player", right)]
+        let now = ["com.apple.Music": 1]
+        // Music had a tiled window as well. The first of the two to come back can be either.
+        XCTAssertEqual(Restore.floating(player, appWindows: now, savedAppWindows: ["com.apple.Music": 2], saved: saved), [:])
+        // Music had this window and no other.
+        XCTAssertEqual(Restore.floating(player, appWindows: now, savedAppWindows: ["com.apple.Music": 1], saved: saved), [1: 0])
+        // Nothing is known of how many windows the app had: no guess.
+        XCTAssertEqual(Restore.floating(player, appWindows: now, savedAppWindows: [:], saved: saved), [:])
+        // The title still tells, however many windows the app had or has.
+        let equaliser: Seen = [2: window("com.apple.Music", "Equaliser", right)]
+        XCTAssertEqual(Restore.floating(equaliser, appWindows: ["com.apple.Music": 2], savedAppWindows: ["com.apple.Music": 2], saved: saved), [2: 0])
+        // The app's only window took the saved one by its title: nothing is left to guess at.
+        XCTAssertEqual(Restore.floating(equaliser, appWindows: now, savedAppWindows: ["com.apple.Music": 1], saved: saved), [2: 0])
+        // Two windows at once with other titles, where one was saved: no way to tell which it is.
+        let strangers: Seen = [1: window("com.apple.Music", "Player", right), 2: window("com.apple.Music", "Lyrics", right)]
+        XCTAssertEqual(Restore.floating(strangers, appWindows: ["com.apple.Music": 2], savedAppWindows: ["com.apple.Music": 1], saved: saved), [:])
+    }
+
+    func testWindowsAreKnownByAppAndTitle() {
+        let saved = [window("com.apple.Notes", "Ideas", left), window("com.apple.Notes", "Ideas", right), window("com.apple.Music", "", left),
+                     window("com.apple.Music", nil, left)]
+        let now: Seen = [3: window("com.apple.Notes", "Ideas", .zero), 1: window("com.apple.Notes", "Ideas", .zero), 2: window("com.apple.Notes", "Ideas", .zero),
+                         4: window("com.apple.Safari", "Ideas", .zero), 5: window("com.apple.Music", "", .zero), 6: window("com.apple.Music", nil, .zero),
+                         7: window(nil, "Ideas", .zero)]
+        XCTAssertEqual(Restore.sameTitle(now, saved: saved), [1: 0, 2: 1], "each saved window once, the lowest ids first; no title is no match")
+        XCTAssertEqual(Restore.sameTitle(now, saved: []), [:])
+        XCTAssertEqual(Restore.sameTitle([:], saved: saved), [:])
     }
 
     // MARK: The session
 
-    func session(_ trees: [String: NodeSnapshot], floating: [WindowID] = [], _ windows: [WindowID: WindowDescriptor]) -> RestoreSession {
-        RestoreSession(trees: trees, floating: floating, windows: windows, from: start)
+    func session(_ trees: [String: NodeSnapshot], floating: [WindowID] = [], tiled: [WindowID] = [], _ windows: [WindowID: WindowDescriptor]) -> RestoreSession {
+        RestoreSession(trees: trees, floating: floating, tiled: tiled, windows: windows, from: start)
     }
 
     func testADesktopTakesItsShapeAsItsWindowsComeBack() {
@@ -257,5 +292,48 @@ final class RestoreTests: XCTestCase {
         XCTAssertEqual(s.refloat([3: window("com.apple.Notes", "Ideas", left)], appWindows: ["com.apple.Notes": 3], at: start), [], "taken already")
         XCTAssertEqual(s.refloat([4: window("com.apple.Notes", "Groceries", left)], appWindows: ["com.apple.Notes": 4], at: start), [4])
         XCTAssertFalse(s.mayFloat("com.apple.Notes", at: start), "nothing left to float")
+    }
+
+    func testTheFirstWindowBackOfAnAppThatHadMoreIsNotItsFloatingOne() {
+        // Music had the player in a layout and the equaliser floating. Notes had one window, floating.
+        let windows: Seen = [10: window("com.apple.Music", "Player", left), 11: window("com.apple.Music", "Equaliser", right),
+                             12: window("com.apple.Notes", "Ideas", right), 13: window(nil, "No app", left)]
+        var s = session(["d1": split(.horizontal, 1, win(10), win(13))], floating: [11, 12], windows)
+        XCTAssertEqual(s.refloat([1: window("com.apple.Music", "Player", .zero)], appWindows: ["com.apple.Music": 1], at: start), [],
+                       "the player is back first and alone, and is not taken for the equaliser")
+        XCTAssertTrue(s.mayFloat("com.apple.Music", at: start), "which is still waited for")
+        XCTAssertEqual(s.refloat([2: window("com.apple.Music", "Equaliser", .zero)], appWindows: ["com.apple.Music": 2], at: start), [2])
+        XCTAssertEqual(s.refloat([3: window("com.apple.Notes", "Recipes", .zero)], appWindows: ["com.apple.Notes": 1], at: start), [3],
+                       "the only window of an app that had one")
+    }
+
+    func testAWindowTiledByHandIsTiledAgainOnce() {
+        // A rule floats every window of the calculator. The user had tiled one of them.
+        let windows: Seen = [10: window("com.apple.calculator", "Sums", left), 11: window("com.apple.Safari", "Docs", right)]
+        var s = session(["d1": split(.horizontal, 1, win(10), win(11))], tiled: [10, 99], windows)
+        XCTAssertTrue(s.mayTile("com.apple.calculator", at: start))
+        XCTAssertFalse(s.mayTile("com.apple.Safari", at: start), "Safari was not tiled by hand")
+        XCTAssertFalse(s.mayFloat("com.apple.calculator", at: start))
+
+        // Its other windows were not saved, so the app's only window so far can be any of them.
+        XCTAssertEqual(s.retile([1: window("com.apple.calculator", "Tape", .zero)], at: start), [], "another title: left to the rule")
+        XCTAssertEqual(s.retile([2: window("com.apple.calculator", "Sums", .zero), 3: window("com.apple.calculator", "Sums", .zero)], at: start), [2])
+        XCTAssertFalse(s.mayTile("com.apple.calculator", at: start), "taken")
+        XCTAssertEqual(s.retile([4: window("com.apple.calculator", "Sums", .zero)], at: start), [])
+
+        // Tiled again, it takes its place in the layout like any window that comes back.
+        XCTAssertEqual(s.rebuild("d1", windows: [2: window("com.apple.calculator", "Sums", left)], kept: [], at: start)?.windows, [2])
+    }
+
+    func testWindowsTiledByHandAreForgottenWithTheGracePeriod() {
+        let windows: Seen = [10: window("com.apple.calculator", "Sums", left)]
+        var s = session(["d1": split(.horizontal, 1, win(10))], tiled: [10], windows)
+        let late = start.addingTimeInterval(RestoreSession.gracePeriod + 1)
+        XCTAssertTrue(s.mayTile("com.apple.calculator", at: start.addingTimeInterval(RestoreSession.gracePeriod)))
+        XCTAssertFalse(s.mayTile("com.apple.calculator", at: late))
+        XCTAssertEqual(s.retile([1: window("com.apple.calculator", "Sums", .zero)], at: late), [])
+
+        var other = session(["d1": split(.horizontal, 1, win(10))], tiled: [10], windows)
+        XCTAssertEqual(other.retile([1: window("com.apple.calculator", "Sums", .zero)], at: late), [], "without asking first, too")
     }
 }

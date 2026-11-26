@@ -22,9 +22,12 @@ final class SpaceCarrier {
     }
 
     /// Hold the window by its title bar, press the shortcut that switches Space, and let go
-    /// when the switch is over. `origin` is the Space being left. `done` is called once the
-    /// button is up again, whether or not the window went.
-    func carry(_ id: CGWindowID, _ element: UIElement, _ frame: CGRect, shortcutID: Int32, from origin: UInt64?, done: @escaping () -> Void) {
+    /// when the switch is over. `destination` is the Space the shortcut goes to. `done` is
+    /// called once the button is up again, whether or not the window went.
+    func carry(_ id: CGWindowID, _ element: UIElement, _ frame: CGRect, shortcutID: Int32, to destination: UInt64, done: @escaping () -> Void) {
+        // The mouse takes hold of whatever is in front at the spot it is pressed on, and a
+        // window named by its id need not be that.
+        element.perform(kAXRaiseAction)
         let points = grabPoints(element, frame)
         let cursor = system.pointerLocation
         isCarrying = true
@@ -47,8 +50,8 @@ final class SpaceCarrier {
                 return finish("could not trigger the system shortcut, so window \(id) stays where it is")
             }
             let pressed = scheduler.now
-            self.whenSpaceChanges(from: origin, timeout: 8) { changed in
-                guard changed else {
+            self.whenSpaceShows(destination, timeout: 8) { shown in
+                guard shown else {
                     system.postMouse(.leftMouseUp, at: held)
                     return finish("the desktop did not change, so window \(id) stays where it is")
                 }
@@ -70,14 +73,17 @@ final class SpaceCarrier {
         }
     }
 
-    /// Call `body` with true as soon as `origin` is no longer being shown, or with false when
-    /// it still is after `timeout` seconds.
-    func whenSpaceChanges(from origin: UInt64?, timeout: TimeInterval, _ body: @escaping (Bool) -> Void) {
-        let now = system.displays().map(\.spaceID)
-        if let origin, !now.contains(origin) { return body(true) }
-        guard timeout > 0, origin != nil else { return body(false) }
+    /// Call `body` with true as soon as a display shows `space`, or with false when none does
+    /// after `timeout` seconds.
+    ///
+    /// The Space to watch is the one being gone to, not the one being left. A shortcut for a
+    /// desktop of another display changes that display, and the display the window started on
+    /// goes on showing what it showed. A desktop another display shows already is there at once.
+    func whenSpaceShows(_ space: UInt64, timeout: TimeInterval, _ body: @escaping (Bool) -> Void) {
+        if system.displays().contains(where: { $0.spaceID == space }) { return body(true) }
+        guard timeout > 0 else { return body(false) }
         scheduler.after(0.05) { [weak self] in
-            self?.whenSpaceChanges(from: origin, timeout: timeout - 0.05, body)
+            self?.whenSpaceShows(space, timeout: timeout - 0.05, body)
         }
     }
 

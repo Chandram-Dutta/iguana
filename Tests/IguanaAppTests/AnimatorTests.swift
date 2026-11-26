@@ -108,6 +108,33 @@ final class AnimatorTests: XCTestCase {
         XCTAssertTrue(animator.isIdle)
     }
 
+    func testCancellingAWindowPlacedAtOnceDropsTheFrameThatWaitsForItsApp() {
+        let original = window.rect
+        // The app is busy with another of its windows, so everything else asked of it waits.
+        let busy = BusyElement()
+        animator.move(999, pid: window.pid, element: busy, app: nil, from: .zero, to: CGRect(x: 0, y: 0, width: 10, height: 10), duration: 0, easing: .easeOut)
+        XCTAssertEqual(busy.reached.wait(timeout: .now() + 10), .success, "the writer never got to the busy window")
+
+        // Placed at once, and let be again before the app has got round to it.
+        place(window, at: CGRect(x: 8, y: 33, width: 708, height: 859))
+        XCTAssertTrue(animator.isMoving(window.id))
+        animator.cancel(window.id)
+        XCTAssertFalse(animator.isMoving(window.id))
+
+        busy.goOn.signal()
+        flush()
+        XCTAssertEqual(window.rect, original, "the frame that waited was not sent after all")
+        XCTAssertTrue(window.positionsAsked.isEmpty)
+        XCTAssertTrue(window.sizesAsked.isEmpty)
+        XCTAssertFalse(landings.contains { $0.window == window.id }, "and nothing is reported for it")
+
+        // It can be placed again like any other window.
+        let target = CGRect(x: 724, y: 33, width: 708, height: 859)
+        place(window, at: target)
+        awaitLanding(of: window, at: target)
+        XCTAssertEqual(window.rect, target)
+    }
+
     func testANewerMoveSupersedesAnOlderOne() {
         let older = CGRect(x: 8, y: 33, width: 708, height: 859)
         let newer = CGRect(x: 724, y: 33, width: 708, height: 426)
@@ -211,6 +238,26 @@ final class AnimatorTests: XCTestCase {
             place(sentinel, at: target)
             awaitLanding(of: sentinel, at: target, file: file, line: line)
         }
+    }
+}
+
+/// A window whose app does not answer the first request to move it until the test lets it.
+/// Everything else asked of that app waits behind it, as it does behind a slow app.
+private final class BusyElement: FakeElement {
+    /// The writer is inside the request.
+    let reached = DispatchSemaphore(value: 0)
+    let goOn = DispatchSemaphore(value: 0)
+    // Touched only on the queue the window is written on.
+    private var held = false
+
+    @discardableResult
+    override func setPosition(_ p: CGPoint) -> Bool {
+        if !held {
+            held = true
+            reached.signal()
+            goOn.wait()
+        }
+        return true
     }
 }
 

@@ -420,8 +420,6 @@ final class DisplayScenarioTests: ScenarioTestCase {
         mac.settle()
         XCTAssertFrame(window.rect, mac.usable(builtIn), "tiled where it stayed, once it is plain that it will not go")
         XCTAssertEqual(mac.logged("did not move").count, 1)
-        XCTExpectFailure("this line counts displays in the order they were plugged in, not from left to right as the line before it does: it says display 2 (WindowManager+Displays.swift:163)") {
-            XCTAssertEqual(mac.logged("did not move"), ["rule: window \(window.id) did not move to display 1"])
-        }
+        XCTAssertEqual(mac.logged("did not move"), ["rule: window \(window.id) did not move to display 1"])
     }
 }

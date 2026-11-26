@@ -47,9 +47,9 @@ final class SpaceCarrierTests: XCTestCase {
         super.tearDown()
     }
 
-    /// Carry the window from desktop 1 with the shortcut of another desktop.
+    /// Carry the window from desktop 1 to desktop 2, with the shortcut of that desktop or of another.
     private func carry(toDesktop number: Int = 2) {
-        carrier.carry(window.id, window, window.rect, shortcutID: Private.SystemShortcut.desktop(number), from: one.id) { [weak self] in
+        carrier.carry(window.id, window, window.rect, shortcutID: Private.SystemShortcut.desktop(number), to: two.id) { [weak self] in
             self?.finished += 1
         }
     }
@@ -111,6 +111,19 @@ final class SpaceCarrierTests: XCTestCase {
         XCTAssertEqual(log.count, 2)
         XCTAssertFalse(carrier.isCarrying)
         XCTAssertEqual(finished, 2)
+    }
+
+    func testAWindowBehindAnotherIsBroughtToTheFrontBeforeItIsHeld() {
+        // Another window lies over the title bar, and the mouse goes to whatever is in front.
+        let over = system.open(system.launch("Terminal"), frame: CGRect(x: 60, y: 90, width: 600, height: 400))
+        scheduler.runUntilIdle()
+        carry()
+        scheduler.runUntilIdle()
+
+        XCTAssertEqual(mouseDowns, [betweenCloseAndMinimise], "the first spot held it")
+        XCTAssertEqual(over.rect.origin, CGPoint(x: 60, y: 90), "the window that was in front was not dragged about")
+        XCTAssertEqual(window.spaces, [two.id])
+        XCTAssertTrue(log.isEmpty)
     }
 
     // MARK: Holding on and letting go
@@ -206,16 +219,16 @@ final class SpaceCarrierTests: XCTestCase {
         XCTAssertEqual(log, ["move-to-space: window \(window.id) did not come along to the new Space"])
     }
 
-    // MARK: Waiting for the Space to change
+    // MARK: Waiting for the Space to show
 
-    func testWhenSpaceChangesSaysYesAsSoonAsTheSpaceIsLeft() {
+    func testWhenSpaceShowsSaysYesAsSoonAsTheSpaceIsShown() {
         var answers: [Bool] = []
-        carrier.whenSpaceChanges(from: two.id, timeout: 3) { answers.append($0) }
-        XCTAssertEqual(answers, [true], "at once for a Space that is not being shown")
+        carrier.whenSpaceShows(one.id, timeout: 3) { answers.append($0) }
+        XCTAssertEqual(answers, [true], "at once for a Space that is being shown")
 
-        carrier.whenSpaceChanges(from: one.id, timeout: 3) { answers.append($0) }
+        carrier.whenSpaceShows(two.id, timeout: 3) { answers.append($0) }
         scheduler.advance(by: 1)
-        XCTAssertEqual(answers, [true], "not while it is still being shown")
+        XCTAssertEqual(answers, [true], "not before it is shown")
 
         system.show(two, on: display)
         scheduler.advance(by: 0.06)
@@ -224,18 +237,33 @@ final class SpaceCarrierTests: XCTestCase {
         XCTAssertEqual(answers, [true, true], "and only once")
     }
 
-    func testWhenSpaceChangesSaysNoWhenTheTimeIsUp() {
+    func testWhenSpaceShowsLooksAtEveryDisplay() {
+        let second = system.addDisplay("LG", frame: CGRect(x: 1440, y: 0, width: 1920, height: 1080), desktops: 2)
+        let three = second.spaces[0], four = second.spaces[1]
         var answers: [Bool] = []
-        carrier.whenSpaceChanges(from: nil, timeout: 3) { answers.append($0) }
-        XCTAssertEqual(answers, [false], "at once when there is no Space to leave")
-        carrier.whenSpaceChanges(from: one.id, timeout: 0) { answers.append($0) }
-        XCTAssertEqual(answers, [false, false], "and when there is no time to wait")
+        carrier.whenSpaceShows(three.id, timeout: 3) { answers.append($0) }
+        XCTAssertEqual(answers, [true], "at once for a Space another display is showing")
 
-        carrier.whenSpaceChanges(from: one.id, timeout: 1) { answers.append($0) }
+        carrier.whenSpaceShows(four.id, timeout: 3) { answers.append($0) }
+        scheduler.advance(by: 1)
+        XCTAssertEqual(answers, [true])
+
+        system.show(four, on: second)
+        scheduler.advance(by: 0.06)
+        XCTAssertEqual(answers, [true, true], "the other display went there")
+        XCTAssertEqual(display.currentSpace.id, one.id, "and this one never left its desktop")
+    }
+
+    func testWhenSpaceShowsSaysNoWhenTheTimeIsUp() {
+        var answers: [Bool] = []
+        carrier.whenSpaceShows(two.id, timeout: 0) { answers.append($0) }
+        XCTAssertEqual(answers, [false], "at once when there is no time to wait")
+
+        carrier.whenSpaceShows(two.id, timeout: 1) { answers.append($0) }
         scheduler.advance(by: 0.9)
-        XCTAssertEqual(answers.count, 2)
+        XCTAssertEqual(answers.count, 1)
         scheduler.advance(by: 0.2)
-        XCTAssertEqual(answers, [false, false, false])
+        XCTAssertEqual(answers, [false, false])
         XCTAssertEqual(scheduler.pending, 0)
     }
 }

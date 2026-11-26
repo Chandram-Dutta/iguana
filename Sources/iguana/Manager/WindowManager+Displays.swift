@@ -146,13 +146,15 @@ extension WindowManager {
         // must not adopt the window where it still is, so it is kept out until the poll sees it
         // on the target display or gives up.
         inTransit[id] = (display: index, deadline: scheduler.now.addingTimeInterval(0.3))
-        pollTransit(id)
+        pollTransit(id, number: displays[index].number)
         scheduleRefresh(after: 0.1)
         return "ok"
     }
 
     /// Look again in a moment whether the window reached its display; give up after the deadline.
-    func pollTransit(_ id: CGWindowID) {
+    /// `number` is the display's number from left to right, as a rule and every other line of
+    /// the log name it. It is taken when the window is sent, as the displays can change meanwhile.
+    func pollTransit(_ id: CGWindowID, number: Int) {
         scheduler.after(0.02) { [weak self] in
             guard let self, let transit = inTransit[id] else { return }
             let arrived = system.serverOrigin(of: id).map { origin in
@@ -160,10 +162,10 @@ extension WindowManager {
             } ?? false
             if arrived || scheduler.now >= transit.deadline {
                 inTransit[id] = nil
-                if !arrived { Log.write("rule: window \(id) did not move to display \(transit.display + 1)") }
+                if !arrived { Log.write("rule: window \(id) did not move to display \(number)") }
                 scheduleRefresh()
             } else {
-                pollTransit(id)
+                pollTransit(id, number: number)
             }
         }
     }

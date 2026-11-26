@@ -77,14 +77,11 @@ public enum Restore {
         return Tree(snapshot: kept)
     }
 
-    /// Which new windows are windows the user had floated by hand. A window takes a saved one of
-    /// its app with the same title. Failing that, an app that has a single window and a single
-    /// saved one pairs those two.
-    /// - windows: windows seen for the first time.
-    /// - appWindows: how many windows each app has now, these included, by bundle id.
+    /// Pair new windows with saved ones of the same app and title. Each saved window is taken
+    /// once, by the lowest id. A window without a title pairs with nothing.
     ///
-    /// Returns, for each window that floats again, the index in `saved` it took.
-    public static func floating(_ windows: [WindowID: WindowDescriptor], appWindows: [String: Int], saved: [WindowDescriptor]) -> [WindowID: Int] {
+    /// Returns, for each window that paired, the index in `saved` it took.
+    static func sameTitle(_ windows: [WindowID: WindowDescriptor], saved: [WindowDescriptor]) -> [WindowID: Int] {
         var result: [WindowID: Int] = [:]
         var used = Set<Int>()
         for id in windows.keys.sorted() {
@@ -93,7 +90,23 @@ public enum Restore {
             result[id] = i
             used.insert(i)
         }
-        for (app, count) in appWindows where count == 1 {
+        return result
+    }
+
+    /// Which new windows are windows the user had floated by hand. A window takes a saved one of
+    /// its app with the same title. Failing that, an app that has a single window, and had a
+    /// single window when the layouts were saved, pairs those two. An app that had more is left
+    /// alone: the window that is back first can as well be one that was tiled.
+    /// - windows: windows seen for the first time.
+    /// - appWindows: how many windows each app has now, these included, by bundle id.
+    /// - savedAppWindows: how many windows of each app were saved, tiled or floating, by bundle id.
+    ///
+    /// Returns, for each window that floats again, the index in `saved` it took.
+    public static func floating(_ windows: [WindowID: WindowDescriptor], appWindows: [String: Int], savedAppWindows: [String: Int],
+                                saved: [WindowDescriptor]) -> [WindowID: Int] {
+        var result = sameTitle(windows, saved: saved)
+        var used = Set(result.values)
+        for (app, count) in appWindows where count == 1 && savedAppWindows[app] == 1 {
             let ws = windows.keys.filter { windows[$0]!.bundleID == app && result[$0] == nil }
             let ss = saved.indices.filter { saved[$0].bundleID == app && !used.contains($0) }
             guard ws.count == 1, ss.count == 1 else { continue }
@@ -122,6 +135,10 @@ public struct RestoreSession {
 
     private var templates: [String: Template] = [:]
     private var floating: [WindowDescriptor] = []
+    /// The windows that were tiled by hand. A rule may float them when they come back.
+    private var tiled: [WindowDescriptor] = []
+    /// How many windows of each app were saved, by bundle id.
+    private var savedAppWindows: [String: Int] = [:]
     private let deadline: Date
 
     /// Nothing to restore.
@@ -131,15 +148,18 @@ public struct RestoreSession {
 
     /// - trees: the saved layout of each desktop, by tree key.
     /// - floating: the windows that were floated by hand.
+    /// - tiled: the windows that were tiled by hand.
     /// - windows: what each saved window was.
     /// - start: when tiling starts; the grace period runs from here.
-    public init(trees: [String: NodeSnapshot], floating: [WindowID], windows: [WindowID: WindowDescriptor], from start: Date) {
+    public init(trees: [String: NodeSnapshot], floating: [WindowID], tiled: [WindowID] = [], windows: [WindowID: WindowDescriptor], from start: Date) {
         for (key, layout) in trees {
             var leaves: [WindowID: WindowDescriptor] = [:]
             for id in Tree(snapshot: layout).windows { if let d = windows[id], d.bundleID != nil { leaves[id] = d } }
             if !leaves.isEmpty { templates[key] = Template(layout: layout, leaves: leaves) }
         }
         self.floating = floating.compactMap { windows[$0] }.filter { $0.bundleID != nil }
+        self.tiled = tiled.compactMap { windows[$0] }.filter { $0.bundleID != nil }
+        for app in windows.values.compactMap(\.bundleID) { savedAppWindows[app, default: 0] += 1 }
         deadline = start.addingTimeInterval(Self.gracePeriod)
     }
 
@@ -151,6 +171,7 @@ public struct RestoreSession {
         guard now > deadline else { return }
         templates.removeAll()
         floating.removeAll()
+        tiled.removeAll()
     }
 
     /// The apps whose windows can still take a place on this desktop, so that only their
@@ -196,9 +217,27 @@ public struct RestoreSession {
     /// windows that were floated by hand before the restart, so that they float again.
     public mutating func refloat(_ windows: [WindowID: WindowDescriptor], appWindows: [String: Int], at now: Date) -> [WindowID] {
         expire(at: now)
-        let taken = Restore.floating(windows, appWindows: appWindows, saved: floating)
+        let taken = Restore.floating(windows, appWindows: appWindows, savedAppWindows: savedAppWindows, saved: floating)
         let used = Set(taken.values)
         floating = floating.indices.filter { !used.contains($0) }.map { floating[$0] }
+        return taken.keys.sorted()
+    }
+
+    /// Whether a window of this app may be one the user had tiled by hand.
+    public mutating func mayTile(_ bundleID: String, at now: Date) -> Bool {
+        expire(at: now)
+        return tiled.contains { $0.bundleID == bundleID }
+    }
+
+    /// Windows seen for the first time that a rule floats. Returns the ones that were tiled by
+    /// hand before the restart, so that they are tiled again. These are known by their title
+    /// alone: the other windows the rule floats were not saved, so there is no telling how
+    /// many windows the app had.
+    public mutating func retile(_ windows: [WindowID: WindowDescriptor], at now: Date) -> [WindowID] {
+        expire(at: now)
+        let taken = Restore.sameTitle(windows, saved: tiled)
+        let used = Set(taken.values)
+        tiled = tiled.indices.filter { !used.contains($0) }.map { tiled[$0] }
         return taken.keys.sorted()
     }
 }

@@ -197,9 +197,49 @@ final class LayoutCommandTests: LayoutCommandTestCase {
         XCTAssertEqual(mac.run("resize grow height"), "ok: nothing to resize against")
         XCTAssertEqual(other.rect.minX, wide.rect.maxX + gap, accuracy: 1)
 
-        XCTExpectFailure("resize records a step although it changed nothing: it has matched the weights to the screen first") {
-            XCTAssertEqual(mac.run("undo"), "ok: nothing to undo")
-        }
+        XCTAssertEqual(mac.run("undo"), "ok: nothing to undo")
+        XCTAssertEqual(wide.rect.width, 900, accuracy: 1)
+        XCTAssertEqual(mac.focused, other.id)
+
+        // The weights are as they were, not as the screen has them: without its minimum the
+        // wide window has its half again.
+        wide.minSize = .zero
+        XCTAssertEqual(mac.run("balance"), "ok")
+        XCTAssertEqual(mac.run("undo"), "ok: nothing to undo", "they were equal all along")
+        XCTAssertFrame(wide.rect, columns(1, 1)[0])
+    }
+
+    func testAResizeFromAMinimumSizeIsOneStepAndIsUndoneExactly() {
+        let wide = open(1)[0]
+        wide.minSize = CGSize(width: 900, height: 300)
+        let other = open(1, of: "Notes")[0]
+        let room = area.width - gap
+        XCTAssertEqual(wide.rect.width, 900, accuracy: 1, "held at its minimum")
+        XCTAssertEqual(other.rect.width, room - 900, accuracy: 1)
+
+        // The step starts from what is on screen: 5% of the room less than the other has now.
+        XCTAssertEqual(mac.run("resize shrink width"), "ok")
+        XCTAssertEqual(other.rect.width, room - 900 - 0.05 * room, accuracy: 1)
+        XCTAssertEqual(wide.rect.width, 900 + 0.05 * room, accuracy: 1)
+
+        // Matching the weights to the screen and changing them are one step, not two.
+        XCTAssertEqual(mac.run("undo"), "ok: undone")
+        XCTAssertEqual(wide.rect.width, 900, accuracy: 1)
+        XCTAssertEqual(other.rect.width, room - 900, accuracy: 1)
+        XCTAssertEqual(mac.run("undo"), "ok: nothing to undo")
+
+        XCTAssertEqual(mac.run("redo"), "ok: redone")
+        XCTAssertEqual(wide.rect.width, 900 + 0.05 * room, accuracy: 1)
+        XCTAssertEqual(mac.run("redo"), "ok: nothing to redo")
+
+        // Taken back, the weights are the equal ones from before, so `balance` has nothing to
+        // change. It asks the window about its minimum again: with none, there are two halves.
+        XCTAssertEqual(mac.run("undo"), "ok: undone")
+        wide.minSize = .zero
+        XCTAssertEqual(mac.run("balance"), "ok")
+        XCTAssertEqual(mac.run("undo"), "ok: nothing to undo")
+        XCTAssertFrame(wide.rect, columns(1, 1)[0])
+        XCTAssertFrame(other.rect, columns(1, 1)[1])
     }
 
     // MARK: flip
@@ -295,6 +335,47 @@ final class LayoutCommandTests: LayoutCommandTestCase {
         w[1].answers = true
         mac.run("balance")
         XCTAssertEqual(mac.system.order.map(\.id), w.map(\.id))
+    }
+
+    func testAskingHowThingsAreIsNotTheUserDoingSomething() {
+        let w = open(3)
+        mac.run("arrange columns")
+        mac.run("stack")
+        w[1].answers = false
+        click(w[0])
+        func look() {
+            mac.wm.scheduleRefresh()
+            mac.settle()
+        }
+        for _ in 0..<5 { look() }
+        XCTAssertEqual(w[0].raises, 3, "three tries, then the stack is left alone")
+
+        // A status bar asks every second or so. That must not start the tries again, or a
+        // stack that never comes right is raised for as long as the bar is running.
+        for _ in 0..<3 {
+            for report in ["list-windows", "list-windows --json", "list-spaces", "tree", "status"] {
+                XCTAssertFalse(mac.run(report).hasPrefix("error"), report)
+                look()
+            }
+        }
+        XCTAssertEqual(mac.run("subscribe focus-changed"), "error: subscribe only works from the command line")
+        look()
+        XCTAssertEqual(w[0].raises, 3, "no report had the stack raised again")
+        XCTAssertEqual(mac.logged("did not put the stack around window \(w[0].id) in order").count, 1)
+
+        // A command that does something still starts them again. The first try is made at once.
+        XCTAssertEqual(mac.run("split auto"), "ok: automatic")
+        XCTAssertEqual(w[0].raises, 4)
+        for _ in 0..<5 { look() }
+        XCTAssertEqual(w[0].raises, 6, "and again no more than three")
+
+        // So does one that is about Iguana and not about the windows: it is the user at the keyboard.
+        XCTAssertEqual(mac.run("mode default"), "ok")
+        look()
+        XCTAssertEqual(w[0].raises, 7)
+        XCTAssertEqual(mac.run("list-windows").hasPrefix("error"), false)
+        for _ in 0..<5 { look() }
+        XCTAssertEqual(w[0].raises, 9)
     }
 
     // MARK: balance

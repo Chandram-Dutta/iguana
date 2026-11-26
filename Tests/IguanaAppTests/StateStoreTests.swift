@@ -19,7 +19,7 @@ final class StateStoreTests: XCTestCase {
         StateStore(url: folder.appendingPathComponent(name), bootTime: { 1_700_000_000 })
     }
 
-    /// Two windows side by side, one floating window and one learned minimum size.
+    /// Two windows side by side, one of them tiled by hand, one floating window and one learned minimum size.
     func example(boot: Double = 1_700_000_000) -> SavedState {
         let tree = Tree()
         tree.insert(41)
@@ -27,7 +27,7 @@ final class StateStoreTests: XCTestCase {
         let safari = WindowDescriptor(bundleID: "com.apple.Safari", app: "Safari", title: "Docs", frame: CGRect(x: 8, y: 33, width: 708, height: 859))
         let notes = WindowDescriptor(bundleID: "com.apple.Notes", app: "Notes", title: "Todo", frame: CGRect(x: 724, y: 33, width: 708, height: 859))
         let music = WindowDescriptor(bundleID: "com.apple.Music", app: "Music", title: "Music", frame: CGRect(x: 200, y: 200, width: 400, height: 300))
-        return SavedState(boot: boot, trees: ["space-1|display-1": tree.snapshot], floating: [44],
+        return SavedState(boot: boot, trees: ["space-1|display-1": tree.snapshot], floating: [44], tiled: [42],
                           minSizes: ["41": [600, 400]], windows: ["41": safari, "42": notes, "44": music])
     }
 
@@ -39,6 +39,7 @@ final class StateStoreTests: XCTestCase {
         XCTAssertEqual(back.boot, 1_700_000_000)
         XCTAssertEqual(back.trees, state.trees)
         XCTAssertEqual(back.floating, [44])
+        XCTAssertEqual(back.tiled, [42])
         XCTAssertEqual(back.minSizes, ["41": [600, 400]])
         XCTAssertEqual(back.windows, state.windows)
 
@@ -48,6 +49,7 @@ final class StateStoreTests: XCTestCase {
         XCTAssertEqual(later.boot, 1_700_000_500)
         XCTAssertEqual(later.trees, [:])
         XCTAssertEqual(later.floating, [])
+        XCTAssertNil(later.tiled)
         XCTAssertNil(later.minSizes)
         XCTAssertNil(later.windows)
     }

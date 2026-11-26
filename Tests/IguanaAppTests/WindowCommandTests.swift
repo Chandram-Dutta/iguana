@@ -237,10 +237,72 @@ final class WindowCommandTests: LayoutCommandTestCase {
         XCTAssertFrame(w[1].rect, columns(1, 1)[1])
 
         // Taking the move back could only put the closed window back, and that one stays gone.
-        XCTExpectFailure("undo answers 'undone' for a step that, with the closed window left out, is the layout on screen already") {
-            XCTAssertEqual(mac.run("undo"), "ok: nothing to undo")
-        }
+        XCTAssertEqual(mac.run("undo"), "ok: nothing to undo")
         XCTAssertEqual([w[0].rect, w[1].rect], before)
+        XCTAssertEqual(mac.run("redo"), "ok: nothing to redo", "a step that was passed over is not one to make again")
+        XCTAssertEqual([w[0].rect, w[1].rect], before)
+    }
+
+    func testUndoPassesOverEveryStepThatWouldChangeNothingAndTakesBackTheOneBefore() {
+        let w = open(2)
+        mac.run("flip")
+        let third = open(1)[0]
+        XCTAssertFrame(third.rect, columns(1, 1, of: rows(1, 1)[1])[1])
+        // Two steps that are only about the third window: up between the two, then to the top.
+        XCTAssertEqual(mac.run("move up"), "ok")
+        XCTAssertEqual(mac.run("move up"), "ok")
+        XCTAssertFrame(third.rect, rows(1, 1, 1)[0])
+        mac.system.close(third)
+        mac.settle()
+        XCTAssertFrame(w[0].rect, rows(1, 1)[0])
+        XCTAssertFrame(w[1].rect, rows(1, 1)[1])
+
+        // One press takes back the flip. Both moves are passed over on the way.
+        XCTAssertEqual(mac.run("undo"), "ok: undone")
+        XCTAssertFrame(w[0].rect, columns(1, 1)[0])
+        XCTAssertFrame(w[1].rect, columns(1, 1)[1])
+        XCTAssertEqual(mac.run("undo"), "ok: nothing to undo")
+
+        // What was passed over is not made again either: redo is the flip.
+        XCTAssertEqual(mac.run("redo"), "ok: redone")
+        XCTAssertFrame(w[0].rect, rows(1, 1)[0])
+        XCTAssertFrame(w[1].rect, rows(1, 1)[1])
+        XCTAssertEqual(mac.run("redo"), "ok: nothing to redo")
+        XCTAssertEqual(mac.run("undo"), "ok: undone")
+        XCTAssertFrame(w[1].rect, columns(1, 1)[1])
+    }
+
+    func testRedoPassesOverAStepThatWouldChangeNothing() {
+        let w = open(3)
+        mac.run("move left")
+        XCTAssertEqual(mac.run("undo"), "ok: undone")
+        XCTAssertFrame(w[2].rect, rows(1, 1, of: columns(1, 1)[1])[1])
+        mac.system.close(w[2])
+        mac.settle()
+        let before = [w[0].rect, w[1].rect]
+
+        // Making the move again could only move the closed window.
+        XCTAssertEqual(mac.run("redo"), "ok: nothing to redo")
+        XCTAssertEqual([w[0].rect, w[1].rect], before)
+        XCTAssertEqual(mac.run("undo"), "ok: nothing to undo")
+    }
+
+    func testRedoLeavesOutAWindowThatHasClosedSince() {
+        let w = open(3)
+        mac.run("arrange rows")
+        XCTAssertEqual(mac.run("undo"), "ok: undone")
+        XCTAssertFrame(w[0].rect, columns(1, 1)[0])
+        mac.system.close(w[2])
+        mac.settle()
+
+        // The rows are made again with the two windows that are left.
+        XCTAssertEqual(mac.run("redo"), "ok: redone")
+        XCTAssertEqual(mac.tiles.keys.sorted(), [w[0].id, w[1].id])
+        XCTAssertFrame(w[0].rect, rows(1, 1)[0])
+        XCTAssertFrame(w[1].rect, rows(1, 1)[1])
+        XCTAssertEqual(mac.run("undo"), "ok: undone")
+        XCTAssertFrame(w[0].rect, columns(1, 1)[0])
+        XCTAssertFrame(w[1].rect, columns(1, 1)[1])
     }
 
     func testUndoKeepsAWindowThatHasOpenedSince() {

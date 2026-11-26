@@ -27,6 +27,7 @@ extension WindowManager {
                 }
             }
             if restoredFloating.remove(id) != nil { w.userFloat = true }
+            if restoredTiled.remove(id) != nil { w.userFloat = false }
             if let size = restoredMinSizes.removeValue(forKey: id) {
                 w.minSize = size
                 unverifiedMinimums.insert(id)

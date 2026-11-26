@@ -86,22 +86,115 @@ final class DragScenarioTests: ScenarioTestCase {
         XCTAssertFrame(other.rect, left)
     }
 
+    func testAWindowTooBusyToSayWhatSizeItTookIsDraggedFromTheLeastItIsKnownToGet() {
+        let tall = mac.system.open(mac.system.launch("Simulator"))
+        tall.minSize = CGSize(width: 0, height: 1000)
+        mac.settle()
+        let other = mac.system.open(mac.system.launch("Notes"))
+        mac.settle()
+        XCTAssertEqual(tall.rect.size, CGSize(width: 708, height: 1000))
+        // The next time it is put on its tile it is busy: it takes no request and says nothing
+        // about the size it has.
+        tall.answers = false
+        mac.wm.scheduleRefresh()
+        mac.settle()
+        tall.answers = true
+
+        mac.carry(tall, pointerAt: CGPoint(x: right.midX, y: right.midY))
+        XCTAssertEqual(mac.wm.dragging?.start, CGRect(x: 8, y: 33, width: 708, height: 1000), "its tile, as high as it is known to be at least")
+        mac.drop()
+        XCTAssertEqual(mac.tiledInReadingOrder, [other.id, tall.id], "a move, not a resize")
+    }
+
+    // MARK: A window that is a little smaller than its tile
+
     func testAWindowThatTookALittleLessThanItsTileCanStillBeCarried() {
+        let (terminal, other) = mac.openTerminalAndOther()
+        let middle = CGPoint(x: right.midX, y: right.midY)
+
+        mac.carry(terminal, pointerAt: middle)
+        XCTAssertEqual(mac.wm.dragging?.start, CGRect(x: 8, y: 33, width: 700, height: 850), "the drag starts from the size the window has on its tile")
+        XCTAssertEqual(mac.wm.dropPlan(dragging: terminal.id, from: mac.wm.dragging?.start ?? .zero, now: terminal.rect, at: middle),
+                       DropPlan(drop: .trade(other.id), rect: right), "so the outline shows where it will land")
+        mac.drop()
+
+        XCTAssertEqual(mac.tiledInReadingOrder, [other.id, terminal.id], "carried to the middle of the other tile, the two trade places")
+        XCTAssertEqual(mac.tiles[other.id]?.width ?? 0, 708, accuracy: 1, "and the halves stay halves")
+        XCTAssertEqual(terminal.rect, CGRect(x: 724, y: 33, width: 700, height: 850))
+    }
+
+    func testAWindowSmallerThanItsTilePutDownWhereNothingIsPlannedChangesNothing() {
+        let (terminal, other) = mac.openTerminalAndOther()
+
+        // Moved a little: the pointer is still over the window's own tile.
+        mac.carry(terminal, pointerAt: CGPoint(x: left.midX + 60, y: left.minY + 70))
+        mac.drop()
+
+        XCTAssertEqual(terminal.rect, CGRect(x: 8, y: 33, width: 700, height: 850), "back on its tile")
+        XCTAssertFrame(mac.tiles[terminal.id], left, "the points it is smaller than its tile were not taken for a resize")
+        XCTAssertFrame(other.rect, right)
+        XCTAssertEqual(mac.run("undo"), "ok: nothing to undo", "nothing changed, so nothing was recorded")
+    }
+
+    func testResizingAWindowSmallerThanItsTileByHandOnlyChangesWhatTheUserChanged() {
+        let (a, b) = mac.openTwo()
+        let terminal = mac.system.open(mac.system.launch("Terminal"))
+        terminal.cell = CGSize(width: 10, height: 10)
+        mac.settle()
+        // Below the second window, on a tile of 708 by 425.
+        XCTAssertEqual(terminal.rect, CGRect(x: 724, y: 467, width: 700, height: 420))
+
+        // Its left edge is pulled 200 points out. Its height is not touched.
+        mac.system.resize(terminal, to: CGRect(x: 524, y: 467, width: 900, height: 420))
+        mac.settle()
+        XCTAssertEqual(mac.wm.dragging?.start, CGRect(x: 724, y: 467, width: 700, height: 420))
+        XCTAssertNil(mac.wm.dropPlan(dragging: terminal.id, from: mac.wm.dragging?.start ?? .zero, now: terminal.rect, at: CGPoint(x: 524, y: 600)),
+                     "a resize is not a drop")
+        mac.drop()
+
+        // It was 700 wide and is 900 now: its column has grown by as much, nine sevenths.
+        XCTAssertEqual(terminal.rect.width, 910, accuracy: 1)
+        XCTAssertEqual(a.rect.width, 506, accuracy: 1, "the column on the left gave up the width")
+        XCTAssertEqual(b.rect.width, 910, accuracy: 1)
+        XCTAssertEqual(b.rect.height, 426, accuracy: 1, "the 5 points the window is shorter than its tile did not make its tile shorter")
+        XCTAssertEqual(terminal.rect.height, 420)
+
+        XCTAssertEqual(mac.run("undo"), "ok: undone", "the resize is a step like any other")
+        XCTAssertFrame(a.rect, left)
+    }
+
+    func testAWindowThatSettlesOnAnotherSizeAfterItHasLandedIsDraggedFromThatSize() {
         let terminal = mac.system.open(mac.system.launch("Terminal"))
         mac.settle()
         let other = mac.system.open(mac.system.launch("Notes"))
         mac.settle()
-        // A terminal is as big as a whole number of rows and columns of text. Asked to fill its
-        // tile, it came out a few points smaller.
-        terminal.rect.size = CGSize(width: 700, height: 850)
+        XCTAssertFrame(terminal.rect, left, "it took the size of its tile")
+
+        // A moment later it fits itself to its rows and columns of text, and says so. The user
+        // takes hold of it before Iguana has looked at the screen again.
+        terminal.cell = CGSize(width: 10, height: 10)
+        terminal.setSize(left.size)
+        mac.scheduler.advance(by: 0)
+        XCTAssertEqual(terminal.rect.size, CGSize(width: 700, height: 850))
 
         mac.carry(terminal, pointerAt: CGPoint(x: right.midX, y: right.midY))
+        XCTAssertEqual(mac.wm.dragging?.start.size, CGSize(width: 700, height: 850), "the size it came to rest at")
         mac.drop()
+        XCTAssertEqual(mac.tiledInReadingOrder, [other.id, terminal.id])
+        XCTAssertEqual(mac.tiles[other.id]?.width ?? 0, 708, accuracy: 1)
+    }
 
-        XCTExpectFailure("a window smaller than its tile by more than 3 points is taken for one being resized: it cannot be dropped, and letting go changes the proportions") {
-            XCTAssertEqual(mac.tiledInReadingOrder, [other.id, terminal.id], "carried to the middle of the other tile, the two trade places")
-            XCTAssertEqual(mac.tiles[other.id]?.width ?? 0, 708, accuracy: 1, "and the halves stay halves")
-        }
+    func testAWindowIguanaHasNotPutAnywhereYetIsDraggedFromItsTile() {
+        let (a, b) = mac.openTwo()
+        mac.mover.clearRecord()
+        // Iguana starts again and finds both windows on their tiles.
+        mac.relaunch()
+        XCTAssertTrue(mac.mover.moves.isEmpty, "neither was sent anywhere, so neither has said what size it takes")
+
+        mac.carry(a, pointerAt: CGPoint(x: right.midX, y: right.midY))
+        XCTAssertEqual(mac.wm.dragging?.start, left, "what is known is the tile")
+        mac.drop()
+        XCTAssertEqual(mac.tiledInReadingOrder, [b.id, a.id])
     }
 
     // MARK: Carrying a tile and dropping it
@@ -382,6 +475,20 @@ private extension Scenario {
         let b = system.open(system.launch("Notes"), title: "Two")
         settle()
         return (a, b)
+    }
+
+    /// A terminal on the left and another window on the right. A terminal is as big as a whole
+    /// number of rows and columns of text: asked to fill its tile of 708 by 859, it comes out
+    /// a few points smaller.
+    func openTerminalAndOther(file: StaticString = #filePath, line: UInt = #line) -> (FakeWindow, FakeWindow) {
+        let terminal = system.open(system.launch("Terminal"))
+        terminal.cell = CGSize(width: 10, height: 10)
+        settle()
+        let other = system.open(system.launch("Notes"))
+        settle()
+        XCTAssertEqual(terminal.rect, CGRect(x: 8, y: 33, width: 700, height: 850), file: file, line: line)
+        XCTAssertEqual(tiles[terminal.id], CGRect(x: 8, y: 33, width: 708, height: 859), file: file, line: line)
+        return (terminal, other)
     }
 
     /// Three windows: the first on the left, the second above the third on the right.

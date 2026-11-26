@@ -8,7 +8,13 @@ extension WindowManager {
     /// `window` is the one a request named with `--window`. The command acts on it as it would
     /// on the focused window, and the focus stays where it is. Nil means the focused window.
     func run(_ command: Command, window: CGWindowID? = nil) -> String {
-        stackOrderTries = 0
+        // A stack that will not come into order is left alone until the user does something
+        // (`orderStack`). A command is the user doing something, unless it only asks how things
+        // are: a status bar asks every second, and would have the stack raised for ever.
+        switch command {
+        case .status, .listWindows, .listSpaces, .tree, .subscribe: break
+        default: stackOrderTries = 0
+        }
         if started, system.isTrusted {
             lookAtDisplays()
             updateFocus(system.snapshot())
@@ -58,8 +64,12 @@ extension WindowManager {
             return recording { withTile(window) { id, tree, key in
                 // Start from the sizes on screen, which differ from the weights where a window is
                 // held at its minimum size.
+                let before = tree.snapshot
                 tree.matchWeights(to: slots, visible: lastVisible)
                 guard tree.changeShare(of: id, along: axis, .delta(Double(grow) * config.resizeStep), visible: lastVisible) else {
+                    // Nothing was resized, so the weights go back as they were. Left matched to
+                    // the screen they would be a step for `undo` that takes nothing back.
+                    tree.restore(before)
                     return "ok: nothing to resize against"
                 }
                 recheckMinimums(in: tree, key: key)

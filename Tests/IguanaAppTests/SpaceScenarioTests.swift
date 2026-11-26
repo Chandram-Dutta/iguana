@@ -315,8 +315,14 @@ final class SpaceScenarioTests: ScenarioTestCase {
         // Assigned to all desktops in the Dock: it is on desktop 2 as much as on this one.
         window.spaces = [one.id, two.id]
         XCTAssertEqual(mac.run("move-to-space 2 --window \(window.id)"), "ok: already on desktop 2")
+        // And the same when it is the focused window that is sent.
+        XCTAssertEqual(mac.run("move-to-space 2"), "ok: already on desktop 2")
+        XCTAssertEqual(mac.run("move-to-space 2 --stay"), "ok: already on desktop 2")
 
         XCTAssertTrue(mac.system.moveRequests.isEmpty)
+        XCTAssertTrue(mac.system.pressed.isEmpty)
+        XCTAssertEqual(window.spaces, [one.id, two.id], "it is still on all of them")
+        XCTAssertEqual(mac.focused, window.id)
         XCTAssertFrame(window.rect, mac.usable())
     }
 
@@ -373,13 +379,73 @@ final class SpaceScenarioTests: ScenarioTestCase {
         XCTAssertEqual(display.currentSpace.id, one.id, "this one stays on its own")
         XCTAssertEqual(window.spaces, [three.id])
         XCTAssertFrame(window.rect, mac.usable(second))
-        XCTExpectFailure("the focus waits for this display to leave its desktop, which it never does: 3 s pass first (WindowManager+Spaces.swift:106)") {
-            XCTAssertEqual(mac.system.focusRequests.count, before + 1, "focused as soon as its desktop shows")
-        }
+        XCTAssertEqual(mac.system.focusRequests.count, before + 1, "focused as soon as its desktop shows")
 
         mac.settle()
         XCTAssertEqual(mac.system.focusRequests.last, window.id, "it is focused in the end")
         XCTAssertEqual(mac.focused, window.id)
+    }
+
+    func testGoingWithAWindowToADesktopAnotherDisplayShowsAlready() {
+        let second = plugInSecondDisplay()
+        let two = second.spaces[0]
+        let window = open(mac.system.launch("Notes"))
+        let before = mac.system.focusRequests.count
+
+        XCTAssertEqual(mac.send("move-to-space 2"), "ok")
+
+        XCTAssertEqual(window.spaces, [two.id])
+        XCTAssertEqual(mac.system.focusRequests.dropFirst(before), [window.id], "focused at once: no desktop has to change")
+
+        mac.settle()
+        XCTAssertEqual(second.currentSpace.id, two.id)
+        XCTAssertEqual(display.currentSpace.id, one.id)
+        XCTAssertFrame(window.rect, mac.usable(second))
+        XCTAssertEqual(mac.focused, window.id)
+        XCTAssertEqual(mac.system.focusRequests.dropFirst(before), [window.id], "and not again three seconds later")
+    }
+
+    func testTheWindowIsFocusedWhenItsDesktopShowsAndNotBefore() {
+        // macOS takes its time over the shortcut: the desktop changes when the test says so.
+        mac.system.shortcutsSwitchDesktop = false
+        let two = mac.system.addDesktop(to: display)
+        let terminal = mac.system.launch("Terminal")
+        open(terminal)
+        let goes = open(terminal)
+        let before = mac.system.focusRequests.count
+
+        XCTAssertEqual(mac.send("move-to-space 2"), "ok")
+        mac.scheduler.advance(by: 1)
+        XCTAssertEqual(mac.system.pressed, [Private.SystemShortcut.desktop(2)])
+        XCTAssertEqual(goes.spaces, [two.id])
+        XCTAssertFalse(mac.system.focusRequests.dropFirst(before).contains(goes.id), "not while desktop 1 is still being shown")
+
+        mac.system.show(two, on: display)
+        mac.scheduler.advance(by: 0.06)
+        XCTAssertEqual(mac.system.focusRequests.last, goes.id, "as soon as desktop 2 is")
+
+        mac.settle()
+        XCTAssertEqual(mac.focused, goes.id)
+        XCTAssertFrame(goes.rect, mac.usable())
+    }
+
+    func testAWindowWhoseDesktopNeverShowsIsFocusedAfterThreeSeconds() {
+        mac.system.shortcutsSwitchDesktop = false
+        let two = mac.system.addDesktop(to: display)
+        let terminal = mac.system.launch("Terminal")
+        open(terminal)
+        let goes = open(terminal)
+        let before = mac.system.focusRequests.count
+
+        XCTAssertEqual(mac.send("move-to-space 2"), "ok")
+        mac.scheduler.advance(by: 2.9)
+        XCTAssertFalse(mac.system.focusRequests.dropFirst(before).contains(goes.id), "still waiting for desktop 2")
+
+        mac.scheduler.advance(by: 0.2)
+        XCTAssertEqual(mac.system.focusRequests.last, goes.id, "asked for all the same, which is what takes macOS to its desktop")
+        XCTAssertEqual(goes.spaces, [two.id])
+        XCTAssertEqual(display.currentSpace.id, one.id)
+        mac.settle()
     }
 
     func testMoveToSpaceWithAWindowIDSendsAWindowFromADesktopNotBeingShown() {
@@ -510,10 +576,10 @@ final class SpaceScenarioTests: ScenarioTestCase {
     }
 
     func testACarriedWindowIsLetGoWhenTheDesktopHasNotChangedAfterEightSeconds() {
-        // The one way the made-up Mac takes a shortcut and keeps the desktop: the desktop asked
-        // for is already being shown, on the other display.
+        // The shortcut fires, and macOS stays on the desktop it shows.
         mac.system.hasMoveBridge = false
-        _ = plugInSecondDisplay()
+        mac.system.shortcutsSwitchDesktop = false
+        mac.system.addDesktop(to: display)
         let window = open(mac.system.launch("Notes"))
         let pointer = mac.system.pointerLocation
 
@@ -532,6 +598,8 @@ final class SpaceScenarioTests: ScenarioTestCase {
         XCTAssertEqual(mac.system.pointerLocation, pointer)
 
         mac.settle()
+        XCTAssertEqual(window.spaces, [one.id])
+        XCTAssertFrame(window.rect, mac.usable(), "back on its tile")
         XCTAssertEqual(mac.run("move-to-space 3"), "error: there are only 2 desktops", "the next move is listened to again")
     }
 
@@ -542,19 +610,81 @@ final class SpaceScenarioTests: ScenarioTestCase {
         let window = open(mac.system.launch("Notes"))
 
         XCTAssertEqual(mac.send("move-to-space 3"), "ok")
-        mac.scheduler.advance(by: 2)
-
+        mac.scheduler.advance(by: 0.3)
         XCTAssertEqual(second.currentSpace.id, three.id)
+        XCTAssertEqual(display.currentSpace.id, one.id, "the display it started on stays on its desktop")
+        XCTAssertTrue(mac.system.leftMouseIsDown, "held while the desktop slides across")
+
+        mac.scheduler.advance(by: 0.6)
         XCTAssertEqual(window.spaces, [three.id], "the window came along")
-        XCTExpectFailure("it waits for this display to leave its desktop, which it never does, so the button is held for 8 s and the move is logged as failed (WindowManager+Spaces.swift:128)") {
-            XCTAssertFalse(mac.system.leftMouseIsDown, "let go once the desktop has changed")
-        }
+        XCTAssertFalse(mac.system.leftMouseIsDown, "let go once the desktop has changed")
 
         mac.settle()
         XCTAssertFalse(mac.system.leftMouseIsDown)
         XCTAssertFrame(window.rect, mac.usable(second), "tiled on the desktop it was carried to")
-        XCTExpectFailure("the window is on desktop 3, and the log says it stayed (WindowManager+Spaces.swift:128)") {
-            XCTAssertTrue(mac.logged("the desktop did not change").isEmpty)
-        }
+        XCTAssertTrue(mac.logged("the desktop did not change").isEmpty)
+        XCTAssertEqual(mac.logged("move-to-space:").count, 1, "only that it was carried")
+    }
+
+    func testAWindowTheBridgeDoesNotMoveIsCarriedToADesktopOnAnotherDisplay() {
+        mac.system.bridgeMovesWindows = false
+        let second = plugInSecondDisplay(desktops: 2)
+        let three = second.spaces[1]
+        let window = open(mac.system.launch("Notes"))
+
+        XCTAssertEqual(mac.send("move-to-space 3 --stay"), "ok")
+        mac.scheduler.advance(by: 1)
+
+        XCTAssertEqual(mac.system.moveRequests.map(\.space), [three.id], "the bridge was asked first")
+        XCTAssertEqual(second.currentSpace.id, three.id, "carrying a window always ends on its desktop")
+        XCTAssertEqual(display.currentSpace.id, one.id)
+        XCTAssertEqual(window.spaces, [three.id])
+        XCTAssertFalse(mac.system.leftMouseIsDown, "let go once the other display shows the desktop")
+
+        mac.settle()
+        XCTAssertFrame(window.rect, mac.usable(second))
+        XCTAssertTrue(mac.logged("the desktop did not change").isEmpty)
+    }
+
+    func testACarriedWindowIsLetGoWhenTheOtherDisplayShowsItsDesktopAlready() {
+        mac.system.hasMoveBridge = false
+        let second = plugInSecondDisplay()
+        let two = second.spaces[0]
+        let window = open(mac.system.launch("Notes"))
+
+        XCTAssertEqual(mac.send("move-to-space 2"), "ok")
+        mac.scheduler.advance(by: 0.3)
+        XCTAssertEqual(mac.system.pressed, [Private.SystemShortcut.desktop(2)])
+        XCTAssertTrue(mac.system.leftMouseIsDown)
+
+        mac.scheduler.advance(by: 0.6)
+        XCTAssertFalse(mac.system.leftMouseIsDown, "there is no desktop to wait for, so it is held no longer than a slide takes")
+
+        mac.settle()
+        XCTAssertEqual(window.spaces, [two.id], "putting it on that display put it on the desktop")
+        XCTAssertEqual(second.currentSpace.id, two.id)
+        XCTAssertFrame(window.rect, mac.usable(second))
+        XCTAssertEqual(mac.logged("move-to-space:"), ["move-to-space: the quick route did not move window \(window.id), falling back to dragging it"])
+    }
+
+    func testAWindowNamedByItsIDIsBroughtToTheFrontBeforeItIsCarried() {
+        mac.system.hasMoveBridge = false
+        let two = mac.system.addDesktop(to: display)
+        let named = open(mac.system.launch("Terminal"))
+        // A floating window lies over its title bar, and has the keyboard.
+        let over = open(mac.system.launch("Notes"))
+        XCTAssertEqual(mac.run("float"), "ok: floating")
+        let above = CGRect(x: 0, y: 30, width: 800, height: 400)
+        over.rect = above
+        mac.settle()
+        XCTAssertFrame(named.rect, mac.usable())
+
+        XCTAssertEqual(mac.run("move-to-space 2 --window \(named.id)"), "ok")
+
+        XCTAssertEqual(mouseDowns.count, 1, "the first spot held it")
+        XCTAssertEqual(over.rect, above, "the window that was in front was not dragged about")
+        XCTAssertEqual(named.spaces, [two.id])
+        XCTAssertEqual(display.currentSpace.id, two.id)
+        XCTAssertTrue(mac.logged("could not take hold").isEmpty)
     }
 }

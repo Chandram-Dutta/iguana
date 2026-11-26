@@ -209,16 +209,177 @@ final class AdoptionScenarioTests: ScenarioTestCase {
         XCTAssertEqual(tab.rect.width, 908, accuracy: 1)
         XCTAssertEqual(notes.rect.minX, 924, accuracy: 1)
 
-        // The first tab is chosen again. It is the same window on screen, so it has the same frame.
-        first.rect = tab.rect
+        // The first tab is chosen again.
+        mac.mover.clearRecord()
         select(first, insteadOf: tab)
         mac.settle()
 
         XCTAssertEqual(mac.tiles.keys.sorted(), [first.id, notes.id])
-        XCTExpectFailure("a tab in the background keeps the share it had when it was last in front, so the window jumps back to its old width") {
-            XCTAssertEqual(first.rect.width, 908, accuracy: 1, "the tab has the place its window has now")
-            XCTAssertEqual(notes.rect.minX, 924, accuracy: 1)
-        }
+        XCTAssertEqual(first.rect.width, 908, accuracy: 1, "the tab has the place its window has now")
+        XCTAssertEqual(notes.rect.minX, 924, accuracy: 1)
+        XCTAssertTrue(mac.mover.moves.isEmpty, "nothing had to move")
+
+        // And so has the second, when it is chosen once more.
+        select(tab, insteadOf: first)
+        mac.settle()
+        XCTAssertEqual(mac.tiles.keys.sorted(), [tab.id, notes.id].sorted())
+        XCTAssertEqual(tab.rect.width, 908, accuracy: 1)
+        XCTAssertTrue(mac.mover.moves.isEmpty)
+    }
+
+    func testGoingBackToTheFirstTabFindsTheWindowWhereItWasMoved() {
+        let (first, notes, tab) = openTabbedTerminalAndNotes()
+        XCTAssertEqual(mac.run("move right"), "ok")
+        XCTAssertEqual(mac.tiles, [notes.id: left, tab.id: right])
+
+        mac.mover.clearRecord()
+        select(first, insteadOf: tab)
+        mac.settle()
+        XCTAssertEqual(mac.tiles, [notes.id: left, first.id: right], "the window is on the right now, whichever tab it shows")
+        XCTAssertEqual(first.rect, right)
+        XCTAssertTrue(mac.mover.moves.isEmpty, "nothing had to move")
+    }
+
+    func testGoingBackToTheFirstTabFindsTheWindowWhereItWasDropped() {
+        let (first, notes, tab) = openTabbedTerminalAndNotes()
+        let music = mac.system.open(mac.system.launch("Music"))
+        mac.settle()
+        let below = CGRect(x: 724, y: 467, width: 708, height: 425)
+        XCTAssertEqual(mac.tiles[music.id], below, "under Notes, on the right")
+
+        // The window is carried to the middle of that tile while the second tab is in front: the two trade places.
+        mac.system.drag(tab, to: CGPoint(x: below.midX - tab.rect.width / 2, y: below.midY - 10))
+        mac.settle()
+        mac.system.releaseMouse()
+        mac.settle()
+        XCTAssertEqual(mac.tiles[music.id], left)
+        XCTAssertEqual(mac.tiles[tab.id], below)
+
+        select(first, insteadOf: tab)
+        mac.settle()
+        XCTAssertEqual(mac.tiles[first.id], below, "the first tab is where the window was dropped")
+        XCTAssertEqual(mac.tiles[music.id], left)
+        XCTAssertEqual(mac.tiles.count, 3)
+        XCTAssertEqual(mac.tiles[notes.id], CGRect(x: 724, y: 33, width: 708, height: 426))
+    }
+
+    func testThreeTabsAreOneTile() {
+        let (first, notes, second) = openTabbedTerminalAndNotes()
+        let third = openTab(of: second, title: "ssh")
+        mac.settle()
+        XCTAssertEqual(mac.tiles, [third.id: left, notes.id: right])
+        XCTAssertEqual(mac.run("resize grow width"), "ok")
+        let wide = third.rect
+        XCTAssertEqual(wide.width, 779, accuracy: 1)
+
+        // Straight back to the first tab, past the second.
+        select(first, insteadOf: third)
+        mac.settle()
+        XCTAssertEqual(mac.tiles.keys.sorted(), [first.id, notes.id])
+        XCTAssertEqual(first.rect, wide)
+
+        select(second, insteadOf: first)
+        mac.settle()
+        XCTAssertEqual(mac.tiles.keys.sorted(), [notes.id, second.id].sorted())
+        XCTAssertEqual(second.rect, wide)
+    }
+
+    func testClosingTheTabInFrontLeavesItsPlaceToTheTabThatComesForward() {
+        let (first, notes, second) = openTabbedTerminalAndNotes()
+        let third = openTab(of: second, title: "ssh")
+        mac.settle()
+        XCTAssertEqual(mac.run("resize grow width"), "ok")
+        let wide = third.rect
+
+        // The tab in front is closed. The app shows the first tab, not the one that was in front before.
+        close(third, showing: first)
+        mac.settle()
+        XCTAssertEqual(mac.tiles.keys.sorted(), [first.id, notes.id], "the window is still one tile")
+        XCTAssertEqual(first.rect, wide, "in the place it had")
+        XCTAssertEqual(notes.rect.minX, wide.maxX + 8, accuracy: 1)
+
+        // The tab that is left is still a tab of this window.
+        select(second, insteadOf: first)
+        mac.settle()
+        XCTAssertEqual(mac.tiles.keys.sorted(), [notes.id, second.id].sorted())
+        XCTAssertEqual(second.rect, wide)
+    }
+
+    func testATabThatShowsAMomentAfterTheOneInFrontClosedHasItsWindowsPlace() {
+        let (first, notes, tab) = openTabbedTerminalAndNotes()
+        XCTAssertEqual(mac.run("resize grow width"), "ok")
+        let wide = tab.rect
+
+        // The tab in front is gone, and for a moment the window shows none.
+        mac.system.close(tab)
+        mac.settle()
+        XCTAssertEqual(mac.tiles, [notes.id: mac.usable()], "a window that is not on screen takes no room")
+
+        // Then the tab that is left shows, and the screen is looked at again.
+        first.offScreen = false
+        mac.wm.scheduleRefresh()
+        mac.settle()
+        XCTAssertEqual(mac.tiles.keys.sorted(), [first.id, notes.id])
+        XCTAssertEqual(first.rect, wide, "the place was kept for it")
+    }
+
+    func testClosingATabThatIsNotInFrontChangesNothing() {
+        let (first, notes, tab) = openTabbedTerminalAndNotes()
+        mac.mover.clearRecord()
+
+        mac.system.close(first)
+        mac.settle()
+        XCTAssertEqual(mac.tiles, [tab.id: left, notes.id: right])
+        XCTAssertTrue(mac.mover.moves.isEmpty)
+
+        // The tab that is left is the window now. When it closes, nothing of the window is kept.
+        mac.system.close(tab)
+        mac.settle()
+        XCTAssertEqual(mac.tiles, [notes.id: mac.usable()])
+        XCTAssertEqual(mac.wm.treeEntry(containing: notes.id)?.1.windows, [notes.id])
+    }
+
+    func testATabDraggedOutOfItsWindowGetsATileOfItsOwn() {
+        let (first, notes, tab) = openTabbedTerminalAndNotes()
+
+        // The tab that is not in front becomes a window of its own, somewhere else on screen.
+        first.rect = CGRect(x: 300, y: 200, width: 500, height: 400)
+        first.offScreen = false
+        mac.system.click(first)
+        mac.settle()
+        XCTAssertEqual(mac.tiles.count, 3, "two windows of the terminal now, and Notes")
+        for window in [first, notes, tab] { XCTAssertFrame(window.rect, mac.tiles[window.id] ?? .zero) }
+
+        // It is no tab of that window any more: when the window closes, it stays where it is.
+        let own = first.rect
+        XCTAssertEqual(mac.run("balance"), "ok")
+        mac.system.close(tab)
+        mac.settle()
+        XCTAssertEqual(mac.tiles.keys.sorted(), [first.id, notes.id])
+        XCTAssertEqual(first.rect.minY, own.minY, accuracy: 1)
+    }
+
+    func testUndoPutsTheWindowBackWhicheverTabIsInFront() {
+        let (first, notes, tab) = openTabbedTerminalAndNotes()
+        XCTAssertEqual(mac.run("resize grow width"), "ok")
+        let wide = tab.rect
+        select(first, insteadOf: tab)
+        mac.settle()
+        XCTAssertEqual(first.rect, wide)
+
+        // The step that is undone was made while the other tab was in front.
+        XCTAssertEqual(mac.run("undo"), "ok: undone")
+        XCTAssertEqual(mac.tiles, [first.id: left, notes.id: right])
+        XCTAssertFrame(first.rect, left)
+        XCTAssertEqual(mac.run("redo"), "ok: redone")
+        XCTAssertEqual(mac.tiles.keys.sorted(), [first.id, notes.id])
+        XCTAssertFrame(first.rect, wide)
+
+        // Tabs still take each other's place afterwards.
+        select(tab, insteadOf: first)
+        mac.settle()
+        XCTAssertEqual(mac.tiles.keys.sorted(), [tab.id, notes.id].sorted())
+        XCTAssertFrame(tab.rect, wide)
     }
 
     func testATabIsNotSentAwayByARuleThatNamesADesktop() {
@@ -291,22 +452,43 @@ final class AdoptionScenarioTests: ScenarioTestCase {
     // MARK: Tabs
 
     // macOS shows one tab of a window at a time. Each tab is a window of its own, and the ones
-    // in the background are not on screen. The made-up Mac has no way of saying that, so here a
-    // tab in the background is a window that is off screen as a minimised one is, without its
-    // app having said that it was minimised.
+    // in the background are not on screen.
+
+    /// A terminal on the left and Notes on the right, and then a second tab in the terminal,
+    /// which is the one in front and has the keyboard.
+    private func openTabbedTerminalAndNotes(file: StaticString = #filePath, line: UInt = #line) -> (first: FakeWindow, notes: FakeWindow, tab: FakeWindow) {
+        let first = mac.system.open(mac.system.launch("Terminal"), title: "zsh")
+        mac.settle()
+        let notes = mac.system.open(mac.system.launch("Notes"))
+        mac.settle()
+        let tab = openTab(of: first, title: "vim")
+        mac.settle()
+        XCTAssertEqual(mac.tiles, [tab.id: left, notes.id: right], file: file, line: line)
+        return (first, notes, tab)
+    }
 
     /// The user opens a new tab in `window`: a new window of the same app with the same frame
     /// comes to the front, and `window` goes to the background.
     private func openTab(of window: FakeWindow, title: String) -> FakeWindow {
         let tab = mac.system.open(window.app, title: title, frame: window.rect)
-        window.minimised = true
+        window.offScreen = true
         return tab
     }
 
-    /// The user chooses another tab of the same window.
+    /// The user chooses another tab of the same window. It is the same window on screen, so
+    /// the tab has the frame the one in front had.
     private func select(_ tab: FakeWindow, insteadOf front: FakeWindow) {
-        front.minimised = true
-        tab.minimised = false
+        tab.rect = front.rect
+        front.offScreen = true
+        tab.offScreen = false
+        mac.system.click(tab)
+    }
+
+    /// The user closes the tab in front, and the app shows another tab of the window.
+    private func close(_ front: FakeWindow, showing tab: FakeWindow) {
+        tab.rect = front.rect
+        mac.system.close(front)
+        tab.offScreen = false
         mac.system.click(tab)
     }
 }

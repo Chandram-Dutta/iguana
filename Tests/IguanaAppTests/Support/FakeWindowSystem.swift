@@ -68,6 +68,9 @@ final class FakeWindow: FakeElement {
     var movable = true
     /// The window does not get smaller than this.
     var minSize = CGSize.zero
+    /// Set for a window that is only ever a whole number of these wide and high, as a terminal
+    /// is of its columns and rows of text: asked for a size in between, it takes the next one down.
+    var cell: CGSize?
     var minimised = false
     var fullscreen = false
     /// True for a window that exists and is not on screen for a reason of the system's own:
@@ -160,7 +163,10 @@ final class FakeWindow: FakeElement {
     override func setSize(_ s: CGSize) -> Bool {
         guard answers, resizable else { return false }
         sizesAsked.append(s)
-        let taken = CGSize(width: max(s.width, minSize.width), height: max(s.height, minSize.height))
+        var taken = CGSize(width: max(s.width, minSize.width), height: max(s.height, minSize.height))
+        if let cell {
+            taken = CGSize(width: (taken.width / cell.width).rounded(.down) * cell.width, height: (taken.height / cell.height).rounded(.down) * cell.height)
+        }
         guard taken != rect.size else { return true }
         rect.size = taken
         system.appSays(self, kAXWindowResizedNotification)
@@ -327,12 +333,19 @@ final class FakeWindowSystem: WindowSystem {
     var directFocusWorks = true
     /// False to make every way of focusing a window report success and change nothing.
     var focusSticks = true
+    /// True to have the apps tell of a focus the window manager asked for, as they do of a
+    /// click: the app that came forward, and its new focused window. False for apps that are
+    /// slow to say so, which leaves the window manager to find out for itself.
+    var appsTellOfFocus = false
     /// False for a macOS without the window-management bridge.
     var hasMoveBridge = true
     /// False to make the bridge take a request and not move the window.
     var bridgeMovesWindows = true
     /// False to make the Mission Control shortcuts do nothing, as when one has no keys.
     var shortcutsWork = true
+    /// False to make a Mission Control shortcut fire and leave every display on the desktop it
+    /// shows, as when macOS is slow to act on it or never does.
+    var shortcutsSwitchDesktop = true
     /// Apps that are installed, by bundle id.
     var installed: [String: URL] = [:]
     /// What is in the folders apps are kept in.
@@ -546,12 +559,16 @@ final class FakeWindowSystem: WindowSystem {
 
     fileprivate func makeMain(_ window: FakeWindow) {
         guard focusSticks else { return }
+        let changed = window.app.focusedWindow !== window
         window.app.focusedWindow = window
+        if changed, appsTellOfFocus { appSays(window, kAXFocusedWindowChangedNotification) }
     }
 
     fileprivate func activate(_ app: FakeApp) {
         guard focusSticks else { return }
+        let changed = frontmost !== app
         frontmost = app
+        if changed, appsTellOfFocus { scheduler.after(0) { [weak self, weak app] in self?.handler?(.activated(app)) } }
     }
 
     /// An app tells its observers about one of its windows a moment after the fact, on the main thread.
@@ -691,8 +708,8 @@ final class FakeWindowSystem: WindowSystem {
         guard directFocusWorks, let window = window(id), window.pid == pid else { return false }
         guard focusSticks else { return true }
         bringToFront(window)
-        window.app.focusedWindow = window
-        frontmost = window.app
+        makeMain(window)
+        activate(window.app)
         return true
     }
 
@@ -706,6 +723,7 @@ final class FakeWindowSystem: WindowSystem {
     func press(shortcut: Int32) -> Bool {
         pressed.append(shortcut)
         guard shortcutsWork else { return false }
+        guard shortcutsSwitchDesktop else { return true }
         switch shortcut {
         case Private.SystemShortcut.spaceLeft, Private.SystemShortcut.spaceRight:
             // The display the pointer is on is the one that changes.

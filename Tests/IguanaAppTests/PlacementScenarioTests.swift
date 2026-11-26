@@ -286,8 +286,82 @@ final class PlaceCommandScenarioTests: ScenarioTestCase {
         mac.settle()
 
         XCTAssertEqual(mac.run("place bottom-right"), "ok", "it was never tiled, so it is not floated first")
-        XCTExpectFailure("placedLanded only fits a window marked as floating, and a fixed-size window that no rule floats is not: it stays at the corner of the quarter")
         XCTAssertEqual(fonts.rect, CGRect(x: 1132, y: 692, width: 300, height: 200))
+        XCTAssertEqual(mac.run("place right"), "ok")
+        XCTAssertEqual(fonts.rect, CGRect(x: 1132, y: 362.5, width: 300, height: 200), "against the right edge, half way down")
+        XCTAssertTrue(mac.tiles.isEmpty)
+    }
+
+    func testAWindowThatTookTheSizeIsNotLookedAtAgain() {
+        mac.writeConfig(floatNotes)
+        let notes = mac.system.open(mac.system.launch("Notes"), frame: CGRect(x: 100, y: 100, width: 640, height: 480))
+        mac.settle()
+
+        XCTAssertEqual(mac.run("place right", settle: false), "ok")
+        mac.scheduler.advance(by: 0.05)
+        XCTAssertEqual(notes.rect, CGRect(x: 724, y: 33, width: 708, height: 859))
+        XCTAssertEqual(notes.sizesAsked, [CGSize(width: 708, height: 859)], "it took the size, so it is not asked a second time")
+
+        // The user makes it smaller by its bottom-right corner. It is theirs now: no fit follows.
+        notes.rect.size = CGSize(width: 500, height: 400)
+        mac.settle()
+        XCTAssertEqual(notes.rect, CGRect(x: 724, y: 33, width: 500, height: 400))
+    }
+
+    func testAWindowTiledAgainBeforeTheSecondLookKeepsToItsTile() {
+        mac.writeConfig(floatNotes)
+        let notes = mac.system.open(mac.system.launch("Notes"), frame: CGRect(x: 100, y: 100, width: 1000, height: 500))
+        notes.minSize = CGSize(width: 900, height: 300)
+        mac.settle()
+        let terminal = mac.system.open(mac.system.launch("Terminal"))
+        mac.settle()
+
+        XCTAssertEqual(mac.run("place left --window \(notes.id)", settle: false), "ok")
+        mac.scheduler.advance(by: 0.05)
+        XCTAssertEqual(notes.rect, CGRect(x: 8, y: 33, width: 900, height: 859), "too wide for the half: a second look is due")
+
+        // Before it, the user tiles the window and moves it to the top. Its tile has the corner
+        // of the half it was placed in, and is not the size that was asked for either.
+        XCTAssertEqual(mac.run("float --window \(notes.id)", settle: false), "ok: tiled")
+        XCTAssertEqual(mac.run("move up --window \(notes.id)", settle: false), "ok")
+        XCTAssertFrame(notes.rect, CGRect(x: 8, y: 33, width: 1424, height: 425.5))
+        let asked = notes.positionsAsked.count
+
+        // The fit would send it half way down the display, and the layout would fetch it back.
+        mac.settle()
+        XCTAssertEqual(notes.positionsAsked.count, asked, "the second look does not touch a tiled window")
+        XCTAssertFrame(notes.rect, CGRect(x: 8, y: 33, width: 1424, height: 425.5))
+        XCTAssertFrame(terminal.rect, CGRect(x: 8, y: 466.5, width: 1424, height: 425.5))
+        XCTAssertEqual(mac.tiles.count, 2)
+    }
+
+    func testAWindowThatCanBeTiledAfterAllBeforeTheSecondLookKeepsToItsTile() {
+        let terminal = mac.system.open(mac.system.launch("Terminal"))
+        mac.settle()
+        // A window that is reported before it can be resized: no layout takes it, and no rule floats it.
+        let late = mac.system.open(mac.system.launch("Fonts"), frame: CGRect(x: 100, y: 100, width: 300, height: 200))
+        late.resizable = false
+        mac.settle()
+        XCTAssertEqual(mac.tiles.keys.sorted(), [terminal.id])
+
+        XCTAssertEqual(mac.run("place left", settle: false), "ok")
+        mac.scheduler.advance(by: 0.05)
+        XCTAssertEqual(late.rect, CGRect(x: 8, y: 33, width: 300, height: 200), "a second look is due")
+
+        // By the time the user comes back to it, it is a window like any other, and is tiled.
+        late.resizable = true
+        mac.system.click(terminal)
+        mac.system.click(late)
+        mac.scheduler.advance(by: 0.05)
+        XCTAssertEqual(mac.tiles.count, 2)
+        XCTAssertEqual(mac.run("move up", settle: false), "ok")
+        XCTAssertFrame(late.rect, CGRect(x: 8, y: 33, width: 1424, height: 425.5))
+        let asked = late.positionsAsked.count
+
+        mac.settle()
+        XCTAssertEqual(late.positionsAsked.count, asked, "the second look does not touch a tiled window")
+        XCTAssertFrame(late.rect, CGRect(x: 8, y: 33, width: 1424, height: 425.5))
+        XCTAssertFrame(terminal.rect, CGRect(x: 8, y: 466.5, width: 1424, height: 425.5))
     }
 
     func testWithNoWindowOrOneThatCannotBeMovedPlaceIsAnError() {

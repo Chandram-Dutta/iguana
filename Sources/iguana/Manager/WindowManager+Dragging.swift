@@ -11,15 +11,24 @@ extension WindowManager {
         // Frames reported while Iguana itself is moving the window are its own.
         if mover.isMoving(id), !mouseIsDown { return }
         guard let now = element.frame else { return }
+        // With the button up and nothing of Iguana's on its way, the size a window reports is
+        // the size it has come to rest at. An app can settle on it a moment after it has
+        // answered for the frame it was given.
+        if !mouseIsDown { w.rest?.size = now.size }
         if let asked = w.lastSetFrame, nearlyEqual(now, asked) { return }
         if mouseIsDown, !mover.isMoving(id) {
             // The user is dragging or resizing. Leave the window alone until they let go.
             if drag == nil {
-                // What the window started from is its tile, at the size it really had there: a
-                // window that will not get as small as its tile is bigger than it, and that
-                // difference is not the user resizing it.
+                // What the window started from is its tile, at the size it really had there,
+                // which is not always the size of the tile: a window that will not get that
+                // small is bigger, and one that sizes itself in whole rows and columns of text
+                // can be a little smaller. That difference is not the user resizing it.
                 var start = slot
-                if let least = w.minSize {
+                if let rest = w.rest, nearlyEqual(rest.asked, slot) {
+                    // The size it took when it was put on this tile.
+                    start.size = rest.size
+                } else if let least = w.minSize {
+                    // Nothing heard about its size on this tile: the least it is known to get.
                     start.size.width = max(start.width, least.width)
                     start.size.height = max(start.height, least.height)
                 }
@@ -70,7 +79,8 @@ extension WindowManager {
         }
     }
 
-    /// The window the user is dragging or resizing by hand, and the tile it started from.
+    /// The window the user is dragging or resizing by hand, and what it started from: the
+    /// place of its tile, at the size the window had there.
     var dragging: (id: CGWindowID, start: CGRect)? { drag.map { ($0.id, $0.start) } }
 
     /// The tile of every tiled window on screen. A zoomed window is not on its tile, and has none here.

@@ -144,9 +144,15 @@ final class Animator: NSObject, FrameMover {
     }
 
     /// Stop moving a window and leave it where it is (the user grabbed it, or it is gone).
+    ///
+    /// A frame that still waits on its app's queue is not sent. That goes for the last frame
+    /// too, of a glide or of a window placed at once: sent after this, it would put the window
+    /// back where the caller no longer wants it. Only a gliding window is known here by its
+    /// app, so the frame is dropped from every queue; a window is on one of them at most.
     func cancel(_ id: CGWindowID) {
-        if let m = motions.removeValue(forKey: id) { writers[m.pid]?.drop(id) }
+        motions[id] = nil
         landing[id] = nil
+        for writer in writers.values { writer.drop(id) }
     }
 
     func forget(pid: pid_t) {

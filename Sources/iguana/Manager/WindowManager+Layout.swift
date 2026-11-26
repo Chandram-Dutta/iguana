@@ -90,9 +90,12 @@ extension WindowManager {
         justAdopted.insert(w.id)
         splitHints[w.id] = nil
 
-        // A window that takes the place of another window of the same app (a native tab coming
-        // forward) inherits its slot instead of opening a new one.
-        if let twin = tree.windows.first(where: { lastVisible.contains($0) && !visible.contains($0) && windows[$0]?.pid == w.pid }) {
+        // A native tab that comes forward is another window in the place of the one that was in
+        // front, which leaves the screen. It takes the place that window has now and opens no
+        // tile of its own. A tab that has been in front before is known by the tab in front of
+        // it; a new one by a window of its app having left the screen as it appeared.
+        let known = tree.inFront(of: w.id).flatMap { visible.contains($0) ? nil : $0 }
+        if let twin = known ?? tree.windows.first(where: { lastVisible.contains($0) && !visible.contains($0) && windows[$0]?.pid == w.pid }) {
             tree.insert(w.id, after: twin, sameSlot: true)
             return
         }

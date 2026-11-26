@@ -160,16 +160,6 @@ final class TreeTests: XCTestCase, TestScreen {
         XCTAssertLessThan(w, 120)
     }
 
-    func testSameSlotInsertReplacesOnScreen() {
-        let t = Tree()
-        [1, 2].forEach { t.insert($0) }
-        t.changeShare(of: 1, .delta(0.2))
-        let before = frames(t)[1]
-        t.insert(7, after: 1, sameSlot: true)          // window 7 is a tab that replaced window 1
-        XCTAssertEqual(frames(t, visible: [7, 2])[7], before)
-        XCTAssertEqual(frames(t, visible: [1, 2])[1], before)
-    }
-
     func testResizingStartsFromWhatIsOnScreen() {
         let t = Tree()
         [1, 2].forEach { t.insert($0) }
@@ -257,6 +247,263 @@ final class TreeTests: XCTestCase, TestScreen {
             XCTAssertEqual(f.count, alive.count)
             let area = f.values.reduce(0) { $0 + $1.width * $1.height }
             if !alive.isEmpty { XCTAssertEqual(area, screen.width * screen.height, accuracy: 1, "windows cover the screen exactly") }
+        }
+    }
+
+    // MARK: Native tabs
+
+    func testATabThatComesForwardTakesTheLeafOfTheTabItReplaces() {
+        let t = Tree()
+        [1, 2].forEach { t.insert($0) }
+        t.changeShare(of: 1, .delta(0.2))
+        let before = frames(t)[1]
+        XCTAssertTrue(t.insert(7, after: 1, sameSlot: true))          // window 7 is a tab that replaced window 1
+        XCTAssertEqual(t.windows, [7, 2], "the two tabs are one leaf")
+        XCTAssertEqual(frames(t)[7], before)
+        XCTAssertFalse(t.contains(1), "the tab that is not in front has no leaf")
+        XCTAssertEqual(t.inFront(of: 1), 7)
+        XCTAssertNil(t.inFront(of: 7))
+        XCTAssertNil(t.inFront(of: 2))
+        XCTAssertNil(t.inFront(of: 99))
+
+        // The first tab is chosen again.
+        XCTAssertTrue(t.insert(1, after: 7, sameSlot: true))
+        XCTAssertEqual(t.windows, [1, 2])
+        XCTAssertEqual(frames(t)[1], before)
+        XCTAssertEqual(t.inFront(of: 7), 1)
+        XCTAssertFalse(t.insert(1, after: 1, sameSlot: true), "a window does not replace itself")
+    }
+
+    func testATabFindsItsWindowWhereItWasPutWhileAnotherTabWasInFront() {
+        let t = Tree()
+        [1, 2, 3].forEach { t.insert($0) }
+        t.insert(4, after: 3, split: .vertical)
+        t.insert(7, after: 1, sameSlot: true)
+        // With tab 7 in front the window is made wider, moved to the right and swapped.
+        t.changeShare(of: 7, .delta(0.2))
+        XCTAssertTrue(t.move(7, .right))
+        XCTAssertTrue(t.swap(7, 4))
+        XCTAssertEqual(t.windows, [2, 4, 3, 7])
+        let there = frames(t)[7]
+        let layout = t.describe { $0 == 7 ? "the tabbed window" : "window \($0)" }
+
+        t.insert(1, after: 7, sameSlot: true)
+        XCTAssertEqual(t.windows, [2, 4, 3, 1])
+        XCTAssertEqual(frames(t)[1], there, "tab 1 has the place its window has now")
+        XCTAssertEqual(t.describe { $0 == 1 ? "the tabbed window" : "window \($0)" }, layout, "and nothing else in the layout has changed")
+    }
+
+    func testThreeTabsAreOneLeaf() {
+        let t = Tree()
+        [1, 2].forEach { t.insert($0) }
+        t.insert(7, after: 1, sameSlot: true)
+        t.insert(8, after: 7, sameSlot: true)
+        XCTAssertEqual(t.windows, [8, 2])
+        XCTAssertEqual(t.inFront(of: 1), 8)
+        XCTAssertEqual(t.inFront(of: 7), 8)
+
+        t.changeShare(of: 8, .delta(0.2))
+        let there = frames(t)[8]
+        // Straight back to the first one, past the second.
+        t.insert(1, after: 8, sameSlot: true)
+        XCTAssertEqual(t.windows, [1, 2])
+        XCTAssertEqual(frames(t)[1], there)
+        XCTAssertEqual(t.inFront(of: 7), 1)
+        XCTAssertEqual(t.inFront(of: 8), 1)
+    }
+
+    func testTheFocusGoesWithTheTabThatComesForward() {
+        let t = Tree()
+        [1, 2].forEach { t.insert($0) }
+        t.focused = 1
+        t.insert(7, after: 1, sameSlot: true)
+        XCTAssertEqual(t.focused, 7, "new windows go on opening next to this window")
+        t.focused = 2
+        t.insert(1, after: 7, sameSlot: true)
+        XCTAssertEqual(t.focused, 2)
+    }
+
+    func testClosingTheTabInFrontLeavesItsLeafToTheTabThatWasInFrontBefore() {
+        let t = Tree()
+        [1, 2].forEach { t.insert($0) }
+        t.insert(7, after: 1, sameSlot: true)
+        t.insert(8, after: 7, sameSlot: true)
+        t.changeShare(of: 8, .delta(0.2))
+        t.focused = 8
+        let there = frames(t)[8]
+
+        XCTAssertTrue(t.remove(8))
+        XCTAssertEqual(t.windows, [7, 2], "the window is still there, with another tab")
+        XCTAssertEqual(frames(t)[7], there)
+        XCTAssertEqual(t.inFront(of: 1), 7)
+        XCTAssertNil(t.focused)
+
+        XCTAssertTrue(t.remove(7))
+        XCTAssertEqual(t.windows, [1, 2])
+        XCTAssertEqual(frames(t)[1], there)
+        XCTAssertTrue(t.remove(1))
+        XCTAssertEqual(t.windows, [2], "its last tab closed, the window is gone")
+    }
+
+    func testClosingATabThatIsNotInFrontChangesNothing() {
+        let t = Tree()
+        [1, 2].forEach { t.insert($0) }
+        t.insert(7, after: 1, sameSlot: true)
+        let before = t.snapshot
+
+        XCTAssertTrue(t.remove(1))
+        XCTAssertEqual(t.snapshot, before)
+        XCTAssertNil(t.inFront(of: 1))
+        XCTAssertFalse(t.remove(1), "it is not known any more")
+        // No leaf is kept for a tab that has closed.
+        t.remove(7)
+        XCTAssertEqual(t.windows, [2])
+    }
+
+    func testPruneDropsTheTabsThatAreGoneBeforeItGivesALeafAway() {
+        let t = Tree()
+        [1, 2].forEach { t.insert($0) }
+        t.insert(7, after: 1, sameSlot: true)
+        t.insert(8, after: 7, sameSlot: true)
+        // The tab in front and the one that was in front before it close together.
+        t.prune { $0 != 8 && $0 != 7 }
+        XCTAssertEqual(t.windows, [1, 2], "the leaf goes to the tab that is left")
+        XCTAssertNil(t.inFront(of: 7))
+        t.prune { $0 != 1 }
+        XCTAssertEqual(t.windows, [2])
+    }
+
+    func testAWindowThatGetsALeafOfItsOwnIsNoLongerATab() {
+        // A tab that is dragged out of its window is a window of its own.
+        let t = Tree()
+        [1, 2].forEach { t.insert($0) }
+        t.insert(7, after: 1, sameSlot: true)
+        XCTAssertTrue(t.insert(1, after: 2))
+        XCTAssertEqual(t.windows, [7, 2, 1])
+        XCTAssertNil(t.inFront(of: 1))
+        t.remove(7)
+        XCTAssertEqual(t.windows, [2, 1], "so it does not take the leaf of the window it left")
+
+        // The same when it is put somewhere as a drop does.
+        for put in [{ (t: Tree) in t.place(1, beside: 2, on: .right) }, { (t: Tree) in t.place(1, nextTo: 2) }] {
+            let t = Tree()
+            [1, 2].forEach { t.insert($0) }
+            t.insert(7, after: 1, sameSlot: true)
+            XCTAssertTrue(put(t))
+            XCTAssertEqual(t.windows, [7, 2, 1])
+            XCTAssertNil(t.inFront(of: 1))
+        }
+    }
+
+    func testAWindowKeepsItsTabsWhereverItIsPut() {
+        let t = Tree()
+        [1, 2, 3].forEach { t.insert($0) }
+        t.insert(7, after: 1, sameSlot: true)
+        // Dropped on an edge, dropped on a stack, and the whole desktop arranged.
+        XCTAssertTrue(t.place(7, beside: 3, on: .down))
+        XCTAssertTrue(t.place(7, nextTo: 2))
+        t.arrange(.rows, order: [3, 7, 2])
+        XCTAssertEqual(t.windows, [3, 7, 2])
+        XCTAssertEqual(t.inFront(of: 1), 7)
+        let there = frames(t)[7]
+        t.insert(1, after: 7, sameSlot: true)
+        XCTAssertEqual(frames(t)[1], there)
+    }
+
+    func testTheTabInFrontTakesThePlaceAnEarlierArrangementHasForItsWindow() {
+        let t = Tree()
+        [1, 2, 3].forEach { t.insert($0) }
+        let even = t.snapshot
+        let first = frames(t)[1]
+        t.insert(7, after: 1, sameSlot: true)
+        t.changeShare(of: 7, .delta(0.2))
+        t.move(7, .right)
+        XCTAssertEqual(t.windows, [2, 7, 3])
+
+        // Undo goes back to an arrangement from when the other tab was in front.
+        t.restore(even)
+        XCTAssertEqual(t.windows, [7, 2, 3], "it is the tab in front now that is put there")
+        XCTAssertEqual(frames(t)[7], first)
+        XCTAssertEqual(t.inFront(of: 1), 7)
+
+        // An arrangement the window is not in at all forgets its tabs with it.
+        t.remove(2)
+        let without = Tree()
+        [2, 3].forEach { without.insert($0) }
+        t.restore(without.snapshot)
+        XCTAssertEqual(t.windows, [2, 3])
+        XCTAssertNil(t.inFront(of: 1))
+        XCTAssertFalse(t.remove(1))
+    }
+
+    func testRandomOperationsWithTabsKeepEveryWindowInOnePlace() {
+        var seed: UInt64 = 7
+        func next(_ n: Int) -> Int {
+            seed = seed &* 6364136223846793005 &+ 1442695040888963407
+            return Int((seed >> 33) % UInt64(n))
+        }
+        let t = Tree()
+        /// The tabs that are not in front, by the tab that is. Every window with a leaf is a key.
+        var tabs: [WindowID: [WindowID]] = [:]
+        var nextID: WindowID = 1
+        for _ in 0..<1000 {
+            let fronts = tabs.keys.sorted()
+            let pick = fronts.isEmpty ? nil : fronts[next(fronts.count)]
+            let waiting = tabs.values.flatMap { $0 }.sorted()
+            switch next(9) {
+            case 0:
+                t.insert(nextID, after: pick, split: [nil, .horizontal, .vertical][next(3)])
+                tabs[nextID] = []
+                nextID += 1
+            case 1:
+                // A new tab in a window.
+                if let pick {
+                    XCTAssertTrue(t.insert(nextID, after: pick, sameSlot: true))
+                    tabs[nextID] = (tabs.removeValue(forKey: pick) ?? []) + [pick]
+                    nextID += 1
+                }
+            case 2:
+                // A tab that is not in front comes forward.
+                if !waiting.isEmpty {
+                    let tab = waiting[next(waiting.count)]
+                    guard let front = t.inFront(of: tab) else { return XCTFail("tab \(tab) is not known") }
+                    XCTAssertTrue(t.insert(tab, after: front, sameSlot: true))
+                    tabs[tab] = (tabs.removeValue(forKey: front) ?? []).filter { $0 != tab } + [front]
+                }
+            case 3:
+                // The tab in front closes.
+                if let pick, tabs.count > 1 {
+                    t.remove(pick)
+                    var others = tabs.removeValue(forKey: pick) ?? []
+                    if let last = others.popLast() { tabs[last] = others }
+                }
+            case 4:
+                // A tab that is not in front closes, or is dragged out of its window.
+                if !waiting.isEmpty {
+                    let tab = waiting[next(waiting.count)]
+                    for (front, others) in tabs { tabs[front] = others.filter { $0 != tab } }
+                    if next(2) == 0 {
+                        XCTAssertTrue(t.remove(tab))
+                    } else {
+                        XCTAssertTrue(t.insert(tab, after: pick))
+                        tabs[tab] = []
+                    }
+                }
+            case 5: if let pick { t.move(pick, Direction.allCases[next(4)]) }
+            case 6: if let pick { t.join(pick, with: Direction.allCases[next(4)]) }
+            case 7: if let pick, let other = fronts.last, pick != other { t.place(pick, beside: other, on: Direction.allCases[next(4)]) }
+            default: if let pick, let other = fronts.last { t.swap(pick, other) }
+            }
+            XCTAssertEqual(Set(t.windows), Set(tabs.keys))
+            XCTAssertEqual(t.windows.count, tabs.count, "no window has two leaves")
+            for (front, others) in tabs {
+                XCTAssertNil(t.inFront(of: front))
+                for tab in others {
+                    XCTAssertEqual(t.inFront(of: tab), front)
+                    XCTAssertFalse(t.contains(tab))
+                }
+            }
+            assertCanonical(t.root, isRoot: true)
         }
     }
 

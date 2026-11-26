@@ -6,11 +6,15 @@ import IguanaCore
 struct SavedState: Codable {
     var boot: Double
     var trees: [String: NodeSnapshot]
+    /// The windows floated by hand.
     var floating: [CGWindowID]
+    /// The windows tiled by hand, so that a rule that floats one of them does not float it
+    /// again. A file written before this was kept has none.
+    var tiled: [CGWindowID]?
     /// Minimum sizes learned so far, as [width, height], so a restart does not relearn them.
     var minSizes: [String: [Double]]?
-    /// What each window in `trees` and `floating` is, so that it can be known again after
-    /// a restart of the Mac, when it has a new id.
+    /// What each window in `trees`, `floating` and `tiled` is, so that it can be known again
+    /// after a restart of the Mac, when it has a new id.
     var windows: [String: WindowDescriptor]?
 }
 

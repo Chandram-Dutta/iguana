@@ -70,11 +70,16 @@ final class WindowManager {
     /// The desktops each display showed, for `space recent`.
     var desktopHistory = DesktopHistory()
     var focusIntent: CGWindowID?
+    /// Counts the focus requests, so that the check of an earlier request cannot speak for a
+    /// later one for the same window.
+    var focusSerial = 0
     /// `carried` is set once the window has been seen somewhere else at its own size: it is
     /// being moved, not resized, and stays a move whatever happens to its size afterwards.
     var drag: (id: CGWindowID, start: CGRect, carried: Bool)?
     var started = false
     var restoredFloating = Set<CGWindowID>()
+    /// Windows the last run had tiled by hand, until this run has seen them.
+    var restoredTiled = Set<CGWindowID>()
     var restoredMinSizes: [CGWindowID: CGSize] = [:]
     /// After a restart of the Mac: the saved layouts, waiting for their windows to come back.
     var restore = RestoreSession()
@@ -96,8 +101,8 @@ final class WindowManager {
     var history = LayoutHistory()
     var isRecording = false
     var placementRules = PlacementRuleQueue()
-    /// Floating windows on their way to a place, and where each goes instead if it will not take
-    /// the size it was given.
+    /// Windows that are in no layout on their way to a place, and where each goes instead if it
+    /// will not take the size it was given.
     var placing: [CGWindowID: (asked: CGRect, fit: (CGSize) -> CGRect)] = [:]
     let displayRules: DisplayRules
 

@@ -271,10 +271,193 @@ final class FocusDeliveryScenarioTests: FocusScenarioTestCase {
         let mail = mac.system.open(mac.system.launch("Mail"))
         mac.settle()
 
-        XCTExpectFailure("the check after 0.12 s cannot tell a request macOS ignored from one that took before the focus moved on, and takes the keyboard back") {
-            XCTAssertTrue(keyWindow === mail)
-            XCTAssertEqual(left.app.activations, 0)
-        }
+        XCTAssertTrue(keyWindow === mail)
+        XCTAssertEqual(left.app.activations, 0)
+        XCTAssertEqual(left.raises, 1, "the window that was asked for is not asked again")
+        XCTAssertEqual(mac.focused, mail.id, "and the window manager follows the keyboard")
+    }
+
+    func testAClickOnAnotherWindowJustAfterAFocusCommandIsNotUndone() {
+        let (left, right) = sideBySide()
+        let mail = open("Mail")
+        XCTAssertEqual(mac.wm.run(.focus(.left)), "ok")
+        XCTAssertTrue(keyWindow === left)
+
+        // The user clicks a third window before the window manager has checked.
+        mac.scheduler.advance(by: 0.05)
+        mac.system.click(right)
+        mac.settle()
+
+        XCTAssertTrue(keyWindow === right)
+        XCTAssertEqual(mac.focused, right.id)
+        XCTAssertEqual(left.app.activations, 0)
+        XCTAssertEqual(left.raises, 1)
+        XCTAssertEqual(mac.system.focusRequests, [left.id])
+        XCTAssertEqual(mail.raises, 0)
+    }
+
+    func testAClickBackOnTheWindowTheKeyboardCameFromIsNotUndone() {
+        let (left, right) = sideBySide()
+        // The apps say so when the focus reaches them, as nearly all do.
+        mac.system.appsTellOfFocus = true
+        XCTAssertEqual(mac.wm.run(.focus(.left)), "ok")
+
+        // The request took and its app said so. Then the user clicks the window on the right
+        // again, still before the check.
+        mac.scheduler.advance(by: 0.05)
+        XCTAssertEqual(mac.focused, left.id)
+        mac.system.click(right)
+        mac.settle()
+
+        XCTAssertTrue(keyWindow === right, "the keyboard is where it was before the command, and by the user's hand")
+        XCTAssertEqual(mac.focused, right.id)
+        XCTAssertEqual(left.app.activations, 0)
+        XCTAssertEqual(left.raises, 1)
+    }
+
+    func testARequestMacOSIgnoredIsDroppedWhenTheKeyboardHasGoneElsewhere() {
+        let (left, right) = sideBySide()
+        mac.system.focusSticks = false
+        XCTAssertEqual(mac.wm.run(.focus(.left)), "ok")
+        XCTAssertTrue(keyWindow === right, "macOS said yes and changed nothing")
+
+        // A new window takes the keyboard. It is not where it was, so this is not for a retry to undo.
+        mac.scheduler.advance(by: 0.05)
+        mac.system.focusSticks = true
+        let mail = mac.system.open(mac.system.launch("Mail"))
+        mac.settle()
+
+        XCTAssertTrue(keyWindow === mail)
+        XCTAssertEqual(left.app.activations, 0)
+        XCTAssertEqual(left.raises, 1)
+        XCTAssertEqual(mac.focused, mail.id)
+    }
+
+    func testAnAppWithNoWindowThatComesForwardJustAfterAFocusCommandStaysInFront() {
+        let (left, right) = sideBySide()
+        // The user clicked the desktop: Finder is in front, and no window has the keyboard.
+        let finder = mac.system.launch("Finder")
+        finder.comeForward()
+        look()
+        XCTAssertNil(keyWindow)
+        XCTAssertEqual(mac.focused, right.id)
+
+        XCTAssertEqual(mac.wm.run(.focus(.left)), "ok")
+        XCTAssertTrue(keyWindow === left)
+
+        // A launcher's panel opens. Again no window has the keyboard, and yet it is not where it was.
+        mac.scheduler.advance(by: 0.05)
+        let launcher = mac.system.launch("Launcher", regular: false)
+        launcher.comeForward()
+        mac.settle()
+
+        XCTAssertTrue(mac.system.frontmost === launcher)
+        XCTAssertEqual(left.app.activations, 0)
+        XCTAssertEqual(left.raises, 1)
+    }
+
+    func testAnAppThatCameForwardWithTheWindowItHadIsAskedAgain() {
+        let safari = mac.system.launch("Safari")
+        let docs = mac.system.open(safari, title: "Docs")
+        mac.settle()
+        let downloads = mac.system.open(safari, title: "Downloads")
+        mac.settle()
+        let notes = open("Notes")
+        XCTAssertTrue(safari.focusedWindow === downloads, "the window Safari had the keyboard in last")
+        // The direct route fails, and the window is too busy to take a request.
+        mac.system.directFocusWorks = false
+        docs.answers = false
+
+        XCTAssertEqual(mac.wm.run(.focus(.left)), "ok")
+        XCTAssertEqual(mac.focused, docs.id)
+        XCTAssertEqual(safari.activations, 1)
+        XCTAssertTrue(keyWindow === downloads, "Safari is in front, with the window it had")
+
+        // That is half of what was asked, and nobody else's doing: it is asked again.
+        docs.answers = true
+        mac.scheduler.advance(by: 0.12)
+        XCTAssertEqual(safari.activations, 2)
+        XCTAssertTrue(keyWindow === docs)
+
+        mac.settle()
+        XCTAssertEqual(safari.activations, 2, "and once it has taken, no more")
+        XCTAssertEqual(mac.focused, docs.id)
+        XCTAssertEqual(notes.raises, 0)
+    }
+
+    func testAFocusCommandBeforeTheLastIsConfirmedTakesOver() {
+        let left = open("Safari")
+        let top = open("Notes")
+        let bottom = open("Mail")
+        mac.system.focusSticks = false
+
+        XCTAssertEqual(mac.wm.run(.focus(.up)), "ok")
+        XCTAssertEqual(mac.focused, top.id)
+        mac.scheduler.advance(by: 0.05)
+        XCTAssertEqual(mac.wm.run(.focus(.left)), "ok")
+        XCTAssertEqual(mac.focused, left.id, "the second command starts from where the first was going")
+
+        // The time to check the first request comes, 0.12 s after it was made. It is not what
+        // is wanted any more.
+        mac.scheduler.advance(by: 0.08)
+        XCTAssertEqual(top.app.activations, 0)
+        XCTAssertEqual(left.app.activations, 0)
+
+        // The second is checked, 0.12 s after it was made.
+        mac.scheduler.advance(by: 0.05)
+        XCTAssertEqual(left.app.activations, 1)
+
+        mac.settle()
+        XCTAssertEqual(left.app.activations, 2)
+        XCTAssertEqual(top.app.activations, 0)
+        XCTAssertEqual(top.raises, 1)
+        XCTAssertEqual(mac.system.focusRequests, [top.id, left.id])
+        XCTAssertTrue(keyWindow === bottom)
+        XCTAssertEqual(mac.focused, bottom.id, "none of it took, and the window manager knows")
+    }
+
+    func testAFocusCommandGivenAgainIsCheckedFromItsOwnTime() {
+        let (left, right) = sideBySide()
+        mac.system.focusSticks = false
+
+        // Left, right and left again, faster than one of them can be confirmed.
+        XCTAssertEqual(mac.wm.run(.focus(.left)), "ok")
+        mac.scheduler.advance(by: 0.05)
+        XCTAssertEqual(mac.wm.run(.focus(.right)), "ok")
+        mac.scheduler.advance(by: 0.03)
+        XCTAssertEqual(mac.wm.run(.focus(.left)), "ok")
+        XCTAssertEqual(left.raises, 2)
+
+        // 0.12 s after the first request, which was for the same window as the third.
+        mac.scheduler.advance(by: 0.05)
+        XCTAssertEqual(left.app.activations, 0, "the check of the first request does not speak for the third")
+
+        // 0.12 s after the third.
+        mac.scheduler.advance(by: 0.08)
+        XCTAssertEqual(left.app.activations, 1, "it is tried again when its own time is up")
+
+        mac.settle()
+        XCTAssertEqual(left.app.activations, 2, "and twice at most")
+        XCTAssertEqual(left.raises, 4)
+        XCTAssertEqual(right.raises, 1)
+        XCTAssertEqual(right.app.activations, 0)
+        XCTAssertEqual(mac.focused, right.id)
+    }
+
+    func testAWindowThatClosesJustAfterItTookTheFocusIsLetGo() {
+        let (left, right) = sideBySide()
+        let safari = left.app
+        XCTAssertEqual(mac.wm.run(.focus(.left)), "ok")
+        XCTAssertTrue(keyWindow === left)
+
+        mac.scheduler.advance(by: 0.05)
+        mac.system.close(left)
+        mac.settle()
+
+        XCTAssertEqual(safari.activations, 0)
+        XCTAssertEqual(mac.system.focusRequests, [left.id], "nothing was asked for in its place")
+        XCTAssertEqual(right.raises, 0)
+        XCTAssertEqual(mac.focused, right.id, "the window that is left")
     }
 
     func testAWindowThatClosesWhileItsFocusIsBeingConfirmedIsLetGo() {
@@ -351,6 +534,24 @@ final class MouseFollowsFocusScenarioTests: FocusScenarioTestCase {
         XCTAssertTrue(mac.system.warps.isEmpty, "the pointer is where the user wants it already")
         XCTAssertEqual(mac.system.pointerLocation, CGPoint(x: 100, y: 100))
         XCTAssertTrue(told.isEmpty)
+    }
+
+    func testThePointerIsNotMovedAgainWhenAnotherWindowTookTheKeyboard() {
+        let (left, _) = sideBySide()
+        let middle = middle(of: left)
+        XCTAssertEqual(mac.wm.run(.focus(.left)), "ok")
+        XCTAssertEqual(mac.system.warps, [middle])
+
+        // The user has moved the pointer on when a new window takes the keyboard.
+        mac.scheduler.advance(by: 0.05)
+        mac.system.pointerLocation = CGPoint(x: 1000, y: 500)
+        let mail = mac.system.open(mac.system.launch("Mail"))
+        mac.settle()
+
+        XCTAssertTrue(keyWindow === mail)
+        XCTAssertEqual(mac.system.warps, [middle], "neither back to the window that was asked for, nor on to the new one")
+        XCTAssertEqual(mac.system.pointerLocation, CGPoint(x: 1000, y: 500))
+        XCTAssertEqual(told.count, 1)
     }
 
     func testARetryDoesNotMoveThePointerAgain() {
