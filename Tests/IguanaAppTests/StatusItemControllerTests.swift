@@ -9,6 +9,8 @@ final class StatusItemControllerTests: ScenarioTestCase {
     var trusted = true
     var shortcutProblems: [String] = []
     var update: UpdateCheck.Update?
+    var install = UpdateInstall.State.idle
+    var installsAsked: [UpdateCheck.Update] = []
     var ran: [Command] = []
     var iconsAsked: [pid_t] = []
     var controller: StatusItemController!
@@ -19,6 +21,8 @@ final class StatusItemControllerTests: ScenarioTestCase {
         trusted = true
         shortcutProblems = []
         update = nil
+        install = .idle
+        installsAsked = []
         ran = []
         iconsAsked = []
         menu = NSMenu()
@@ -40,7 +44,8 @@ final class StatusItemControllerTests: ScenarioTestCase {
         }
         controller = StatusItemController(wm: wm, icons: icons, trusted: { [unowned self] in trusted },
                                           shortcutProblems: { [unowned self] in shortcutProblems },
-                                          knownUpdate: { [unowned self] in update }) { [unowned self] command in
+                                          knownUpdate: { [unowned self] in update }, installState: { [unowned self] in install },
+                                          installUpdate: { [unowned self] in installsAsked.append($0) }) { [unowned self] command in
             ran.append(command)
             return wm.run(command)
         }
@@ -116,6 +121,71 @@ final class StatusItemControllerTests: ScenarioTestCase {
     func testANewerReleaseIsOfferedAboveSettings() {
         update = ShellFakes.update("9.9.9")
         XCTAssertEqual(Array(titles()[4...6]), ["-", "Update to Iguana 9.9.9…", "Settings…"])
+    }
+
+    func testChoosingTheUpdateInstallsItAndOpensNoPage() throws {
+        update = ShellFakes.update("9.9.9")
+        try choose("Update to Iguana 9.9.9…")
+        XCTAssertEqual(installsAsked, [ShellFakes.update("9.9.9")], "the installer is asked, once, for the release that is known")
+    }
+
+    func testWhileAnInstallRunsTheItemSaysSoAndCannotBeChosen() throws {
+        update = ShellFakes.update("9.9.9")
+        for stage in UpdateInstall.Stage.allCases {
+            install = .working(version: "9.9.9", stage: stage)
+            let title = stage.menuTitle(version: "9.9.9")
+            XCTAssertEqual(Array(titles()[4...6]), ["-", title, "Settings…"])
+            let item = try item(title)
+            XCTAssertNil(item.action, "an item without an action cannot be chosen")
+            menu.update()
+            XCTAssertFalse(item.isEnabled, title)
+            XCTAssertFalse(titles().contains("Update to Iguana 9.9.9…"))
+        }
+        XCTAssertEqual(installsAsked, [])
+
+        // It says so even if the release is no longer told about, as when the check was switched off meanwhile.
+        update = nil
+        install = .working(version: "9.9.9", stage: .downloading)
+        XCTAssertTrue(titles().contains("Downloading Iguana 9.9.9…"))
+    }
+
+    func testTheItemFollowsTheInstallWhileTheMenuIsOpen() throws {
+        update = ShellFakes.update("9.9.9")
+        let item = try item("Update to Iguana 9.9.9…")
+        menu.update()
+        XCTAssertTrue(item.isEnabled)
+
+        install = .working(version: "9.9.9", stage: .downloading)
+        controller.showInstall()
+        XCTAssertEqual(item.title, "Downloading Iguana 9.9.9…")
+        XCTAssertFalse(item.isEnabled)
+        install = .working(version: "9.9.9", stage: .checking)
+        controller.showInstall()
+        XCTAssertEqual(item.title, "Checking Iguana 9.9.9…")
+
+        // It failed: the item is the offer again, and can be chosen again.
+        install = .failed(version: "9.9.9", reason: "the download failed (offline)")
+        controller.showInstall()
+        XCTAssertEqual(item.title, "Update to Iguana 9.9.9…")
+        XCTAssertTrue(item.isEnabled)
+        _ = item.target?.perform(try XCTUnwrap(item.action))
+        XCTAssertEqual(installsAsked.count, 1)
+    }
+
+    func testAnInstallThatRunsIsNotStartedASecondTimeFromTheMenu() throws {
+        update = ShellFakes.update("9.9.9")
+        let item = try item("Update to Iguana 9.9.9…")
+        let action = try XCTUnwrap(item.action)
+        // The menu was open when the install started by itself, and the click came just after.
+        install = .working(version: "9.9.9", stage: .downloading)
+        _ = item.target?.perform(action)
+        XCTAssertEqual(installsAsked, [])
+    }
+
+    func testWithoutAMenuThereIsNoItemToChange() {
+        install = .working(version: "9.9.9", stage: .downloading)
+        controller.showInstall()
+        XCTAssertEqual(installsAsked, [])
     }
 
     func testSettingsAndTheTourAreHandedToTheApp() throws {

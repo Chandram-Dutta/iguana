@@ -73,10 +73,14 @@ The sidebar has three parts:
 - **Open at login.** Starts Iguana when you log in to this Mac.
 - **Menu bar.** What the icon in the menu bar draws. See the table below.
 - **Updates.** **Check for updates** lets Iguana ask GitHub once a day whether a newer version
-  is out; it is [`updates.check`](/reference/configuration/#check) in the file. **Check Now**
-  asks at once, whatever the switch says, and the answer appears beside the button. When
-  there is a newer version, a second button opens that release's page in your browser.
-  Nothing is downloaded or installed: see
+  is out; it is [`updates.check`](/reference/configuration/#check) in the file. **Install
+  updates automatically**, off to begin with, lets Iguana download, check and install what
+  that check finds, and restart; it is [`updates.install`](/reference/configuration/#install).
+  It needs the first switch, and cannot be changed while that one is off. **Check Now** asks
+  at once, whatever the switches say, and the answer appears beside the button. When there
+  is a newer version, a second button opens that release's page in your browser. Nothing in
+  this pane downloads anything by itself except the second switch. To install a newer
+  version yourself, choose **Update to Iguana…** in the menu of the menu bar item: see
   [Staying up to date](/start/install/#staying-up-to-date).
 - **Settings file.** Shows where the config file is, with **Show in Finder** and **Open**.
   Both create the file first if there is none yet.

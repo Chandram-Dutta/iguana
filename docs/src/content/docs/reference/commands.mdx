@@ -826,9 +826,13 @@ has answered. That usually takes a moment, and never more than about ten seconds
 | `ok: Iguana 0.3.1 is available at https://github.com/Chandram-Dutta/iguana/releases/tag/v0.3.1` | The newer version, and the address of its page. |
 | `error: could not check for a newer version: …` | The check could not be made, and why: the Mac is offline, or GitHub did not answer as expected. |
 
-Nothing is downloaded or installed. To update, see
-[Staying up to date](/start/install/#staying-up-to-date). The request sends nothing about you
-or your Mac: see [The one network request](/help/under-the-hood/#the-one-network-request).
+The command only asks: it downloads nothing and installs nothing. To install what it found,
+choose **Update to Iguana…** in the menu of the menu bar item: see
+[Staying up to date](/start/install/#staying-up-to-date). With
+[`updates.install`](/reference/configuration/#install) switched on, a newer version this
+command finds is installed by itself, as one the daily check finds is. The request sends
+nothing about you or your Mac: see
+[What Iguana says to the network](/help/under-the-hood/#what-iguana-says-to-the-network).
 
 Unlike the daily check, a check that fails here is not silent: the reply says why. Asking by
 hand also counts as the day's check, so the next one Iguana makes by itself is a day later.
@@ -1181,6 +1185,15 @@ update: Iguana 0.3.1 is available (https://github.com/Chandram-Dutta/iguana/rele
 The line is there after the [daily check](/reference/configuration/#check) or
 [`update`](#update) has found one, and not while `updates.check` is `false`.
 
+While Iguana is installing that version, a line below it says what the install is doing:
+`downloading`, `checking`, `installing` or `restarting`. If the last install stopped, the line
+says why instead, until Iguana quits:
+
+```text
+update: installing Iguana 0.3.1 (downloading)
+update: Iguana 0.3.1 was not installed: the download failed (The Internet connection appears to be offline.)
+```
+
 With `--json`:
 
 ```json
@@ -1243,7 +1256,7 @@ With `--json`:
 | `mode` | The [mode](#mode) whose shortcuts are on, for example `"resize"`. `null` while those of `[bindings]` are. |
 | `tourShowing` | `true` while the welcome tour is on screen. |
 | `lastShortcut` | The last shortcut received: its `keys`, how many `secondsAgo`, and the `reply` it got. `null` when none has been received since Iguana started. |
-| `update` | A newer version of Iguana: its `version`, for example `"0.3.1"`, and the `url` of its page. `null` when none is known: there is none, Iguana has not looked yet, or [`updates.check`](/reference/configuration/#check) is `false`. |
+| `update` | A newer version of Iguana: its `version`, for example `"0.3.1"`, and the `url` of its page. While Iguana is installing it, `installing` is there too: `"downloading"`, `"checking"`, `"installing"` or `"restarting"`. If the last install of it stopped, `installStopped` says why. `null` when no newer version is known: there is none, Iguana has not looked yet, or [`updates.check`](/reference/configuration/#check) is `false`. |
 
 ### `subscribe`
 

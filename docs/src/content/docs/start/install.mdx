@@ -70,7 +70,8 @@ already done. Open Iguana from Applications and carry on from step 3.
 have no such command and do not need it. Give the cask its full name, as above: Homebrew has
 an unrelated formula that is also called `iguana`.
 
-To update later, run `brew upgrade --cask iguana`. See [Staying up to date](#staying-up-to-date).
+Iguana updates itself from its menu, and `brew upgrade --cask iguana` still works. See
+[Staying up to date](#staying-up-to-date).
 
 ## Build from source
 
@@ -173,22 +174,61 @@ Open the settings window from the menu bar item, or run `iguana settings`, and s
 
 ## Staying up to date
 
-Iguana tells you when a newer version is out, and leaves the updating to you.
+Iguana tells you when a newer version is out, and installs it when you say so.
 
 About once a day it asks GitHub which release is the latest. When that is newer than the one
 you are running, the menu of the menu bar item gains one item above Settings…: **Update to
-Iguana 0.3.1…**, with the real number. Choosing it opens that release's page in your browser.
-There is no alert and no notification, and Iguana never downloads or installs anything itself.
+Iguana 0.3.1…**, with the real number. There is no alert and no notification, and nothing is
+downloaded until you choose that item.
 
-To update:
+Choose it, and Iguana does the rest:
 
-- **Installed with Homebrew:** run `brew upgrade --cask iguana`.
+1. It downloads that release from Iguana's releases on GitHub. The item says
+   **Downloading Iguana 0.3.1…** and cannot be chosen again while this goes on.
+2. It unpacks the download in a temporary folder and has macOS check its signature. The
+   download must be signed as the Iguana you already have, which means by the same developer,
+   and it must be notarized by Apple. It must also be Iguana, and the version you asked for.
+3. It puts the new app in the place of the old one, in one move, and restarts. Your windows
+   stay where they are, and your Accessibility permission carries over, because macOS sees
+   the same app.
+
+If any step fails, nothing is changed. The download is thrown away, the reason is written to
+the log, and the release's page opens in your browser so that you can update by hand.
+`iguana status` says why the last install stopped.
+
+Iguana never asks for an administrator's password. If you may not replace Iguana.app as
+yourself, it tells you so and opens the release's page. It never installs an older version
+than the one that is running. A copy you built yourself does not update itself.
+
+### Installing updates by itself
+
+Iguana can install a newer version without being asked. This is off unless you switch it on:
+turn on **Install updates automatically** in the General pane, or put this in the config file:
+
+```toml title="iguana.toml"
+[updates]
+install = true
+```
+
+With that, an update the daily check finds is downloaded, checked and installed as above, and
+Iguana restarts. It never starts while the welcome tour is on screen or while you are
+dragging a window: it waits and looks again within the hour. See
+[`install`](/reference/configuration/#install).
+
+### Updating by hand
+
+You can still update the way you installed:
+
+- **Installed with Homebrew:** `brew upgrade --cask iguana` still works. Homebrew knows that
+  Iguana updates itself, so a plain `brew upgrade` leaves it alone.
 - **Installed from the disk image:** quit Iguana, download the new
   [Iguana.dmg](https://github.com/Chandram-Dutta/iguana/releases/latest/download/Iguana.dmg)
   and drag Iguana into Applications again, replacing the old one.
 - **Built from source:** `git pull`, then run `scripts/bundle.sh` again.
 
-Your config file is not touched by any of these.
+Your config file is not touched by any of these, or by an update Iguana installs.
+
+### Asking now
 
 To ask right now instead of waiting for the daily check:
 
@@ -197,21 +237,28 @@ iguana update
 ```
 
 It answers with one line: that yours is the latest version, or the newer version and the
-address of its page. **Check Now** in the General pane of the settings window does the same,
-and `iguana status` has a line about a newer version once Iguana knows of one.
+address of its page. It only asks, and installs nothing. **Check Now** in the General pane of
+the settings window does the same, and `iguana status` has a line about a newer version once
+Iguana knows of one.
 
-The check sends nothing about you or your Mac: no identifier, no cookie, no stored
-credentials, only a request that names itself `Iguana/0.3.0` with the version you are
-running. To switch it off, turn off **Check for updates** in the General pane, or put this in
-the config file:
+### What is sent
+
+The check and the download send nothing about you or your Mac: no identifier, no cookie, no
+stored credentials, only a request that names itself `Iguana/0.3.0` with the version you are
+running. The check goes to GitHub about once a day. The download goes to GitHub only when
+you choose the update in the menu, or by itself only if you switched that on.
+
+To switch the daily check off, turn off **Check for updates** in the General pane, or put
+this in the config file:
 
 ```toml title="iguana.toml"
 [updates]
 check = false
 ```
 
-[The one network request](/help/under-the-hood/#the-one-network-request) has every detail of
-what is sent and when.
+With the check off, Iguana learns of no update, so it offers none and installs none.
+[What Iguana says to the network](/help/under-the-hood/#what-iguana-says-to-the-network) has
+every detail of what is sent and when.
 
 ## Stop Iguana
 

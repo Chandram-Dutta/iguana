@@ -35,18 +35,33 @@ Download the disk image and drag Iguana into Applications, or build it from sour
 
 ### How do I update it?
 
-With `brew upgrade --cask iguana`, or by downloading the new disk image. Iguana tells you in
-its menu when a newer version is out, and leaves the updating to you. See
-[Staying up to date](/start/install/#staying-up-to-date).
+From its menu. When a newer version is out, the menu of the menu bar item gains **Update to
+Iguana…**. Choose it, and Iguana downloads that release, has macOS check that it is signed as
+the Iguana you already have and notarized by Apple, puts it in place and restarts. Nothing is
+downloaded until you choose it. `brew upgrade --cask iguana` and the new disk image still
+work too. See [Staying up to date](/start/install/#staying-up-to-date).
+
+### Can Iguana update itself without asking?
+
+Only if you switch that on. Turn on **Install updates automatically** in the General pane of
+the settings window, or set `install = true` under `[updates]` in the config file. It is off
+to begin with. With it on, a newer version the daily check finds is installed by itself, and
+Iguana restarts with your windows where they were.
 
 ### Does Iguana connect to the internet?
 
-For one thing only: about once a day it asks GitHub whether a newer version has been
-released. The request carries nothing about you or your Mac, and nothing is downloaded. To
-switch it off, turn off **Check for updates** in the General pane of the settings window, or
-set `check = false` under `[updates]` in the config file.
-[The one network request](/help/under-the-hood/#the-one-network-request) lists exactly what
-is sent.
+For two things only, both about updates. About once a day it asks GitHub whether a newer
+version has been released. And when you choose **Update to Iguana…** in its menu, it
+downloads that release from GitHub. It downloads a release by itself only if you switched on
+**Install updates automatically**, which is off to begin with.
+
+Neither request carries anything about you or your Mac. Before a download replaces anything,
+macOS checks it against the signature of the Iguana already installed. To switch the daily
+check off, turn off **Check for updates** in the General pane of the settings window, or set
+`check = false` under `[updates]` in the config file. With that, Iguana learns of no update
+and downloads none.
+[What Iguana says to the network](/help/under-the-hood/#what-iguana-says-to-the-network)
+lists exactly what is sent.
 
 ## Everyday use
 

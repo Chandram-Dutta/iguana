@@ -83,10 +83,11 @@
     },
     "updates": {
       "type": "object",
-      "description": "Noticing a newer Iguana. Nothing is ever downloaded or installed.",
+      "description": "Noticing a newer Iguana, and installing it. Nothing is downloaded until you choose the update in the menu, unless install is true.",
       "additionalProperties": false,
       "properties": {
-        "check": { "type": "boolean", "default": true, "description": "About once a day, ask GitHub whether a newer version has been released, and say so in the menu of the menu bar item. The request carries nothing about you or this Mac." }
+        "check": { "type": "boolean", "default": true, "description": "About once a day, ask GitHub whether a newer version has been released, and say so in the menu of the menu bar item. The request carries nothing about you or this Mac." },
+        "install": { "type": "boolean", "default": false, "description": "Install a newer version by itself when the daily check finds one, and restart Iguana. The download is checked against the signature of the Iguana that is installed before it replaces it. Does nothing while check is false." }
       }
     },
     "hooks": {

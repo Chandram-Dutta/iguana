@@ -63,11 +63,21 @@ struct GeneralPane: View {
 
             SettingSection(title: "Updates") {
                 SettingRow(title: "Check for updates",
-                           detail: "Once a day, ask GitHub whether a newer Iguana is out. Nothing about you is sent, and nothing is downloaded.") {
+                           detail: "Once a day, ask GitHub whether a newer Iguana is out. Nothing about you is sent. Nothing is downloaded until you choose the update in the menu.") {
                     Toggle("Check for updates", isOn: SwiftUI.Binding(
                         get: { model.config.checkForUpdates }, set: { model.set(["updates", "check"], .bool($0)) }))
                         .toggleStyle(.switch)
                         .labelsHidden()
+                }
+                SettingRow(title: "Install updates automatically",
+                           detail: model.config.checkForUpdates
+                               ? "When the daily check finds a newer Iguana, download it, check it against the signature of this one, install it and restart Iguana. Your windows stay where they are."
+                               : "Needs Check for updates. With that off Iguana asks GitHub nothing, so there is nothing to install.") {
+                    Toggle("Install updates automatically", isOn: SwiftUI.Binding(
+                        get: { model.config.installUpdates }, set: { model.set(["updates", "install"], .bool($0)) }))
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .disabled(!model.config.checkForUpdates)
                 }
                 SettingRow(title: model.updateSummary(running: Iguana.version)) {
                     HStack(spacing: 8) {

@@ -5,7 +5,8 @@ import Foundation
 /// news, which address may be opened, and when it is time to ask again. The app does the asking
 /// (`UpdateChecker`) and hands what it got to these functions.
 ///
-/// Iguana only ever says that a newer version exists. It downloads and installs nothing.
+/// Nothing here downloads or installs anything. Replacing the running app with a newer one is
+/// decided in `UpdateInstall`, and happens only when the user asks for it or has switched it on.
 public enum UpdateCheck {
     /// The GitHub repository Iguana's releases are published to, as `owner/name`. This is the
     /// one place that names it: the address that is asked and every address that may be opened

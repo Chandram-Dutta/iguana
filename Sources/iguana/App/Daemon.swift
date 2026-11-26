@@ -14,6 +14,9 @@ final class Daemon: NSObject, NSApplicationDelegate {
     private let hooks = Hooks()
     /// Looks once a day whether a newer Iguana has been released.
     private let updates = UpdateChecker()
+    /// Downloads, checks and installs a newer Iguana, when the user chooses it in the menu or
+    /// has switched on that it happens by itself.
+    private let installer = UpdateInstaller(steps: MacUpdateSteps()) { NSWorkspace.shared.open($0) }
     /// The ring around the focused window (`[focus-ring]`).
     private let focusRing = FocusRing()
     /// The outline that shows where a tiled window being dragged will land.
@@ -29,6 +32,8 @@ final class Daemon: NSObject, NSApplicationDelegate {
     private let settingsBackend: AppSettingsBackend
     private var settings: SettingsWindowController?
     private var trustTimer: Timer?
+    /// Starts the install of a known update by itself, if that is switched on and may happen now.
+    private let lookForInstall: () -> Void
 
     static func run() -> Never {
         signal(SIGPIPE, SIG_IGN)
@@ -47,7 +52,7 @@ final class Daemon: NSObject, NSApplicationDelegate {
     /// Makes the parts and hands each what it needs of the others. Nothing here touches the
     /// system: that waits for `applicationDidFinishLaunching`.
     override init() {
-        let wm = self.wm, updates = self.updates
+        let wm = self.wm, updates = self.updates, installer = self.installer
         // The newer release to tell the user about. With the check switched off Iguana says nothing.
         let knownUpdate = { wm.config.checkForUpdates ? updates.available : nil }
         let trusted = { AXIsProcessTrusted() }
@@ -56,11 +61,17 @@ final class Daemon: NSObject, NSApplicationDelegate {
             tour.reply(to: binding.command, binding: binding) ?? wm.run(binding.command)
         }
         let statusItem = StatusItemController(wm: wm, icons: icons, trusted: trusted, shortcutProblems: { shortcuts.problems },
-                                              knownUpdate: knownUpdate) { command in
+                                              knownUpdate: knownUpdate, installState: { installer.state },
+                                              installUpdate: { installer.install($0) }) { command in
             tour.reply(to: command) ?? wm.run(command)
         }
         let report = ShellReport(wm: wm, shortcuts: shortcuts, tourShowing: { tour.isShowing },
-                                 tilingHeld: { tour.isHoldingStart }, knownUpdate: knownUpdate)
+                                 tilingHeld: { tour.isHoldingStart }, knownUpdate: knownUpdate, installState: { installer.state })
+        // Installing by itself: only what the check found and may tell (so never with the check
+        // switched off), only when switched on, and never under the user's hands.
+        lookForInstall = {
+            installer.look(knownUpdate(), switchedOn: wm.config.installUpdates, tourShowing: tour.isShowing, dragging: wm.dragging != nil)
+        }
         requests = RequestHandler(run: { wm.run($0, window: $1) }, tourReply: { tour.reply(to: $0, window: $1) },
                                   jsonReport: report.json, checkForUpdate: { updates.checkNow($0) })
         settingsBackend = AppSettingsBackend(wm: wm, shortcuts: shortcuts, configWatcher: configWatcher, updates: updates,
@@ -114,7 +125,14 @@ final class Daemon: NSObject, NSApplicationDelegate {
         switcher.onChoose = { [weak self] id in self?.wm.bringForward(id) }
         switcher.onClose = { [weak self] in self?.pointerFocus.suspended = false }
         wm.onCheckForUpdate = { [weak self] in self?.updates.checkNow() }
-        updates.onChange = { [weak self] in self?.settings?.model.refresh() }
+        installer.onChange = { [weak self] in self?.statusItem.showInstall() }
+        updates.onChange = { [weak self] in
+            self?.settings?.model.refresh()
+            self?.lookForInstall()
+        }
+        // Every hour: what could not start an hour ago, with the tour on screen or a window in
+        // the hand, is looked at again.
+        updates.onLook = { [weak self] in self?.lookForInstall() }
         updates.start { [weak self] in self?.wm.config.checkForUpdates ?? false }
         NSApp.mainMenu = mainMenu.make()
         wm.reloadConfig()

@@ -95,18 +95,25 @@ Iguana does not need to get past it, because it never changes how the system wor
 
 The only permission Iguana asks for is Accessibility.
 
-## The one network request
+## What Iguana says to the network
 
 Iguana holds the Accessibility permission, so it owes you a plain account of what it says to
-the network. It makes one kind of request and no other: about once a day it asks GitHub
-whether a newer version of Iguana has been released.
+the network. It makes two kinds of request and no other:
 
-**The request carries nothing about you or your Mac: no identifier, no cookie and no stored
-credentials. It is made in a session that starts empty and is thrown away with the answer, it
-gives up after ten seconds, and it names itself `Iguana/0.3.0`, with the version you are
-running, and nothing else of note.**
+- **The check.** About once a day it asks GitHub whether a newer version of Iguana has been
+  released.
+- **The download.** When you choose **Update to Iguana…** in its menu, it downloads that
+  release from GitHub. It downloads a release by itself only if you switched on
+  [`install`](/reference/configuration/#install), which is off to begin with.
 
-In detail:
+**Neither request carries anything about you or your Mac: no identifier, no cookie and no
+stored credentials. Each is made in a session that starts empty and is thrown away with the
+answer, and names itself `Iguana/0.3.0`, with the version you are running, and nothing else
+of note.**
+
+### The check
+
+It gives up after ten seconds. In detail:
 
 | | |
 | --- | --- |
@@ -115,8 +122,8 @@ In detail:
 | What GitHub sees | What any server sees: the internet address the request comes from, and the three lines above. |
 | What is read | Four fields of the answer: the release's tag, the address of its page, and whether it is a draft or a prerelease. |
 | What counts as newer | A release that is neither a draft nor a prerelease, with a tag that is a version greater than yours. Versions are compared number by number, so `0.1.10` is newer than `0.1.9`. A tag that is not a version is ignored. |
-| What happens then | One item in the menu of the menu bar item, one line in `iguana status`. No alert, notification, badge or sound. Iguana downloads nothing and installs nothing. |
-| What is opened | Choosing the menu item opens the release's page in your browser, and only if that address is `https`, on `github.com` and inside Iguana's repository. For anything else Iguana opens the repository's list of releases. |
+| What happens then | One item in the menu of the menu bar item, one line in `iguana status`. No alert, notification, badge or sound. Nothing is downloaded until you choose that item, unless you switched on [`install`](/reference/configuration/#install). |
+| What is opened | Nothing, unless an install you chose fails. Then the release's page opens in your browser, and only if that address is `https`, on `github.com` and inside Iguana's repository. For anything else Iguana opens the repository's list of releases. The button in the settings window opens the same page. |
 | When | About twenty seconds after Iguana starts, if a day has passed since it last asked, and then once every 24 hours while it runs. A check that fails is written to the log once and tried again a day later. |
 | Redirects | Followed only to `api.github.com` over `https`. Any other is treated as a check that failed. |
 
@@ -130,7 +137,31 @@ check = false
 ```
 
 With that, Iguana makes no request at all unless you ask for one with
-[`iguana update`](/reference/commands/#update) or **Check Now** in the settings window.
+[`iguana update`](/reference/commands/#update) or **Check Now** in the settings window. It
+learns of no update, so it offers none and downloads none, whatever `install` says.
+
+### The download
+
+Nothing is downloaded until you choose **Update to Iguana…** in the menu. With
+[`install = true`](/reference/configuration/#install), the same download starts by itself
+when the daily check finds a newer version.
+
+| | |
+| --- | --- |
+| What is asked | `GET https://github.com/Chandram-Dutta/iguana/releases/download/v0.3.1/Iguana-0.3.1.zip`, with the real number: the zip that release publishes. Iguana makes this address itself from the version number. No address from GitHub's answer to the check is ever downloaded. |
+| What is sent | `User-Agent: Iguana/0.3.0`, `Accept: application/octet-stream` and `Accept-Language: en`. Nothing about your windows, apps, settings or Mac is in the request. |
+| Who sees it | GitHub, and the host GitHub keeps release files on, which GitHub sends the download on to. Each sees what any server sees: the internet address the request comes from, and the three lines above. |
+| Redirects | Followed only over `https`. Any other is treated as a download that failed. |
+| Limits | A download of more than 200 MB is stopped and thrown away. So is one that is silent for thirty seconds, or takes more than ten minutes. |
+| Where it is kept | In a temporary folder that only you can read, on the disk Iguana.app is on. The folder is removed when the install ends, whether it worked or not. |
+| What is checked | The unpacked app, by macOS's code signing, on your Mac. It must satisfy the same requirement macOS uses to recognise the Iguana you already have, which means it is signed by the same developer. It must be notarized by Apple. Every file in it must match its signature. It must call itself `xyz.onlychan.iguana`, and be the version that was asked for. |
+| What is trusted | Only that check. Not the address, not the server and not the connection: a download from anywhere is installed if and only if it passes. One that does not pass is thrown away, and nothing on your Mac is changed. |
+| What happens then | The new app takes the place of the old one in one move, and Iguana restarts. Your windows stay where they are. Your Accessibility permission carries over, because macOS sees the same app. |
+| What never happens | Iguana never asks for an administrator's password and never runs an installer. If you may not replace Iguana.app as yourself, it says so and opens the release's page. It never installs a version that is not newer than the one running. A copy that is not a released build, such as one you built yourself, does not update itself. |
+| When it starts by itself | Only with `install = true`, only for a version the daily check found, and never while the welcome tour is on screen or a window is being dragged. A version that could not be installed is tried again a day later. |
+
+Each step is written to the log, in lines that start with `update:`. When an install fails,
+[`iguana status`](/reference/commands/#status) says why.
 
 ## What is stored on disk
 
@@ -140,7 +171,8 @@ With that, Iguana makes no request at all unless you ask for one with
 | `~/Library/Application Support/Iguana/state.json` | The layout tree of each desktop, the windows you floated or tiled by hand and the minimum sizes Iguana has learned, with the app, title and frame of each of those windows. Written about a second after the layout changes and again when Iguana quits. |
 | `~/Library/Application Support/Iguana/iguana.sock` | The socket for the command line tool, `iguana subscribe` included — it keeps its connection open and is sent one line per event. Readable and writable only by you. |
 | `~/Library/Logs/Iguana.log` | The log. |
-| `~/Library/Preferences/xyz.onlychan.iguana.plist` | Whether the welcome tour has been shown, when Iguana last looked for a newer version, and the newer version it found. |
+| `~/Library/Preferences/xyz.onlychan.iguana.plist` | Whether the welcome tour has been shown, when Iguana last looked for a newer version, the newer version it found, and when it last tried to install one by itself. |
+| A folder in your temporary items | The download of an update, and the app unpacked from it, while an install runs. Readable only by you, and removed when the install ends. |
 
 When Iguana restarts, the saved state is used again as it is. The numbers that identify
 windows start over when the Mac restarts, so after that Iguana goes by each window's app,

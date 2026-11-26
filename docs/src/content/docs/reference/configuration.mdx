@@ -510,12 +510,14 @@ Either way, the menu itself has every desktop in it, and a click on one there go
 
 ## `[updates]`
 
-Whether Iguana looks for a newer version of itself. It only ever looks and tells you: it
-downloads nothing and installs nothing.
+Whether Iguana looks for a newer version of itself, and whether it installs one without
+being asked. Unless `install` is `true`, nothing is downloaded until you choose the update in
+the menu.
 
 ```toml title="iguana.toml"
 [updates]
 check = true
+install = false
 ```
 
 ### `check`
@@ -535,11 +537,12 @@ Whether Iguana asks GitHub, about once a day, if a newer version has been releas
 When there is a newer version:
 
 - The menu of the menu bar item gains one item, **Update to Iguana 0.3.1…** with the real
-  number, above **Settings…**. Choosing it opens that release's page in your browser.
+  number, above **Settings…**. Choosing it downloads that release, checks it, installs it and
+  restarts Iguana. Nothing is downloaded before you choose it.
 - [`status`](/reference/commands/#status) gains one line, and `status --json` an `update`.
 
-There is no alert, no notification, no badge and no sound. You update Iguana the way you
-installed it: see [Staying up to date](/start/install/#staying-up-to-date).
+There is no alert, no notification, no badge and no sound. See
+[Staying up to date](/start/install/#staying-up-to-date) for what an install does.
 
 A check that cannot be made, because the Mac is offline or GitHub does not answer, changes
 nothing you can see. It is written to the log once, and tried again a day later.
@@ -547,8 +550,41 @@ nothing you can see. It is written to the log once, and tried again a day later.
 The request carries nothing about you or your Mac: no identifier, no cookie and no stored
 credentials. It is one request for a public address that names itself `Iguana/0.3.0`, with
 the version you are running, and nothing else of note.
-[The one network request](/help/under-the-hood/#the-one-network-request) lists exactly what
-is sent and what is read.
+[What Iguana says to the network](/help/under-the-hood/#what-iguana-says-to-the-network)
+lists exactly what is sent and what is read.
+
+### `install`
+
+Whether Iguana installs a newer version by itself when the daily check finds one.
+
+| | |
+| --- | --- |
+| Type | boolean |
+| Default | `false` |
+
+| Value | Effect |
+| --- | --- |
+| `false` | A newer version is installed only when you choose **Update to Iguana…** in the menu. Until then nothing is downloaded. |
+| `true` | When the daily check finds a newer version, Iguana downloads it, checks it, puts it in the place of the app you have and restarts, without being asked. Your windows stay where they are. |
+
+`install` does nothing while [`check`](#check) is `false`: with the check off Iguana asks
+GitHub nothing, so it learns of no update and installs none.
+
+An install that starts by itself is the same install as the one in the menu:
+
+- The download comes from Iguana's releases on GitHub, at an address Iguana makes from the
+  version number. The request carries nothing about you or your Mac.
+- Before anything is replaced, macOS checks the download against the signature of the Iguana
+  already installed. It must be signed by the same developer and notarized by Apple, and it
+  must be Iguana, in the version that was found. A download that fails any of these is thrown
+  away, and nothing is changed.
+- Iguana never asks for an administrator's password, and never installs an older version. A
+  copy you built yourself does not update itself.
+
+It never starts while the welcome tour is on screen or while you are dragging a window.
+Iguana looks again within the hour. An install that fails is written to the log, and
+[`status`](/reference/commands/#status) says why. Iguana tries that version again a day
+later, and opens no browser by itself. The item in the menu still works at any time.
 
 ## `[hooks]`
 
@@ -1057,8 +1093,12 @@ click-to-switch = false
 
 [updates]
 # Once a day Iguana asks GitHub whether a newer version has been released, and says so in its
-# menu. It sends nothing about you or this Mac, and downloads and installs nothing.
+# menu. It sends nothing about you or this Mac. Nothing is downloaded until you choose the
+# update in the menu.
 check = true
+# true installs a newer version by itself when the daily check finds one, and restarts Iguana.
+# The download is checked against the signature of the Iguana you have before it replaces it.
+install = false
 
 # Shell commands that Iguana runs when something changes, for status bars and scripts.
 # "" runs nothing. The command gets the facts in environment variables: IGUANA_EVENT,

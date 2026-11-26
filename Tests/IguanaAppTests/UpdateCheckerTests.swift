@@ -172,6 +172,42 @@ final class UpdateCheckerTests: XCTestCase {
         XCTAssertEqual(asked, 3)
     }
 
+    func testEveryLookIsSaidOnceItsCheckHasBeenAnswered() {
+        var enabled = true
+        var looks = 0
+        var knownAtLook: [String?] = []
+        let checker = makeChecker()
+        checker.start { enabled }
+        checker.onLook = { [unowned checker] in
+            looks += 1
+            knownAtLook.append(checker.available?.version)
+        }
+
+        // A check is due: the look is said when GitHub has answered, not before.
+        held = []
+        checker.look()
+        XCTAssertEqual(asked, 1)
+        XCTAssertEqual(looks, 0)
+        let waiting = held ?? []
+        held = nil
+        waiting.forEach { $0(next) }
+        wait { looks == 1 }
+        XCTAssertEqual(knownAtLook, ["0.1.3"], "what is acted on is today's answer")
+
+        // No check is due: the look is said at once, and GitHub is not asked.
+        clock += 3600
+        checker.look()
+        XCTAssertEqual(asked, 1)
+        XCTAssertEqual(looks, 2)
+
+        // With the check switched off Iguana still looks, and asks nothing.
+        enabled = false
+        clock += 86400
+        checker.look()
+        XCTAssertEqual(asked, 1)
+        XCTAssertEqual(looks, 3)
+    }
+
     func testAFailedCheckIsQuietKeepsWhatWasKnownAndWaitsADay() {
         let checker = makeChecker()
         checker.start { true }
@@ -365,6 +401,20 @@ final class UpdateSettingsTests: XCTestCase {
         XCTAssertEqual(model.problems, [])
         model.set(["updates", "check"], .bool(true))
         XCTAssertTrue(model.config.checkForUpdates)
+    }
+
+    func testTheInstallSwitchWritesTheSetting() throws {
+        XCTAssertFalse(model.config.installUpdates, "off until the user switches it on")
+        model.set(["updates", "install"], .bool(true))
+        XCTAssertTrue(model.config.installUpdates)
+        XCTAssertTrue(model.config.checkForUpdates, "the other switch is left alone")
+        let text = try String(contentsOf: backend.configURL, encoding: .utf8)
+        XCTAssertTrue(text.contains("[updates]"))
+        XCTAssertTrue(text.contains("install = true"))
+        XCTAssertTrue(text.contains("check = true"))
+        XCTAssertEqual(model.problems, [])
+        model.set(["updates", "install"], .bool(false))
+        XCTAssertFalse(model.config.installUpdates)
     }
 
     func testCheckNowShowsWhatItFound() throws {

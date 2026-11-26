@@ -272,10 +272,17 @@ public enum Report {
         public var version: String
         /// The page of that release.
         public var url: String
+        /// What an install of that release is doing: `downloading`, `checking`, `installing`
+        /// or `restarting`. Left out when none is under way.
+        public var installing: String?
+        /// Why the last install of that release stopped. Left out when none did.
+        public var installStopped: String?
 
-        public init(version: String, url: String) {
+        public init(version: String, url: String, installing: String? = nil, installStopped: String? = nil) {
             self.version = version
             self.url = url
+            self.installing = installing
+            self.installStopped = installStopped
         }
     }
 

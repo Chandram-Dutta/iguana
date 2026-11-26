@@ -2,7 +2,9 @@ import Foundation
 import IguanaCore
 
 /// Asks GitHub whether a newer Iguana has been released, about once a day, and remembers the
-/// answer. It only ever finds out and says so: nothing is downloaded and nothing is installed.
+/// answer. This file only ever finds out and says so. Downloading and installing a release is
+/// `UpdateInstaller`'s work, and happens when the user chooses it in the menu, or by itself
+/// only if they switched `[updates] install` on.
 ///
 /// What the answer means, which address may be opened and when a check is due are decided in
 /// IguanaCore (`UpdateCheck`). This file does the asking and the remembering.
@@ -11,6 +13,7 @@ import IguanaCore
 /// with Iguana's name and version as its `User-Agent`; there are no cookies, no stored
 /// credentials, no cache and no identifier, and the session it is made in is thrown away with
 /// the answer. GitHub sees what any server sees: the internet address the request came from.
+/// The download of a release is made the same way (`configuration`).
 final class UpdateChecker {
     /// What came back: the HTTP status and the body, or why there was no answer.
     typealias Answer = Result<(status: Int, body: Data), Error>
@@ -37,6 +40,9 @@ final class UpdateChecker {
     private(set) var available: UpdateCheck.Update?
     /// Called when `available` changed.
     var onChange: (() -> Void)?
+    /// Called after each look Iguana takes by itself, once its check, if one was due, has been
+    /// answered. An update that could not be installed by itself an hour ago is looked at again here.
+    var onLook: (() -> Void)?
 
     private var enabled: () -> Bool = { false }
     private var timers: [Timer] = []
@@ -68,8 +74,8 @@ final class UpdateChecker {
     func start(enabled: @escaping () -> Bool) {
         self.enabled = enabled
         timers.forEach { $0.invalidate() }
-        let first = Timer.scheduledTimer(withTimeInterval: UpdateCheck.startDelay, repeats: false) { [weak self] _ in self?.checkIfDue() }
-        let hourly = Timer.scheduledTimer(withTimeInterval: Self.lookEvery, repeats: true) { [weak self] _ in self?.checkIfDue() }
+        let first = Timer.scheduledTimer(withTimeInterval: UpdateCheck.startDelay, repeats: false) { [weak self] _ in self?.look() }
+        let hourly = Timer.scheduledTimer(withTimeInterval: Self.lookEvery, repeats: true) { [weak self] _ in self?.look() }
         hourly.tolerance = 5 * 60
         timers = [first, hourly]
     }
@@ -78,6 +84,16 @@ final class UpdateChecker {
     func checkIfDue() {
         guard UpdateCheck.isDue(enabled: enabled(), lastCheck: lastCheck, now: now()) else { return }
         checkNow()
+    }
+
+    /// What the timers do: ask if a check is due, and then say that Iguana has looked. When a
+    /// check is made, that waits for its answer, so that what is acted on is not yesterday's news.
+    func look() {
+        guard UpdateCheck.isDue(enabled: enabled(), lastCheck: lastCheck, now: now()) else {
+            onLook?()
+            return
+        }
+        checkNow { [weak self] _ in self?.onLook?() }
     }
 
     /// Ask now, whatever the setting. Call on the main thread; `completion` runs there too.
@@ -135,7 +151,7 @@ final class UpdateChecker {
 
     // MARK: The request
 
-    /// The one request Iguana ever makes: GitHub's public "latest release" of this repository.
+    /// The request Iguana makes by itself: GitHub's public "latest release" of this repository.
     static func request(url: URL = UpdateCheck.latestReleaseURL, version: String = Iguana.version) -> URLRequest {
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: UpdateCheck.timeout)
         request.httpShouldHandleCookies = false
@@ -150,9 +166,16 @@ final class UpdateChecker {
     /// A session that starts with nothing and keeps nothing: no cookies, no credentials, no cache.
     /// `protocols` lets a test answer in GitHub's place, so that no test touches the network.
     static func session(protocols: [AnyClass]? = nil) -> URLSession {
+        URLSession(configuration: configuration(protocols: protocols), delegate: RedirectGuard(), delegateQueue: nil)
+    }
+
+    /// How every request Iguana makes is set up, the check and the download of a release alike.
+    /// `silence` is how long the server may say nothing, `whole` how long all of it may take.
+    static func configuration(silence: TimeInterval = UpdateCheck.timeout, whole: TimeInterval = UpdateCheck.timeout,
+                              protocols: [AnyClass]? = nil) -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = UpdateCheck.timeout
-        configuration.timeoutIntervalForResource = UpdateCheck.timeout
+        configuration.timeoutIntervalForRequest = silence
+        configuration.timeoutIntervalForResource = whole
         configuration.waitsForConnectivity = false
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.urlCache = nil
@@ -161,7 +184,7 @@ final class UpdateChecker {
         configuration.httpCookieAcceptPolicy = .never
         configuration.urlCredentialStorage = nil
         if let protocols { configuration.protocolClasses = protocols }
-        return URLSession(configuration: configuration, delegate: RedirectGuard(), delegateQueue: nil)
+        return configuration
     }
 
     static func askGitHub(request: URLRequest = UpdateChecker.request(), protocols: [AnyClass]? = nil,

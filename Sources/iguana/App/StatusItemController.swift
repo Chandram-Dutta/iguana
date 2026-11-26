@@ -12,6 +12,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let shortcutProblems: () -> [String]
     /// The newer release to tell the user about, if there is one and it may be told.
     private let knownUpdate: () -> UpdateCheck.Update?
+    /// Where the install of a newer release is, if one was started.
+    private let installState: () -> UpdateInstall.State
+    /// Downloads, checks and installs a release, and restarts Iguana.
+    private let installUpdate: (UpdateCheck.Update) -> Void
     /// Runs a command as a shortcut would: on the tour's practice desktop while the tour has
     /// the keyboard, on the real windows otherwise.
     private let run: (Command) -> String
@@ -24,17 +28,23 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let deskModel = DeskModel()
     private lazy var deskHost = NSHostingView(rootView: DeskView(model: deskModel))
     private let deskItem = NSMenuItem()
+    /// The item for a newer release while the menu holds one, so its title can follow an
+    /// install while the menu is open.
+    private weak var updateItem: NSMenuItem?
     /// The desktops drawn in the menu bar when it shows more than one, and the one in use.
     private var statusSlots: [StatusIcon.Slot] = []
     private var activeDeskNumber: Int?
 
     init(wm: WindowManager, icons: AppIcons, trusted: @escaping () -> Bool, shortcutProblems: @escaping () -> [String],
-         knownUpdate: @escaping () -> UpdateCheck.Update?, run: @escaping (Command) -> String) {
+         knownUpdate: @escaping () -> UpdateCheck.Update?, installState: @escaping () -> UpdateInstall.State = { .idle },
+         installUpdate: @escaping (UpdateCheck.Update) -> Void = { _ in }, run: @escaping (Command) -> String) {
         self.wm = wm
         self.icons = icons
         self.trusted = trusted
         self.shortcutProblems = shortcutProblems
         self.knownUpdate = knownUpdate
+        self.installState = installState
+        self.installUpdate = installUpdate
         self.run = run
     }
 
@@ -193,7 +203,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         if !problems.isEmpty {
             add("\(problems.count) config problem\(problems.count == 1 ? "" : "s") (see log)", #selector(openLog))
         }
-        if let update = knownUpdate() { add(UpdateCheck.menuTitle(update), #selector(openUpdatePage)) }
+        updateItem = nil
+        if installState().stage != nil || knownUpdate() != nil {
+            add("", #selector(startUpdate))
+            updateItem = menu.items.last
+            showInstall()
+        }
         add("Settings…", #selector(showSettings), key: ",")
         add("Edit Config File", #selector(editConfig))
         add("Welcome Tour…", #selector(showTourFromMenu))
@@ -214,9 +229,29 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func quit() { NSApp.terminate(nil) }
     @objc private func openLog() { NSWorkspace.shared.open(Log.url) }
 
-    /// Opens the page of the newer release in the browser. The address was checked when the
-    /// release was found (`UpdateCheck.page`); the list of releases stands in if it is gone.
-    @objc private func openUpdatePage() { NSWorkspace.shared.open(knownUpdate()?.page ?? UpdateCheck.releasesPage) }
+    /// Downloads the newer release, checks it, puts it in the place of this Iguana and
+    /// restarts. Nothing is downloaded before this is chosen. If it cannot be done, the
+    /// installer opens the release's page, as this item did before Iguana could update itself.
+    @objc private func startUpdate() {
+        guard installState().stage == nil, let update = knownUpdate() else { return }
+        installUpdate(update)
+    }
+
+    /// The item for a newer release says what the install is doing, and cannot be chosen
+    /// while it is doing it. Called when the install moved on, which can be while the menu is open.
+    func showInstall() {
+        guard let item = updateItem else { return }
+        if let working = installState().menuTitle {
+            item.title = working
+            // An item without an action is drawn as one that cannot be chosen.
+            item.action = nil
+        } else if let update = knownUpdate() {
+            item.title = UpdateCheck.menuTitle(update)
+            item.action = #selector(startUpdate)
+        }
+        // Has an open menu look again at which of its items can be chosen.
+        item.menu?.update()
+    }
 
     @objc private func openAccessibilitySettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {

@@ -34,14 +34,25 @@ brew trust chandram-dutta/tap     # newer versions of Homebrew ask for this; old
 brew install --cask chandram-dutta/tap/iguana
 ```
 
-This also puts the `iguana` command on your PATH. Update later with `brew upgrade --cask iguana`.
+This also puts the `iguana` command on your PATH. Iguana updates itself from its menu, and
+`brew upgrade --cask iguana` still works.
 
 Iguana tells you when there is something to update to. About once a day it asks GitHub for the
 latest release, and when that is newer than yours the menu gains one item, "Update to Iguana
-0.3.1…", which opens the release's page. No alert, no notification, and nothing is downloaded
-or installed. The request carries nothing about you or your Mac: no identifier, no cookie, no
-stored credentials, only a `User-Agent` of `Iguana/<version>`. `iguana update` asks right now;
-`check = false` under `[updates]`, or the switch in the settings window, turns the daily check off.
+0.3.1…". Choose it and Iguana downloads that release from GitHub, checks it, puts it in the
+place of the app you have and restarts. Your windows stay where they are. No alert, no
+notification, and nothing is downloaded until you choose that item.
+
+Before anything is replaced, macOS checks the download against the signature of the Iguana
+already installed. It must be signed by the same developer and notarized by Apple. If it is
+not, it is thrown away, nothing is changed, and the release's page opens instead. Iguana never
+asks for an administrator's password.
+
+Neither request carries anything about you or your Mac: no identifier, no cookie, no stored
+credentials, only a `User-Agent` of `Iguana/<version>`. `iguana update` asks right now;
+`check = false` under `[updates]`, or the switch in the settings window, turns the daily check
+off. `install = true` there installs a newer version by itself when the daily check finds one.
+It is off unless you switch it on.
 
 ### Download
 

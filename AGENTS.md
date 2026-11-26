@@ -75,3 +75,5 @@ A tiling window manager for macOS. Swift package; no Xcode project needed.
 - Never run `iguana daemon` or a built Iguana.app while another Iguana manages the windows.
 - `iguana debug-snapshot|debug-desk|debug-tour|debug-switcher <folder>` render offscreen and
   are safe to run.
+- Tests of the updater never touch `/Applications` or the network: they replace throwaway apps
+  in temporary folders, and restart nothing.

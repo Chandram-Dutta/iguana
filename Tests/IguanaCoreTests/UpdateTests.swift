@@ -300,11 +300,11 @@ final class UpdateTests: XCTestCase {
         let (off, none) = try Config.load("[updates]\ncheck = false\n")
         XCTAssertFalse(off.checkForUpdates)
         XCTAssertEqual(none, [])
-        let (wrong, warnings) = try Config.load("[updates]\ncheck = \"daily\"\ninstall = true\n")
+        let (wrong, warnings) = try Config.load("[updates]\ncheck = \"daily\"\nchannel = \"beta\"\n")
         XCTAssertTrue(wrong.checkForUpdates, "a value that is not true or false keeps the default")
         XCTAssertEqual(warnings.count, 2)
         XCTAssertTrue(warnings.contains("updates.check must be true or false; keeping the default"))
-        XCTAssertTrue(warnings.contains("unknown key 'install' in [updates]"))
+        XCTAssertTrue(warnings.contains("unknown key 'channel' in [updates]"))
         XCTAssertEqual(try TOML.parse(Config.defaultText)["updates"]?.tableValue?["check"], .bool(true))
     }
 

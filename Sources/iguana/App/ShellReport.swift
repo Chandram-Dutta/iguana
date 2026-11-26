@@ -11,6 +11,8 @@ struct ShellReport {
     let tilingHeld: () -> Bool
     /// The newer release to tell the user about, if there is one and it may be told.
     let knownUpdate: () -> UpdateCheck.Update?
+    /// Where the install of a newer release is, if one was started.
+    var installState: () -> UpdateInstall.State = { .idle }
     var now: () -> Date = Date.init
 
     /// The extra lines of `iguana status`.
@@ -24,7 +26,12 @@ struct ShellReport {
         } else {
             lines.append("last shortcut: none received since Iguana started")
         }
-        if let update = knownUpdate() { lines.append(UpdateCheck.statusLine(update)) }
+        let update = knownUpdate()
+        if let update { lines.append(UpdateCheck.statusLine(update)) }
+        // An install under way, or why the last one stopped. With the check switched off
+        // nothing is said about versions, so only an install that is running is.
+        let install = installState()
+        if let line = install.statusLine, update != nil || install.stage != nil { lines.append(line) }
         return lines
     }
 
@@ -36,6 +43,13 @@ struct ShellReport {
         }
         return wm.jsonReport(command, shortcuts: Report.Shortcuts(active: shortcuts.registered, warnings: shortcuts.problems),
                              tourShowing: tourShowing(), lastShortcut: last,
-                             update: knownUpdate().map { Report.Update(version: $0.version, url: $0.page.absoluteString) })
+                             update: knownUpdate().map { update in
+                                 // What the installer says counts only for the release it was about.
+                                 let install = installState()
+                                 let mine = install.version == update.version
+                                 return Report.Update(version: update.version, url: update.page.absoluteString,
+                                                      installing: mine ? install.stage?.rawValue : nil,
+                                                      installStopped: mine ? install.stopped : nil)
+                             })
     }
 }

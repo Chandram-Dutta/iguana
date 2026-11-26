@@ -138,6 +138,9 @@ public struct Config: Equatable {
     public var hooks: [HookEvent: String] = [:]
     /// Ask GitHub about once a day whether a newer Iguana has been released.
     public var checkForUpdates = true
+    /// Install what the daily check finds without being asked. Off unless the user says so: an
+    /// app that replaces itself from the network does that only for someone who chose it.
+    public var installUpdates = false
     /// The ring around the window that has the focus.
     public var focusRing = FocusRingSettings()
 
@@ -192,8 +195,12 @@ public struct Config: Equatable {
 
     [updates]
     # Once a day Iguana asks GitHub whether a newer version has been released, and says so in its
-    # menu. It sends nothing about you or this Mac, and downloads and installs nothing.
+    # menu. It sends nothing about you or this Mac. Nothing is downloaded until you choose the
+    # update in the menu.
     check = true
+    # true installs a newer version by itself when the daily check finds one, and restarts Iguana.
+    # The download is checked against the signature of the Iguana you have before it replaces it.
+    install = false
 
     # Shell commands that Iguana runs when something changes, for status bars and scripts.
     # "" runs nothing. The command gets the facts in environment variables: IGUANA_EVENT,
@@ -433,8 +440,9 @@ public struct Config: Equatable {
         }
 
         if let updates = doc["updates"]?.tableValue {
-            checkKeys(updates, ["check"], "[updates]")
+            checkKeys(updates, ["check", "install"], "[updates]")
             if let v = flag(updates["check"], "updates.check") { c.checkForUpdates = v }
+            if let v = flag(updates["install"], "updates.install") { c.installUpdates = v }
         }
 
         if let hooks = doc["hooks"]?.tableValue {
