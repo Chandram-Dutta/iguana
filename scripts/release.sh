@@ -95,14 +95,8 @@ fi
 # The zip, for Homebrew.
 ditto -c -k --keepParent "$APP" "$ZIP"
 
-# The disk image: the app beside a shortcut to Applications.
-STAGE="build/dmg"
-rm -rf "$STAGE"
-mkdir -p "$STAGE"
-cp -R "$APP" "$STAGE/"
-ln -s /Applications "$STAGE/Applications"
-hdiutil create -quiet -volname "Iguana $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
-rm -rf "$STAGE"
+# The disk image: the app beside a shortcut to Applications, on its picture.
+scripts/dmg.sh "$APP" "$VERSION" "$DMG"
 if [ "$DEVELOPER_ID" = 1 ]; then
     # By fingerprint, not by name: two certificates can carry the same name.
     IDENTITY="$(security find-identity -v -p codesigning | grep "Developer ID Application" | grep "($TEAM_ID)" | awk '!seen {print $2; seen = 1}')"
