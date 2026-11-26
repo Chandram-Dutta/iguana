@@ -39,7 +39,7 @@ This also puts the `iguana` command on your PATH. Iguana updates itself from its
 
 Iguana tells you when there is something to update to. About once a day it asks GitHub for the
 latest release, and when that is newer than yours the menu gains one item, "Update to Iguana
-0.3.1…". Choose it and Iguana downloads that release from GitHub, checks it, puts it in the
+0.4.1…". Choose it and Iguana downloads that release from GitHub, checks it, puts it in the
 place of the app you have and restarts. Your windows stay where they are. No alert, no
 notification, and nothing is downloaded until you choose that item.
 

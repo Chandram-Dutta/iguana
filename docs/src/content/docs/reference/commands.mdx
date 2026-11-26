@@ -822,8 +822,8 @@ has answered. That usually takes a moment, and never more than about ten seconds
 
 | Reply | When |
 | --- | --- |
-| `ok: Iguana 0.3.0 is the latest version` | Nothing newer has been released. The number is the version you are running. |
-| `ok: Iguana 0.3.1 is available at https://github.com/Chandram-Dutta/iguana/releases/tag/v0.3.1` | The newer version, and the address of its page. |
+| `ok: Iguana 0.4.0 is the latest version` | Nothing newer has been released. The number is the version you are running. |
+| `ok: Iguana 0.4.1 is available at https://github.com/Chandram-Dutta/iguana/releases/tag/v0.4.1` | The newer version, and the address of its page. |
 | `error: could not check for a newer version: …` | The check could not be made, and why: the Mac is offline, or GitHub did not answer as expected. |
 
 The command only asks: it downloads nothing and installs nothing. To install what it found,
@@ -1162,7 +1162,7 @@ many windows and apps it is watching, the state of Stage Manager, what each disp
 showing, how many shortcuts are active, and the last shortcut it received with its answer.
 
 ```text
-Iguana 0.3.0: tiling
+Iguana 0.4.0: tiling
 config: /Users/you/.config/iguana/iguana.toml
 windows: 3 tiled on screen, 7 known, 5 apps watched
 stage manager: off
@@ -1179,7 +1179,7 @@ Before the permission is granted, `status` says that Iguana is waiting for it.
 When Iguana knows of a newer version of itself, one more line at the end says so:
 
 ```text
-update: Iguana 0.3.1 is available (https://github.com/Chandram-Dutta/iguana/releases/tag/v0.3.1)
+update: Iguana 0.4.1 is available (https://github.com/Chandram-Dutta/iguana/releases/tag/v0.4.1)
 ```
 
 The line is there after the [daily check](/reference/configuration/#check) or
@@ -1190,8 +1190,8 @@ While Iguana is installing that version, a line below it says what the install i
 says why instead, until Iguana quits:
 
 ```text
-update: installing Iguana 0.3.1 (downloading)
-update: Iguana 0.3.1 was not installed: the download failed (The Internet connection appears to be offline.)
+update: installing Iguana 0.4.1 (downloading)
+update: Iguana 0.4.1 was not installed: the download failed (The Internet connection appears to be offline.)
 ```
 
 With `--json`:
@@ -1232,7 +1232,7 @@ With `--json`:
   },
   "tourShowing" : false,
   "update" : null,
-  "version" : "0.3.0",
+  "version" : "0.4.0",
   "windows" : {
     "apps" : 5,
     "known" : 7,
@@ -1256,7 +1256,7 @@ With `--json`:
 | `mode` | The [mode](#mode) whose shortcuts are on, for example `"resize"`. `null` while those of `[bindings]` are. |
 | `tourShowing` | `true` while the welcome tour is on screen. |
 | `lastShortcut` | The last shortcut received: its `keys`, how many `secondsAgo`, and the `reply` it got. `null` when none has been received since Iguana started. |
-| `update` | A newer version of Iguana: its `version`, for example `"0.3.1"`, and the `url` of its page. While Iguana is installing it, `installing` is there too: `"downloading"`, `"checking"`, `"installing"` or `"restarting"`. If the last install of it stopped, `installStopped` says why. `null` when no newer version is known: there is none, Iguana has not looked yet, or [`updates.check`](/reference/configuration/#check) is `false`. |
+| `update` | A newer version of Iguana: its `version`, for example `"0.4.1"`, and the `url` of its page. While Iguana is installing it, `installing` is there too: `"downloading"`, `"checking"`, `"installing"` or `"restarting"`. If the last install of it stopped, `installStopped` says why. `null` when no newer version is known: there is none, Iguana has not looked yet, or [`updates.check`](/reference/configuration/#check) is `false`. |
 
 ### `subscribe`
 

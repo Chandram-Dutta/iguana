@@ -108,7 +108,7 @@ the network. It makes two kinds of request and no other:
 
 **Neither request carries anything about you or your Mac: no identifier, no cookie and no
 stored credentials. Each is made in a session that starts empty and is thrown away with the
-answer, and names itself `Iguana/0.3.0`, with the version you are running, and nothing else
+answer, and names itself `Iguana/0.4.0`, with the version you are running, and nothing else
 of note.**
 
 ### The check
@@ -118,7 +118,7 @@ It gives up after ten seconds. In detail:
 | | |
 | --- | --- |
 | What is asked | `GET https://api.github.com/repos/Chandram-Dutta/iguana/releases/latest`, GitHub's public description of the latest release. The address is the same for everyone and needs no account. |
-| What is sent | Three things, beyond what every web request carries: `User-Agent: Iguana/0.3.0`, `Accept: application/vnd.github+json` and `Accept-Language: en`. The last is fixed so that the languages chosen in System Settings are not sent. Nothing about your windows, apps, settings or Mac is in the request. |
+| What is sent | Three things, beyond what every web request carries: `User-Agent: Iguana/0.4.0`, `Accept: application/vnd.github+json` and `Accept-Language: en`. The last is fixed so that the languages chosen in System Settings are not sent. Nothing about your windows, apps, settings or Mac is in the request. |
 | What GitHub sees | What any server sees: the internet address the request comes from, and the three lines above. |
 | What is read | Four fields of the answer: the release's tag, the address of its page, and whether it is a draft or a prerelease. |
 | What counts as newer | A release that is neither a draft nor a prerelease, with a tag that is a version greater than yours. Versions are compared number by number, so `0.1.10` is newer than `0.1.9`. A tag that is not a version is ignored. |
@@ -148,8 +148,8 @@ when the daily check finds a newer version.
 
 | | |
 | --- | --- |
-| What is asked | `GET https://github.com/Chandram-Dutta/iguana/releases/download/v0.3.1/Iguana-0.3.1.zip`, with the real number: the zip that release publishes. Iguana makes this address itself from the version number. No address from GitHub's answer to the check is ever downloaded. |
-| What is sent | `User-Agent: Iguana/0.3.0`, `Accept: application/octet-stream` and `Accept-Language: en`. Nothing about your windows, apps, settings or Mac is in the request. |
+| What is asked | `GET https://github.com/Chandram-Dutta/iguana/releases/download/v0.4.1/Iguana-0.4.1.zip`, with the real number: the zip that release publishes. Iguana makes this address itself from the version number. No address from GitHub's answer to the check is ever downloaded. |
+| What is sent | `User-Agent: Iguana/0.4.0`, `Accept: application/octet-stream` and `Accept-Language: en`. Nothing about your windows, apps, settings or Mac is in the request. |
 | Who sees it | GitHub, and the host GitHub keeps release files on, which GitHub sends the download on to. Each sees what any server sees: the internet address the request comes from, and the three lines above. |
 | Redirects | Followed only over `https`. Any other is treated as a download that failed. |
 | Limits | A download of more than 200 MB is stopped and thrown away. So is one that is silent for thirty seconds, or takes more than ten minutes. |

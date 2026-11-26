@@ -2,7 +2,7 @@ import Foundation
 
 /// What Iguana is and where it keeps its files.
 enum Iguana {
-    static let version = "0.3.0"
+    static let version = "0.4.0"
 
     static var configURL: URL {
         // Only an absolute path counts, as the XDG specification says; anything else would
